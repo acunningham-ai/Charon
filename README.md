@@ -60,6 +60,22 @@ Built into the harness, not bolted on. Each is enforced by a specific mechanism,
 - **`/owasp-agentic-review`** — OWASP Agentic AI Security 2026 (ASI01-ASI10): goal hijack, tool misuse, identity/privilege abuse, supply chain, code execution, memory poisoning, inter-agent comms, cascading failures, human-agent trust, rogue agents
 - **`/fp-check`** — false-positive verification gate that re-reads cited file:line, reproduces or withdraws each 🔴 finding. Forces evidence before any block-merge claim.
 
+### Bi-directional email capture (inbox + sent items)
+
+A working capture pipeline ships in `capture-pipeline/` — not a pattern, a runnable Node.js reference implementation. Pulls **both inbox and sent items** from your email provider into your vault as markdown captures, with a `direction: inbound|outbound` frontmatter flag that downstream skills read.
+
+| Provider | Status |
+|---|---|
+| **Microsoft 365 (Graph API)** | Fully implemented — device-code OAuth, paginated inbox + SentItems, cursor-based incremental |
+| **Gmail (Gmail API)** | Skeleton — interface complete, implementation stubbed with NOT_IMPLEMENTED + full setup walk-through in `EMAIL-PROVIDER-SETUP.md` |
+| **Generic IMAP** | Skeleton — same as Gmail |
+
+**Why sent items.** Inbox-only capture leaves a one-sided view of every conversation. You see what *they* sent; you don't see what you committed to in reply, what threads you owe a follow-up on, or what you said two weeks ago. Sent-items capture closes the loop: `/refresh-todo` and `/triage-inbox` can surface *"you sent X two days ago, no reply yet"* — time-management signal that an inbox-only pipeline can't produce. The default is on; if your use case is privacy-constrained, set `capture.sent: false` and the pipeline skips the sent path.
+
+**Why a reference implementation, not just a pattern.** Pattern docs are easy to write and hard to verify. The capture-pipeline ships fully working for M365 so a new user can verify the end-to-end flow (auth → fetch → classify → write → dedup) on day one, then either use it as-is or fork it for their provider. Gmail + IMAP skeletons document the interface and setup steps; filling in the methods is a contained ~half-day job.
+
+**User-configurable schedule.** The first-run wizard captures your preferred run frequency (daily / hourly / manual) and run time. `capture-pipeline/scheduled-capture.bat` (Windows) and `capture-pipeline/scheduled-capture.sh` (macOS / Linux) wrap the runner; you register them with Task Scheduler / cron / launchd. Full walk-through per platform in `EMAIL-PROVIDER-SETUP.md`.
+
 ### Tested, not just documented
 
 `test-scenarios/` ships with the harness — 10 LLM-behaviour scenarios + 7 automated deterministic checks. The same suite runs before any release and after any material change to rules / hooks / wizard. Pass-rate threshold is published; releases with a failing scenario must document it in known-limitations.
@@ -117,7 +133,7 @@ Full walkthrough: [`INSTALL.md`](INSTALL.md).
 | **Semantic search** | Local embeddings via `sentence-transformers` + `bge-micro-v2` (~80MB) → `sqlite-vec` vector store. Indexer at `scripts/semantic_index.py`. Optional install via `requirements-semantic.txt`. |
 | **Knowledge graph** | Kuzu-backed entity + relationship graph extracted via Haiku at `scripts/extract_entities.py`. Optional install via `requirements-graph.txt`. |
 | **Voice capture** | Local Whisper transcription via `scripts/voice-capture.py` + `/voice-note` slash command. Audio never leaves the machine. Optional install via `requirements-voice.txt`. |
-| **Capture pipeline** | Pattern for ingesting M365 / Slack / Notion / Granola / etc. into the untrusted captured-content zone, with prompt-injection wrappers and dedup |
+| **Capture pipeline** | Runnable Node.js reference impl — inbox + sent items via M365 (fully implemented), Gmail + IMAP (skeletons). `direction: inbound\|outbound` frontmatter, user-configurable schedule, prompt-injection wrapper on every capture, dedup by provider ID. See `EMAIL-PROVIDER-SETUP.md`. |
 | **First-run wizard** | YAML-defined questions (4 phases / 24 questions), state file resume on Ctrl+C, atomic write at the end, ANSI banner with optional ASCII trademark logo |
 | **Test suite** | 10 LLM-behaviour scenarios + 7 deterministic checks (YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render) |
 | **Utility scripts** | score-vault, skill-curator, scheduled-audit, archive-captures, audit-unattended-run, recover-ssh-creds, check-capture-state, telemetry-summary |
@@ -135,7 +151,7 @@ Honest about the gaps. Charon's current bet is opinionated discipline + security
 - **No observability + replay layer.** `skill-usage-log.py` writes events but there's no tamper-evident ledger, session trace, or replay capability (Langfuse-style self-hosted observability is on the roadmap; relevant to EU AI Act Article 19 audit-trail retention).
 - **Not in a plugin marketplace yet.** Installable via clone + bootstrap, not via a single `claude install` command. Marketplace packaging is near-term.
 - **Test suite is single-shot, not adversarial.** 10 LLM-behaviour scenarios + 7 deterministic checks; no automated red-team probing (DeepTeam / PyRIT / Garak) yet.
-- **Capture pipeline ships as a pattern, not a runnable component.** The M365 reference implementation exists in docs; you bring your own runner. Other providers (Gmail / Workspace / Slack / Granola) follow the same pattern.
+- **Gmail and IMAP capture-pipeline providers are skeleton-only.** M365 ships fully working (device-code OAuth, inbox + sent, cursor-based incremental). Gmail and IMAP have the interface defined and setup docs written, but the `auth() / fetchInbox() / fetchSent()` methods throw `NOT_IMPLEMENTED` until a contributor (you, or an upstream PR) fills them in. Estimated half-day per provider.
 
 See [`ROADMAP.md`](ROADMAP.md) for what's coming next and what won't ship.
 

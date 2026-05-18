@@ -463,6 +463,44 @@ questions:
     depends_on:
       capture_pipeline_provider: "imap"
 
+  # --- Pipeline schedule (applies to all providers) ---
+
+  - id: pipeline_schedule_frequency
+    phase: workflow
+    prompt: "How often should the pipeline run? (daily / hourly / manual)"
+    description: |
+      - daily   — once per day at a chosen time. Most users. Pairs well with
+                  morning-update / refresh-todo (your day starts with fresh captures).
+      - hourly  — every hour. Useful if you want near-real-time threads, but
+                  watch token quota on rate-limited providers.
+      - manual  — no automation. You run `node fetch-mail.mjs all` when you want.
+
+      You can change this any time by re-registering the scheduled task or
+      editing the cron/launchd entry. The wizard records the choice; you wire
+      it to your platform's scheduler (Task Scheduler / cron / launchd) — see
+      EMAIL-PROVIDER-SETUP.md §Scheduling.
+    default: "daily"
+    required: false
+    skippable: true
+    type: choice
+    choices: [daily, hourly, manual]
+    depends_on:
+      capture_pipeline_setup: "y"
+
+  - id: pipeline_schedule_time
+    phase: workflow
+    prompt: "Daily run time? (24h HH:MM, e.g. 07:00)"
+    description: |
+      Time of day the daily capture run fires. 07:00 (morning) pairs well
+      with /refresh-todo as part of your day-start routine. Use your local
+      timezone; the scheduler runs the wrapper script which calls Node.
+    default: "07:00"
+    required: false
+    skippable: true
+    type: string
+    depends_on:
+      pipeline_schedule_frequency: "daily"
+
   - id: scheduled_tasks_setup
     phase: workflow
     prompt: "Set up scheduled tasks now? (capture, weekly-checkin, scheduled-audit) (y/n)"

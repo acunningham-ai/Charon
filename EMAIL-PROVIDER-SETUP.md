@@ -258,6 +258,105 @@ node fetch-mail.mjs all
 
 ---
 
+## Scheduling
+
+Once `node fetch-mail.mjs all` works manually, register it with your platform's scheduler. The first-run wizard records your preferred frequency + time; this section walks you through wiring it in.
+
+### Windows — Task Scheduler
+
+The pipeline ships with `capture-pipeline/scheduled-capture.bat` as the wrapper.
+
+```powershell
+# Open Task Scheduler — Create Basic Task
+#   Name: Charon Capture
+#   Trigger: Daily at <your chosen time, default 07:00>
+#   Action: Start a program
+#     Program: C:\path\to\Charon\capture-pipeline\scheduled-capture.bat
+#     Start in: C:\path\to\Charon\capture-pipeline
+#
+# Recommended settings:
+#   - "Run only when user is logged on" (NOT "run whether user is logged on or not")
+#   - "Do not start a new instance" (parallel-run safety)
+#   - UNCHECK "Wake the computer to run this task"
+#   - UNCHECK "Run with highest privileges"
+```
+
+Or via PowerShell:
+
+```powershell
+$action = New-ScheduledTaskAction -Execute "C:\path\to\Charon\capture-pipeline\scheduled-capture.bat"
+$trigger = New-ScheduledTaskTrigger -Daily -At 7am
+$settings = New-ScheduledTaskSettingsSet -DontStopIfGoingOnBatteries:$false -AllowStartIfOnBatteries:$false -StartWhenAvailable
+Register-ScheduledTask -TaskName "Charon Capture" -Action $action -Trigger $trigger -Settings $settings
+```
+
+### macOS — launchd
+
+Create `~/Library/LaunchAgents/com.charon.capture.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.charon.capture</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/path/to/Charon/capture-pipeline/scheduled-capture.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>7</integer>
+    <key>Minute</key><integer>0</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>StandardOutPath</key>
+  <string>/path/to/Charon/capture-pipeline/state/scheduled-run.log</string>
+  <key>StandardErrorPath</key>
+  <string>/path/to/Charon/capture-pipeline/state/scheduled-run.log</string>
+</dict>
+</plist>
+```
+
+Load it:
+
+```bash
+launchctl load ~/Library/LaunchAgents/com.charon.capture.plist
+launchctl list | grep charon          # confirm registered
+```
+
+### Linux — cron
+
+Edit `crontab -e` and add (substitute your actual path):
+
+```cron
+# Charon capture — daily 07:00
+0 7 * * * /path/to/Charon/capture-pipeline/scheduled-capture.sh
+
+# Or hourly (for users with high inbox volume + tight feedback loops):
+0 * * * * /path/to/Charon/capture-pipeline/scheduled-capture.sh
+```
+
+Verify: `crontab -l | grep charon-pipeline`. Logs land in `capture-pipeline/state/scheduled-run.log`.
+
+### Run cadence
+
+| Cadence | When it fits |
+|---|---|
+| **Daily morning (default)** | Pairs with `/refresh-todo` — your day starts with fresh captures. |
+| **Hourly** | High-volume mailboxes with tight-feedback workflows. Watch token quotas on rate-limited providers. |
+| **Manual** | Privacy-sensitive setups, or when you want explicit control over each pull. |
+
+### Failure-mode awareness
+
+OAuth tokens expire. If the pipeline silently fails for ≥2 consecutive days, captures drift and downstream skills (`/refresh-todo`, `/triage-inbox`) operate on stale data. Heuristics:
+
+- Tail `capture-pipeline/state/scheduled-run.log` at session start. Look for `Fatal error` / `device_code_expired` / consecutive `Run finished: ... (exit=1)` lines.
+- `python scripts/check-capture-state.py` — ships in Charon, diagnoses cursor + state-file health.
+- If you have memory in your harness, add a `feedback_pipeline_failure_surface.md` rule (mirror of the Charon author's): *"If the capture pipeline log shows ≥2 consecutive failed runs, surface that at session-start before any other work."*
+
 ## Adding a new provider
 
 The capture-pipeline is designed for extensibility. To add (e.g.) Slack, Notion, or a custom REST endpoint:

@@ -58,13 +58,16 @@ node fetch-mail.mjs all               # fetch both inbox + sent
 
 ## Schedule it
 
-| Platform | How |
-|---|---|
-| **Windows** | Task Scheduler → daily 7am → action: `cmd /c "C:\...\capture-pipeline\scheduled-capture.bat"` — Interactive only (per `feedback_no_unattended_local_runs` in your vault). |
-| **macOS** | `launchd` plist or `cron` — `0 7 * * * cd /path/to/capture-pipeline && node fetch-mail.mjs all >> state/scheduled-run.log 2>&1` |
-| **Linux** | `cron` — same as macOS. |
+Wrapper scripts ship with the pipeline:
 
-A bat / sh wrapper is left as an exercise — patterns vary widely by user setup.
+- `scheduled-capture.bat` (Windows) — for Task Scheduler
+- `scheduled-capture.sh` (macOS / Linux) — for cron or launchd
+
+Each is a thin wrapper that resolves its own directory, ensures `state/` exists, runs `node fetch-mail.mjs all`, and appends to `state/scheduled-run.log`. The first-run wizard captures your preferred frequency + time; registering with the platform scheduler is a one-time manual step.
+
+Full per-platform walk-through (Task Scheduler / launchd / cron) is in `EMAIL-PROVIDER-SETUP.md` §Scheduling at the repo root.
+
+Default cadence: **daily 07:00 local time** — pairs with `/refresh-todo` as a day-start routine.
 
 ## Trust boundary
 
