@@ -1,23 +1,44 @@
 # Charon
 
-**A second-brain harness for [Claude Code](https://claude.com/claude-code) — built for executives, security leaders, and knowledge workers whose AI assistant has to remember context, hold a voice, refuse to fabricate, and operate under security controls that match the work.**
+**The second brain that actually remembers — and tells you when it doesn't know.**
+
+Built for executives, CISOs, AI-governance practitioners, and serious knowledge workers whose AI assistant has to hold context across weeks, hold a voice, refuse to fabricate, and work under controls that match the work.
 
 > *Charon, in Greek myth, is the ferryman who carries souls across the river Styx. This harness carries context across sessions.*
 
 ---
 
-## The problem this solves
+## Why you'd want this
 
-Chat-style LLMs forget between sessions. Agents act without rails. Personal-AI projects rarely take security seriously — and the few that do treat it as configuration, not behaviour. The result: every session starts cold, the agent makes confident-sounding guesses, and there's no audit trail when something goes wrong.
+Every chat with an LLM starts cold. Your AI doesn't remember last week's call, the name of your reviewer, the framework your board uses, the rules your industry runs under. So you re-explain. Every time.
 
-Charon turns Claude Code into a system that:
+When you ask a complex question, you get one answer at one speed — even though the question often has three parts that could be worked on in parallel. When the AI doesn't know something, it tends to guess confidently rather than say so. And the people building personal-AI tools rarely treat security as more than a checkbox.
 
-- **Loads relevant context before responding** — not on demand, by reflex. Session-start ritual fires on every prompt; project CLAUDE.md auto-loads when a project is mentioned.
-- **Refuses to assume** — when a fact required to answer isn't in memory or source, the agent asks rather than extrapolates. *"I don't know"* beats a confident wrong answer.
-- **Saves operational facts the same turn they're stated** — a fact mentioned in chat lands in structured memory before the response ends. No "I'll remember that" gaps.
-- **Tags confidence on substantive claims** — 🟢 verified this turn / 🟡 in memory / 🔴 extrapolated. You see what's grounded vs guessed.
-- **Holds path-conditioned discipline** — board-reporting rule fires on board paths; AI-governance rule fires on governance work; secure-code rule fires on code paths. The right doctrine loads at the right time.
-- **Runs under a security baseline** — eight controls (C-1..C-8) cover the agentic surface: hardened prompts, tool minimisation, write-path allowlists, value-layer enum constraints, budget caps, post-run audit, captured-content as untrusted data, secrets at the moment of need.
+Charon solves a different shape of problem. It's a **harness** — a layer wrapped around [Claude Code](https://claude.com/claude-code) — that gives your AI:
+
+- **Memory that survives sessions.** What you tell it today loads automatically tomorrow. No "I'll remember that" promises that get lost between conversations.
+- **Discipline.** It follows your voice, your reporting norms, your framework — set up once, then forget about it.
+- **Honesty.** Every substantive claim is tagged 🟢 verified / 🟡 medium / 🔴 assumed. You see what's grounded and what's a guess.
+- **Multi-agent parallelism.** Complex questions dispatch multiple specialised agents that work simultaneously, then converge. Three security reviewers can examine a piece of code at the same time — general secure-coding, OWASP LLM top-ten, OWASP agentic-AI — and return findings in the time one reviewer would take alone.
+- **Security built in from day one.** Built by a CISO; the eight-control baseline (C-1..C-8) isn't an afterthought.
+
+You don't need to be a developer to get value from Charon. You need to be someone whose work depends on AI that remembers, knows when it's guessing, and stays out of your way the rest of the time.
+
+---
+
+## What it feels like in practice
+
+**You mention something in passing — the system remembers.** *"Karen's coming to Brisbane next week to talk about the M365 rollout."* The AI saves the fact to the right place in the same response, no batching, no promise to remember later. Next Tuesday when you start a session, that context loads automatically before you've finished typing your next prompt.
+
+**You ask a complex question — multiple agents work in parallel.** Want to know whether your latest code change is safe? Charon dispatches three reviewers at once: general secure-coding, OWASP LLM top-ten, OWASP agentic-AI. Each works on its own slice in its own context, returns findings, and Charon synthesises. Convergent findings across multiple agents are stronger signals than one agent's claim. Single-agent time becomes three-agents-in-parallel time. This works for research questions, document audits, security reviews, anywhere a problem can be split.
+
+**The AI tells you when it doesn't know.** No more confident-but-wrong answers. When a fact required to respond isn't in memory or source, it asks. *"I'd be guessing about X — should I check, or can you confirm?"* You see honest uncertainty instead of plausible fabrication.
+
+**Your voice shows up — not a corporate version of it.** Tell the setup wizard once that your writing has asides, parentheticals, em-dashes, recurring metaphors. It captures examples. Future drafts sound like you, not like a generic LLM trying to write LinkedIn posts.
+
+**The right doctrine loads at the right time.** Writing a board report? Charon's board-reporting rule fires automatically — never report a number without the plain-language root cause behind it. Reviewing code? The secure-code rule fires — input validation, secret hygiene, the full eight-control baseline. You don't have to remember which discipline applies. The system does.
+
+**You see what the AI did, not just what it answered.** Every claim carries a confidence tag. Every action is logged. Every unattended automation runs under a write-path allowlist that audits itself afterwards. If something goes wrong, you can see exactly what happened and where.
 
 ---
 
