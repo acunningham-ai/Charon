@@ -167,5 +167,6 @@ See [`FIRST-RUN.md`](FIRST-RUN.md) for the question flow.
 ## Next
 
 → [`FIRST-RUN.md`](FIRST-RUN.md) — what the wizard asks and why
+→ [`EMAIL-PROVIDER-SETUP.md`](EMAIL-PROVIDER-SETUP.md) — if you plan to wire up the capture pipeline, read this BEFORE the wizard's workflow phase
 → [`CONFIGURATION.md`](CONFIGURATION.md) — env vars, scheduled tasks, optional integrations
 → [`CAPABILITIES.md`](CAPABILITIES.md) — full catalogue of what ships

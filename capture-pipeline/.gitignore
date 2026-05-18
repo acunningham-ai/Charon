@@ -1,0 +1,11 @@
+# Runtime state — never commit
+state/
+config.json
+audit.log
+*.log
+node_modules/
+
+# Token caches (provider-specific)
+token-cache.json
+*.token
+*.creds

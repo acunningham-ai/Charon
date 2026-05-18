@@ -303,14 +303,165 @@ questions:
 
   - id: capture_pipeline_setup
     phase: workflow
-    prompt: "Set up an automated capture pipeline (M365 / Slack / Notion / etc.)? (y/n)"
+    prompt: "Set up an automated email capture pipeline? (y/n)"
     description: |
-      If yes, the wizard creates the capture-pipeline directory and points
-      to docs for wiring your provider. Doesn't auto-create credentials.
+      Pulls inbox + sent items from your email provider into your vault as
+      markdown captures. Inbox is the day-to-day signal; sent items close
+      the loop on what you've responded to and committed to.
+
+      Provider-specific setup (app registrations, OAuth, IMAP settings):
+      see EMAIL-PROVIDER-SETUP.md before answering yes.
     default: "n"
     required: false
     skippable: true
     type: yes-no
+
+  - id: capture_pipeline_provider
+    phase: workflow
+    prompt: "Which email provider? (m365 / gmail / imap)"
+    description: |
+      - m365   — Microsoft 365 / Exchange Online. Device-code OAuth. Fully implemented.
+      - gmail  — Gmail (Google Workspace or personal). OAuth desktop client. Skeleton — needs implementation. See EMAIL-PROVIDER-SETUP.md.
+      - imap   — Generic IMAP (Outlook, Yahoo, FastMail, self-hosted, etc.). App password. Skeleton — needs implementation.
+
+      Pick m365 today if that's your provider. For Gmail / IMAP the wizard
+      generates the config scaffold; you'll need to fill in the provider
+      implementation under capture-pipeline/lib/providers/.
+    default: "m365"
+    required: false
+    skippable: true
+    type: choice
+    choices: [m365, gmail, imap]
+    depends_on:
+      capture_pipeline_setup: "y"
+
+  - id: capture_sent_items
+    phase: workflow
+    prompt: "Capture sent items too? (recommended — gives time-management visibility) (y/n)"
+    description: |
+      Sent-items capture shows what you've responded to, what commitments
+      you've made, and where threads stand from your side. The /refresh-todo
+      and /triage-inbox skills surface threads you owe a reply on.
+
+      Privacy / archive-only users can say no. Captured sent items live
+      under 00-Inbox/_captured/email/ with a direction: outbound frontmatter
+      flag, distinct from inbox captures (direction: inbound).
+    default: "y"
+    required: false
+    skippable: true
+    type: yes-no
+    depends_on:
+      capture_pipeline_setup: "y"
+
+  # --- M365-specific config ---
+
+  - id: m365_tenant_id
+    phase: workflow
+    prompt: "M365 tenant ID (or 'common' for personal accounts)"
+    description: |
+      Find this in Entra ID → Overview → Tenant ID (a UUID).
+      Personal Microsoft accounts can use 'common'.
+    required: false
+    skippable: true
+    type: string
+    depends_on:
+      capture_pipeline_provider: "m365"
+
+  - id: m365_client_id
+    phase: workflow
+    prompt: "M365 registered app client ID (UUID)"
+    description: |
+      You need an app registration in Entra ID with delegated Mail.Read
+      permission. See EMAIL-PROVIDER-SETUP.md §M365 for the full walk-through
+      (app registration, redirect URIs, scopes, admin consent if required).
+    required: false
+    skippable: true
+    type: string
+    depends_on:
+      capture_pipeline_provider: "m365"
+
+  # --- Gmail-specific config ---
+
+  - id: gmail_client_id
+    phase: workflow
+    prompt: "Gmail OAuth client ID (xxxxx.apps.googleusercontent.com)"
+    description: |
+      Create an OAuth client in Google Cloud Console (Desktop type), enable
+      Gmail API on the project. See EMAIL-PROVIDER-SETUP.md §Gmail for the
+      full walk-through. The provider implementation itself is a skeleton —
+      you'll need to fill it in.
+    required: false
+    skippable: true
+    type: string
+    depends_on:
+      capture_pipeline_provider: "gmail"
+
+  - id: gmail_client_secret
+    phase: workflow
+    prompt: "Gmail OAuth client secret"
+    description: |
+      Stored locally in config.json — config.json is gitignored by the
+      capture-pipeline so secrets do not commit. For tighter handling,
+      move it to $HARNESS_SECRETS_DIR/gmail-client.json and reference
+      from config after first-run.
+    required: false
+    skippable: true
+    type: secret
+    depends_on:
+      capture_pipeline_provider: "gmail"
+
+  # --- IMAP-specific config ---
+
+  - id: imap_host
+    phase: workflow
+    prompt: "IMAP server host (e.g. imap.gmail.com, outlook.office365.com)"
+    description: |
+      Your provider's IMAP server. Common values:
+        Gmail:   imap.gmail.com:993 (TLS, app password required)
+        Outlook: outlook.office365.com:993 (TLS, app password required)
+        Yahoo:   imap.mail.yahoo.com:993 (TLS, app password required)
+      See EMAIL-PROVIDER-SETUP.md §IMAP for app-password generation steps.
+    required: false
+    skippable: true
+    type: string
+    depends_on:
+      capture_pipeline_provider: "imap"
+
+  - id: imap_user
+    phase: workflow
+    prompt: "IMAP username (usually your full email address)"
+    required: false
+    skippable: true
+    type: string
+    depends_on:
+      capture_pipeline_provider: "imap"
+
+  - id: imap_sent_folder
+    phase: workflow
+    prompt: "IMAP 'Sent' folder name (default: 'Sent')"
+    description: |
+      Provider-specific name. Common values: 'Sent' (most), 'Sent Items'
+      (Outlook), '[Gmail]/Sent Mail' (Gmail IMAP), 'Sent Messages' (Apple Mail).
+      Connect once with `node fetch-mail.mjs auth` to see your folder list.
+    default: "Sent"
+    required: false
+    skippable: true
+    type: string
+    depends_on:
+      capture_pipeline_provider: "imap"
+
+  - id: imap_app_password
+    phase: workflow
+    prompt: "IMAP app password (NOT your main account password)"
+    description: |
+      Generated via your provider's security settings. Written to
+      <secrets-path>/imap-app-password.txt with restricted permissions —
+      not stored in config.json.
+    required: false
+    skippable: true
+    type: secret
+    depends_on:
+      capture_pipeline_provider: "imap"
 
   - id: scheduled_tasks_setup
     phase: workflow
@@ -506,6 +657,82 @@ templates:
 
       Add more via save-on-mention — every "from now on" / "always X" /
       "never Y" the user states in chat lands here in the same turn.
+
+  capture_pipeline_config:
+    target: "<repo-root>/capture-pipeline/config.json"
+    require_any:
+      - capture_pipeline_provider
+    body: |
+      {
+        "_comment": "Generated by first-run wizard. Edit freely. See EMAIL-PROVIDER-SETUP.md for provider-specific details.",
+        "vaultRoot": "{{vault_path}}",
+        "stateFile": "state/captured.json",
+        "auditLog": "state/audit.log",
+        "captureWindow": {
+          "start": "2026-01-01"
+        },
+        "capture": {
+          "inbox": true,
+          "sent": true,
+          "_sent_note": "Set sent: false if you only want inbox captures. Default on — provides time-management visibility (what you've responded to, what threads you owe replies on)."
+        },
+        "provider": {
+          "name": "{{capture_pipeline_provider}}"
+        },
+        "m365": {
+          "tenantId": "{{m365_tenant_id}}",
+          "clientId": "{{m365_client_id}}",
+          "scopes": ["Mail.Read", "User.Read"],
+          "tokenCacheFile": "state/m365-token-cache.json",
+          "inboxPageSize": 250,
+          "sentPageSize": 250
+        },
+        "gmail": {
+          "_comment": "Implement lib/providers/gmail.mjs before using. clientSecret should be moved to a secrets file after first-run.",
+          "clientId": "{{gmail_client_id}}",
+          "clientSecretFile": "<your secrets dir>/gmail-client-secret.txt",
+          "refreshTokenFile": "state/gmail-refresh-token.json",
+          "scopes": ["https://www.googleapis.com/auth/gmail.readonly"]
+        },
+        "imap": {
+          "_comment": "Implement lib/providers/imap.mjs before using. App password lives in passwordSecretFile, NOT inline.",
+          "host": "{{imap_host}}",
+          "port": 993,
+          "secure": true,
+          "user": "{{imap_user}}",
+          "passwordSecretFile": "<your secrets dir>/imap-app-password.txt",
+          "inboxFolder": "INBOX",
+          "sentFolder": "{{imap_sent_folder}}"
+        },
+        "vaultPaths": {
+          "emailRoot": "00-Inbox/_captured/email",
+          "emailDomain": "00-Inbox/_captured/email/_domain",
+          "emailUncertain": "00-Inbox/_captured/email/_uncertain"
+        },
+        "senderBlocklist": [
+          "^noreply@",
+          "^no-reply@",
+          "^donotreply@",
+          "@notify\\.",
+          "@bounce\\.",
+          "@notifications\\.",
+          "@newsletter\\."
+        ],
+        "sensitivity": {
+          "default": "confidential",
+          "restrictedKeywords": [
+            "incident", "breach", "ransomware", "privileged", "subpoena", "audit committee", "board pack"
+          ]
+        },
+        "domainKeywordMap": {
+          "Compliance": ["soc 2", "iso 27001", "compliance", " audit "],
+          "Vendor-Management": ["vendor", "third-party", "tprm", "contract"],
+          "Security": ["edr", "siem", "mfa", "security"]
+        },
+        "orgUnitDomainMap": {
+          "_comment": "Populate with email-domain → org-unit mappings. See README in capture-pipeline/."
+        }
+      }
 
 # --- Env var configuration ---
 # What gets exported to the user's shell profile after the wizard.

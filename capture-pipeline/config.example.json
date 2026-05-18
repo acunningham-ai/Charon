@@ -1,0 +1,91 @@
+{
+  "_comment": "Charon capture-pipeline config. Copy to config.json and edit, OR have scripts/first-run.py render it from your wizard answers.",
+
+  "vaultRoot": "<absolute path to your vault root — same as $HARNESS_VAULT_ROOT>",
+  "stateFile": "state/captured.json",
+  "auditLog": "state/audit.log",
+
+  "captureWindow": {
+    "_comment": "Earliest date to fetch from on a clean run. Cursor advances forward from here.",
+    "start": "2026-01-01"
+  },
+
+  "capture": {
+    "_comment": "Sent-items capture is ON by default. Set false to skip the sent path entirely.",
+    "inbox": true,
+    "sent": true
+  },
+
+  "provider": {
+    "_comment": "One of: m365 | gmail | imap. Each block below configures the named provider. Only the chosen one needs to be valid.",
+    "name": "m365"
+  },
+
+  "m365": {
+    "_comment": "Register an app in Entra ID with Mail.Read delegated permission. See EMAIL-PROVIDER-SETUP.md.",
+    "tenantId": "<your tenant ID, or 'common' for personal accounts>",
+    "clientId": "<your registered app's client ID>",
+    "scopes": ["Mail.Read", "User.Read"],
+    "tokenCacheFile": "state/m365-token-cache.json",
+    "inboxPageSize": 250,
+    "sentPageSize": 250
+  },
+
+  "gmail": {
+    "_comment": "Create an OAuth client in Google Cloud Console, enable Gmail API. See EMAIL-PROVIDER-SETUP.md.",
+    "clientId": "<your-client-id.apps.googleusercontent.com>",
+    "clientSecret": "<your-client-secret>",
+    "refreshTokenFile": "state/gmail-refresh-token.json",
+    "scopes": ["https://www.googleapis.com/auth/gmail.readonly"]
+  },
+
+  "imap": {
+    "_comment": "Generic IMAP. Use an app password (Gmail, Outlook, Yahoo all support these). NEVER your main password.",
+    "host": "<imap.example.com>",
+    "port": 993,
+    "secure": true,
+    "user": "<your email address>",
+    "passwordSecretFile": "<absolute path under $HARNESS_SECRETS_DIR>/imap-app-password.txt",
+    "inboxFolder": "INBOX",
+    "sentFolder": "Sent",
+    "_folder_note": "Common sent-folder names: 'Sent', 'Sent Items' (Outlook), '[Gmail]/Sent Mail', 'Sent Messages'. Check your IMAP client."
+  },
+
+  "vaultPaths": {
+    "_comment": "Where captures land. Subfolders auto-created. _domain/_uncertain are inbox-side routing fallbacks; sent items follow the same shape.",
+    "emailRoot": "00-Inbox/_captured/email",
+    "emailDomain": "00-Inbox/_captured/email/_domain",
+    "emailUncertain": "00-Inbox/_captured/email/_uncertain"
+  },
+
+  "senderBlocklist": [
+    "_comment: regex strings — match against sender for inbox, recipient for sent. Skips noise like calendar bots, newsletters, build alerts.",
+    "^noreply@",
+    "^no-reply@",
+    "^donotreply@",
+    "@notify\\.",
+    "@bounce\\.",
+    "@notifications\\.",
+    "@newsletter\\."
+  ],
+
+  "sensitivity": {
+    "_comment": "Frontmatter classification default + escalation keywords. Pure heuristic — for fine-grained control, edit lib/format.mjs.",
+    "default": "confidential",
+    "restrictedKeywords": [
+      "incident", "breach", "ransomware", "privileged", "subpoena", "audit committee", "board pack"
+    ]
+  },
+
+  "domainKeywordMap": {
+    "_comment": "First-match-wins routing for emails that don't match an org-unit. Replace with your own topic buckets.",
+    "Compliance": ["soc 2", "iso 27001", "compliance", " audit "],
+    "Vendor-Management": ["vendor", "third-party", "tprm", "contract"],
+    "Security": ["edr", "siem", "mfa", "security"]
+  },
+
+  "orgUnitDomainMap": {
+    "_comment": "Email-domain → org-unit routing. Populated by first-run from your reference_org_units.md or hand-edited. Example pattern.",
+    "example.com": { "unit": "<unit-name>", "portfolio": "<portfolio-name>" }
+  }
+}

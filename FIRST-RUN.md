@@ -130,9 +130,11 @@ Each becomes a `<memory-root>/feedback_*.md` entry indexed in `MEMORY.md`.
 
 If you want to wire any of these in:
 
-- **Captures pipeline** — M365 / Google Workspace / Slack / Notion / etc. → `00-Inbox/_captured/`. Path to runner.
+- **Capture pipeline** — pulls inbox + sent items from your email provider into `00-Inbox/_captured/email/`. The wizard prompts for provider choice (M365 / Gmail / IMAP), per-provider config, and whether to capture sent items. **Read [`EMAIL-PROVIDER-SETUP.md`](EMAIL-PROVIDER-SETUP.md) BEFORE this section** — you need an app registration / OAuth client / app password ready to enter, which can only be created on the provider side.
 - **Scheduled tasks** — `linkedin-weekly-drafts.bat` schedule, `scheduled-capture.bat` cadence, `scheduled-audit.py` daily wrapper.
 - **MCP servers beyond what ships** — point at additional MCP configs.
+
+**Why sent items?** Inbox-only capture leaves a one-sided view of every conversation. Sent items close the loop: when did you respond, what did you commit to, what threads do you owe a reply on. The `/refresh-todo` and `/triage-inbox` skills surface this. Default is on; you can turn it off if your use case is privacy-constrained.
 
 ## How long does it take?
 

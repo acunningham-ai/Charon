@@ -322,10 +322,12 @@ def substitute(template: str, answers: dict[str, str], types: dict[str, str]) ->
     return out
 
 
-def resolve_target(target_pattern: str, vault: Path, mem: Path) -> Path:
-    """Replace <vault-root> and <memory-root> placeholders."""
+def resolve_target(target_pattern: str, vault: Path, mem: Path, repo: Path | None = None) -> Path:
+    """Replace <vault-root>, <memory-root>, and <repo-root> placeholders."""
     s = target_pattern.replace("<vault-root>", str(vault))
     s = s.replace("<memory-root>", str(mem))
+    if repo is not None:
+        s = s.replace("<repo-root>", str(repo))
     return Path(s)
 
 
@@ -335,6 +337,7 @@ def plan_writes(
     types: dict[str, str],
     vault: Path,
     mem: Path,
+    repo: Path | None = None,
 ) -> list[tuple[Path, str, str]]:
     """Return [(target_path, template_id, body)] for templates whose
     'require_any' is satisfied."""
@@ -343,7 +346,7 @@ def plan_writes(
         require_any = tdef.get("require_any") or []
         if require_any and not any(answers.get(r, "").strip() for r in require_any):
             continue
-        target = resolve_target(tdef["target"], vault, mem)
+        target = resolve_target(tdef["target"], vault, mem, repo)
         body = substitute(tdef["body"], answers, types)
         plans.append((target, tid, body))
     return plans
@@ -533,7 +536,8 @@ def main():
     mem = memory_root()
 
     types = {q["id"]: q["type"] for q in questions}
-    plans = plan_writes(templates, answers, types, vault, mem)
+    repo = Path(__file__).resolve().parent.parent
+    plans = plan_writes(templates, answers, types, vault, mem, repo)
 
     anthropic_target = None
     if answers.get("anthropic_key_setup") == "y" and answers.get("anthropic_key_value"):

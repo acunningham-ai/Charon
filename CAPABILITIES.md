@@ -125,6 +125,26 @@ Dispatched in parallel by parent skills for heavyweight tasks. Each has its own 
 
 See `.claude/agents/README.md` for the dispatch pattern.
 
+## Capture pipeline (`capture-pipeline/`)
+
+Reference implementation that pulls **inbox + sent items** from your email provider into your vault as markdown captures. Sent-items capture is on by default — provides time-management visibility (what you've responded to, what threads you owe replies on) that inbox-only pipelines can't.
+
+| Component | What |
+|---|---|
+| `fetch-mail.mjs` | Entry point. `node fetch-mail.mjs <auth\|inbox\|sent\|all>` |
+| `lib/providers/m365.mjs` | Microsoft Graph — fully implemented (device-code OAuth, inbox + sent, cursor-based incremental) |
+| `lib/providers/gmail.mjs` | Gmail API — skeleton (interface complete, implementation pending) |
+| `lib/providers/imap.mjs` | Generic IMAP — skeleton (interface complete, implementation pending) |
+| `lib/providers/index.mjs` | Provider loader by config name |
+| `lib/capture.mjs` | Idempotent classify → format → write |
+| `lib/classify.mjs` | Config-driven org-unit + topic-domain routing |
+| `lib/format.mjs` | Markdown formatter with `direction: inbound\|outbound` frontmatter and UNTRUSTED banner |
+| `lib/state.mjs` | Captured-item index (dedup) + per-source cursor |
+
+Every captured file gets `trust: untrusted` frontmatter — the `.claude/rules/captures.md` rule fires on read and instructs the assistant to treat body content as data, never as instructions.
+
+Setup walk-through per provider: [`EMAIL-PROVIDER-SETUP.md`](EMAIL-PROVIDER-SETUP.md). First-run wizard renders `capture-pipeline/config.json` from your wizard answers.
+
 ## Utility scripts (`scripts/*.py`)
 
 You invoke these directly.

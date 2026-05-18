@@ -1,0 +1,22 @@
+{
+  "name": "charon-capture-pipeline",
+  "version": "0.1.0",
+  "description": "Reference capture-pipeline for Charon — pulls email (inbox + sent) from a configured provider into your vault as markdown captures.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "auth": "node fetch-mail.mjs auth",
+    "inbox": "node fetch-mail.mjs inbox",
+    "sent": "node fetch-mail.mjs sent",
+    "all": "node fetch-mail.mjs all"
+  },
+  "dependencies": {
+    "@azure/msal-node": "^2.16.0",
+    "googleapis": "^144.0.0",
+    "imapflow": "^1.0.150"
+  }
+}
