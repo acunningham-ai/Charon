@@ -4,16 +4,21 @@
 # winget OR shows install instructions, then hands off to the first-run
 # wizard.
 #
-# Usage:
-#   powershell -ExecutionPolicy Bypass -File install.ps1
-#   or, if your execution policy allows:
-#   .\install.ps1
+# Usage (default — locally-cloned script, least-permissive policy that works):
+#   powershell -ExecutionPolicy RemoteSigned -File install.ps1
+#
+# Fallback for locked-down machines (only after inspecting this file):
+#   powershell -ExecutionPolicy Bypass -Scope Process -File install.ps1
+#   (-Scope Process confines the bypass to this one invocation, not the
+#   machine. Don't use the older -ExecutionPolicy Bypass without -Scope
+#   Process — same blast radius for this run, harder discipline elsewhere.)
 #
 # Non-interactive mode for unattended installs:
 #   .\install.ps1 -AcceptDefaults
 #
-# This script never elevates to admin on its own. winget runs per-user
-# by default.
+# See INSTALL.md for the full three-step ladder (inspect, verify SHA-256,
+# run). This script never elevates to admin on its own. winget runs
+# per-user by default.
 
 [CmdletBinding()]
 param(
