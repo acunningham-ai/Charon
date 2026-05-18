@@ -19,8 +19,17 @@ echo ========================================== >> "%LOG%"
 echo Run started: %DATE% %TIME% >> "%LOG%"
 echo ========================================== >> "%LOG%"
 
-node fetch-mail.mjs all >> "%LOG%" 2>&1
+REM --non-interactive: on silent-auth failure, fetch-mail.mjs writes a
+REM REAUTH-NEEDED.flag and exits with code 2 instead of hanging on a
+REM device-code prompt nobody is there to answer.
+node fetch-mail.mjs all --non-interactive >> "%LOG%" 2>&1
 set EXITCODE=%ERRORLEVEL%
+
+if %EXITCODE% EQU 2 (
+  echo *** Pipeline halted: re-auth required. Flag file written. *** >> "%LOG%"
+  REM Windows toast via built-in WinRT APIs — no third-party install required.
+  powershell -NoProfile -Command "[void][Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications,ContentType=WindowsRuntime];[void][Windows.UI.Notifications.ToastNotification,Windows.UI.Notifications,ContentType=WindowsRuntime];[void][Windows.Data.Xml.Dom.XmlDocument,Windows.Data.Xml.Dom.XmlDocument,ContentType=WindowsRuntime];$x=New-Object Windows.Data.Xml.Dom.XmlDocument;$x.LoadXml('<toast><visual><binding template=\"ToastGeneric\"><text>Charon capture: re-auth required</text><text>Run: node fetch-mail.mjs auth</text></binding></visual></toast>');[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('Charon').Show([Windows.UI.Notifications.ToastNotification]::new($x))" 2>nul
+)
 
 echo Run finished: %DATE% %TIME% (exit=%EXITCODE%) >> "%LOG%"
 echo. >> "%LOG%"

@@ -49,6 +49,19 @@ export class M365Provider extends Provider {
       cache: { cachePlugin },
     });
     this.scopes = config.scopes ?? ["Mail.Read", "User.Read"];
+    // Non-interactive flag: when true, silent-fail throws AUTH_REAUTH_REQUIRED
+    // instead of falling through to device-code prompt. Scheduled runs MUST
+    // enable this — otherwise an expired refresh token causes the process to
+    // hang forever on a prompt no user is there to answer.
+    this.nonInteractive = false;
+  }
+
+  /**
+   * Enable non-interactive mode. Scheduled / unattended runs should call this
+   * before the first fetch so silent-auth failures fail-fast instead of hanging.
+   */
+  setNonInteractive(value) {
+    this.nonInteractive = !!value;
   }
 
   async _getAccessToken() {
@@ -59,8 +72,24 @@ export class M365Provider extends Provider {
         const result = await this.pca.acquireTokenSilent({ account: accounts[0], scopes: this.scopes });
         return result.accessToken;
       } catch (e) {
-        // Refresh token expired — fall through to device code.
+        if (this.nonInteractive) {
+          const err = new Error(
+            "Silent token acquisition failed and non-interactive mode is set. " +
+            "Re-auth required. Run: node fetch-mail.mjs auth"
+          );
+          err.code = "AUTH_REAUTH_REQUIRED";
+          err.cause = e;
+          throw err;
+        }
+        // Interactive mode — fall through to device code.
       }
+    } else if (this.nonInteractive) {
+      const err = new Error(
+        "No cached account and non-interactive mode is set. " +
+        "First-time auth required. Run: node fetch-mail.mjs auth"
+      );
+      err.code = "AUTH_REAUTH_REQUIRED";
+      throw err;
     }
     const result = await this.pca.acquireTokenByDeviceCode({
       scopes: this.scopes,

@@ -97,6 +97,8 @@ A working capture pipeline ships in `capture-pipeline/` — not a pattern, a run
 
 **User-configurable schedule.** The first-run wizard captures your preferred run frequency (daily / hourly / manual) and run time. `capture-pipeline/scheduled-capture.bat` (Windows) and `capture-pipeline/scheduled-capture.sh` (macOS / Linux) wrap the runner; you register them with Task Scheduler / cron / launchd. Full walk-through per platform in `EMAIL-PROVIDER-SETUP.md`.
 
+**Reliable scheduled runs.** Your company's security policies will periodically invalidate the saved sign-in (this is normal, not a bug). When that happens, the scheduled pipeline doesn't hang waiting for you to type a code — it fails fast, fires a native desktop notification on your screen, and writes a small flag file. Next time you start Claude Code, your first response begins with a banner showing the recovery command. About sixty seconds to fix; the next scheduled run picks up where it left off. No more silent morning failures.
+
 ### Tested, not just documented
 
 `test-scenarios/` ships with the harness — 10 LLM-behaviour scenarios + 7 automated deterministic checks. The same suite runs before any release and after any material change to rules / hooks / wizard. Pass-rate threshold is published; releases with a failing scenario must document it in known-limitations.

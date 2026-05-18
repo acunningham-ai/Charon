@@ -14,7 +14,7 @@
 //   --page-size N         Override provider page size
 //   --dry-run             Connect + count, do not write captures
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, unlinkSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadProvider, KNOWN_PROVIDERS } from "./lib/providers/index.mjs";
@@ -41,7 +41,7 @@ function flagValue(name) {
 }
 
 if (!["auth", "inbox", "sent", "all"].includes(command)) {
-  console.error(`Usage: node fetch-mail.mjs <auth|inbox|sent|all> [--since YYYY-MM-DD] [--full] [--limit N] [--page-size N] [--dry-run]`);
+  console.error(`Usage: node fetch-mail.mjs <auth|inbox|sent|all> [--since YYYY-MM-DD] [--full] [--limit N] [--page-size N] [--dry-run] [--non-interactive]`);
   console.error(`Known providers: ${KNOWN_PROVIDERS.join(", ")}`);
   process.exit(1);
 }
@@ -51,6 +51,12 @@ const fullMode = flag("--full");
 const limit = flagValue("--limit") != null ? parseInt(flagValue("--limit"), 10) : undefined;
 const pageSize = flagValue("--page-size") != null ? parseInt(flagValue("--page-size"), 10) : undefined;
 const dryRun = flag("--dry-run");
+const nonInteractive = flag("--non-interactive");
+
+// When --non-interactive: silent-fail throws AUTH_REAUTH_REQUIRED instead of
+// hanging on a device-code prompt. The main try/catch writes a flag file +
+// exits with code 2 so scheduled wrappers can detect the case + alert the user.
+const REAUTH_FLAG = join(HERE, "state", "REAUTH-NEEDED.flag");
 
 function resolveSince(cursor, sourceType) {
   if (explicitSince) return explicitSince;
@@ -59,6 +65,12 @@ function resolveSince(cursor, sourceType) {
 }
 
 const provider = loadProvider(config, HERE);
+
+// Propagate non-interactive flag to providers that support it. Providers without
+// the method (Gmail/IMAP skeletons) get a no-op — only M365 currently honours it.
+if (typeof provider.setNonInteractive === "function") {
+  provider.setNonInteractive(nonInteractive);
+}
 
 async function cmdAuth() {
   console.log(`Provider: ${config.provider.name}`);
@@ -139,7 +151,37 @@ async function main() {
 
 try {
   await main();
+  // Successful run: clear any stale re-auth flag so session-start hooks
+  // stop surfacing it. Any successful auth invocation (including `auth`)
+  // proves credentials are healthy.
+  if (existsSync(REAUTH_FLAG)) {
+    try {
+      unlinkSync(REAUTH_FLAG);
+      console.log(`\nCleared stale reauth flag.`);
+    } catch (_) { /* non-fatal */ }
+  }
 } catch (e) {
+  // Non-interactive re-auth required: write a flag file the SessionStart hook
+  // can surface on next Claude Code session, fire toast/notify in the wrapper,
+  // exit with distinct code 2 so wrappers can detect it specifically.
+  if (e.code === "AUTH_REAUTH_REQUIRED") {
+    const payload = {
+      reason: e.message,
+      detected_at: new Date().toISOString(),
+      recovery_command: "node fetch-mail.mjs auth",
+      working_dir: HERE,
+    };
+    try {
+      mkdirSync(dirname(REAUTH_FLAG), { recursive: true });
+      writeFileSync(REAUTH_FLAG, JSON.stringify(payload, null, 2));
+    } catch (writeErr) {
+      console.error(`Could not write reauth flag: ${writeErr.message}`);
+    }
+    console.error("\n*** AUTH RE-AUTH REQUIRED ***");
+    console.error(e.message);
+    console.error(`Flag written: ${REAUTH_FLAG}`);
+    process.exit(2);
+  }
   console.error(`\nFatal error: ${e.message}`);
   if (/401|token|expired|device_code/i.test(e.message)) {
     console.error(`Try re-authenticating: node fetch-mail.mjs auth`);
