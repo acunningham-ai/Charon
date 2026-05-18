@@ -1,0 +1,20 @@
+# Local voice input for capture.
+#
+# Install:    pip install -r requirements-voice.txt
+# Or via first-run wizard ("Enable voice capture?").
+#
+# What ships when this is installed:
+#   - Local Whisper model for transcription (no API calls)
+#   - The scripts/voice-capture.py script becomes functional
+#   - The /voice-note slash command can record + transcribe locally
+#
+# Without these installed, /voice-note prints a helpful error pointing here.
+
+# Local Whisper. The 'small' model is a good default (~500MB on disk,
+# decent quality, runs on CPU). Users with GPUs can swap to 'medium' or
+# 'large' in config.
+openai-whisper>=20231117
+# Microphone capture across platforms.
+sounddevice>=0.4.6
+# WAV writer (numpy is the transitive dep already pulled by semantic).
+scipy>=1.11

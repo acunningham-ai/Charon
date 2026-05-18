@@ -1,0 +1,16 @@
+# Knowledge graph over the vault.
+#
+# Install:    pip install -r requirements-graph.txt
+# Or via first-run wizard ("Enable knowledge graph?").
+#
+# What ships when this is installed:
+#   - kuzu embedded graph database (single binary, no server)
+#   - The vault-graph MCP server becomes available
+#   - The scripts/extract_entities.py extraction pipeline runs on memory writes
+#   - Entities + relationships are extracted from new memory / captured files
+#
+# Without this installed, vault-graph MCP tools return "knowledge graph not
+# enabled" and the extraction hook silently skips.
+
+# kuzu — embedded graph database with Cypher-like queries. Production-ready.
+kuzu>=0.6.0

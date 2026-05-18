@@ -1,0 +1,115 @@
+{
+  "$schema_note": "Vault-level shared settings — checked into the repo, loaded for every user of this harness install. Per-user overrides live in .claude/settings.local.json (gitignored).",
+  "$performance_note": "These four settings tune Claude Code for modern context windows. Defaults were calibrated for older smaller models and silently truncate things on this hardware. Adjust if your environment requires.",
+  "autoCompactPercentageOverride": 75,
+  "terminalOutputLimit": 150000,
+  "fileReadTokenLimit": 100000,
+  "cleanupPeriodDays": 365,
+  "mcpServers": {
+    "vault-ops": {
+      "type": "stdio",
+      "command": "python",
+      "args": [
+        "${CLAUDE_PROJECT_DIR}/scripts/mcp/vault-ops-server.py"
+      ]
+    }
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/load-rules.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/save-on-mention.py\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/deny-destructive.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/validate-write-path.py\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/validate-memory-frontmatter.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/ssh-recovery.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/skill-usage-log.py\""
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/notification-toast.py\""
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash(python scripts/*)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)"
+    ],
+    "$deny_note": "These deny patterns cover Bash. If PowerShell is added to allow, MIRROR every dangerous pattern below for PowerShell too: Remove-Item -Recurse, Invoke-Expression, Invoke-WebRequest piped to Invoke-Expression, Add-MpPreference -ExclusionPath, Set-MpPreference -Disable*, Stop-Service, Restart-Computer, format-volume, etc.",
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(rm -rf /*)",
+      "Bash(sudo rm -rf *)",
+      "Bash(git push --force *)",
+      "Bash(git reset --hard *)",
+      "Bash(* --no-verify*)",
+      "Bash(* --no-gpg-sign*)",
+      "Bash(* shutdown*)",
+      "Bash(* reboot*)",
+      "Bash(format *)",
+      "Bash(DROP TABLE *)",
+      "Bash(DROP DATABASE *)",
+      "Bash(* chmod 777 /*)",
+      "Bash(* kill -9 *)"
+    ]
+  }
+}

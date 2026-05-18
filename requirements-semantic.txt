@@ -1,0 +1,21 @@
+# Semantic search over the vault.
+#
+# Install:    pip install -r requirements-semantic.txt
+# Or via first-run wizard ("Enable semantic search?").
+#
+# What ships when this is installed:
+#   - sentence-transformers + bge-micro-v2 model (~80MB) for local embeddings
+#   - sqlite-vec for the vector index (single-file SQLite extension)
+#   - The semantic_search MCP tool in vault-readonly becomes functional
+#   - The scripts/semantic_index.py indexer + index-on-write hook activate
+#
+# Without these installed, the vault-readonly MCP's semantic_search tool
+# returns "semantic search not enabled" and the indexer hook silently
+# skips. Keyword + frontmatter search still works.
+
+# Local embedding model + inference. Pure-Python, no GPU required.
+sentence-transformers>=3.0.0
+# Vector store as a SQLite extension. Single-file index, no server.
+sqlite-vec>=0.1.0
+# Numpy is a transitive dep but pinning so installs are reproducible.
+numpy>=1.24

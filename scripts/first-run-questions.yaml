@@ -1,0 +1,517 @@
+# Charon first-run wizard — question definitions.
+#
+# This is the data model for `scripts/first-run.py`. Edit this file to add,
+# remove, reword, or reorder questions; the wizard reads it on every run.
+#
+# Schema reference:
+#   phases[]    — phase metadata (title, blurb shown before its questions)
+#   questions[] — question records, each with:
+#     id          — unique kebab-case id; templates reference this name
+#     phase       — phase id (must match an entry in phases[])
+#     prompt      — what the wizard asks (single line; keep concise)
+#     description — longer "why we ask this" — shown on "?" or --explain
+#     default     — default value when the user hits enter (string or null)
+#                   special values:
+#                     $cwd          → current working directory
+#                     $home         → user's home directory
+#                     $home/.secrets → standard secrets path
+#     required    — must have a non-empty answer
+#     skippable   — true if the user can skip even when required (some
+#                   questions are non-skippable because downstream rules
+#                   are non-functional without them, e.g. voice profile)
+#     type        — string | multiline | path-dir | path-file | yes-no |
+#                   choice | secret
+#     choices     — for type=choice, list of allowed values
+#     validate    — named validator: non_empty, writable_dir, exists_path,
+#                   url, file_path. Multiple validators comma-separated.
+#     populates   — list of write targets; templates rendered after all
+#                   questions are answered, with {{question-id}} substitution
+
+phases:
+  - id: identity_paths
+    title: Identity and paths
+    blurb: |
+      Four quick questions to anchor your identity in memory and tell the
+      harness where your vault and secrets live. Everything else builds on
+      these.
+
+  - id: org_framework
+    title: Org structure and framework
+    blurb: |
+      Your operating model: audience tiers (board / portfolio / customer /
+      auditor), org-units (BUs / departments / accounts), security framework,
+      and your source-of-truth dashboard. Skip any of these if not yet
+      relevant — you can re-run the wizard later.
+
+  - id: voice
+    title: Voice profile
+    blurb: |
+      Six short questions to capture how you write. Without this, the
+      voice-content rule can write competent prose but not yours.
+      Not skippable — even three-word answers are useful.
+
+  - id: workflow
+    title: Workflow preferences and integrations
+    blurb: |
+      Your standing rules ("from now on always X"), tool exceptions, and
+      optional integrations (capture pipeline, scheduled tasks). All skippable.
+
+questions:
+  # --- Phase 1: Identity and paths ---
+
+  - id: identity_name
+    phase: identity_paths
+    prompt: "Your name (for memory attribution)"
+    description: |
+      Used to anchor voice + identity in user_role.md. Memory entries that
+      reference "the user" will use this name when context calls for it.
+    required: true
+    skippable: false
+    type: string
+    validate: non_empty
+
+  - id: identity_role
+    phase: identity_paths
+    prompt: "Your role / position (e.g. CISO, Head of Engineering, Independent advisor)"
+    description: |
+      Drives audience-tailoring. A CISO and a Head of Engineering need
+      different default framings when writing to a board.
+    required: true
+    skippable: false
+    type: string
+    validate: non_empty
+
+  - id: identity_org
+    phase: identity_paths
+    prompt: "Your organisation (short description, e.g. 'group of acquired ISVs', 'mid-sized health-tech', 'consulting solo practice')"
+    description: |
+      Short org descriptor used in stakeholder-facing docs and external bios.
+      Stays high-level — no internal-only names.
+    required: true
+    skippable: false
+    type: string
+    validate: non_empty
+
+  - id: vault_path
+    phase: identity_paths
+    prompt: "Where does your second-brain live?"
+    description: |
+      The directory that contains 02-BUs/ (or your org-unit equivalent),
+      03-Domains/, 08-Projects/, etc. Sets HARNESS_VAULT_ROOT.
+    default: $cwd
+    required: true
+    skippable: false
+    type: path-dir
+    validate: writable_dir
+
+  - id: secrets_path
+    phase: identity_paths
+    prompt: "Where should credentials live? (Should be outside any cloud-synced folder)"
+    description: |
+      Sets HARNESS_SECRETS_DIR. The harness reads API keys + service
+      credentials from JSON files in this directory at the moment of need.
+      Never plaintext in vault or memory.
+    default: $home/.secrets
+    required: true
+    skippable: false
+    type: path-dir
+    validate: writable_dir
+
+  - id: anthropic_key_setup
+    phase: identity_paths
+    prompt: "Set up the Anthropic API key for save-on-mention now? (y/n)"
+    description: |
+      Optional — without this, the save-on-mention hook silently no-ops.
+      Rules + memory still work. You can re-run this section later.
+    default: "n"
+    required: false
+    skippable: true
+    type: yes-no
+
+  - id: anthropic_key_value
+    phase: identity_paths
+    prompt: "Paste your Anthropic API key (starts sk-ant-)"
+    description: |
+      Written to <secrets-path>/anthropic.json with restricted permissions.
+      Never echoed back to screen, never logged.
+    required: false
+    skippable: true
+    type: secret
+    depends_on:
+      anthropic_key_setup: "y"
+
+  # --- Phase 2: Org structure and framework ---
+
+  - id: org_unit_label
+    phase: org_framework
+    prompt: "What's your 'org-unit' concept? (BU / Department / Customer / Portfolio company / etc.)"
+    description: |
+      The harness uses 'org-unit' as a structural primitive throughout —
+      routing captures, per-unit context, BU-style rollups. Name what's
+      meaningful for your work.
+    default: "Department"
+    required: false
+    skippable: true
+    type: string
+
+  - id: org_units
+    phase: org_framework
+    prompt: "List your org-units (one per line, blank line to finish)"
+    description: |
+      Names + optional rollup grouping. E.g.:
+        HR
+        Engineering
+        Sales
+        Support
+      Used to seed reference_org_units.md.
+    required: false
+    skippable: true
+    type: multiline
+
+  - id: audience_tiers
+    phase: org_framework
+    prompt: "List your audience tiers (one per line — e.g. Board, Exec leadership, Customer, External auditor)"
+    description: |
+      Each tier gets a per-audience reminder in board-reporting / control
+      translation skills. Skip and the harness falls back to a single
+      generic audience.
+    required: false
+    skippable: true
+    type: multiline
+
+  - id: framework_name
+    phase: org_framework
+    prompt: "Your security framework (e.g. NIST CSF 2.0, ACME Maturity v2, Adapted CIS Top 18)"
+    description: |
+      If you do periodic reporting against a maturity framework, name it.
+      Otherwise leave blank and the quarterly-report skill stays generic.
+    required: false
+    skippable: true
+    type: string
+
+  - id: framework_domains
+    phase: org_framework
+    prompt: "List your framework domains (one per line — e.g. IAM, Endpoint, Network, Backup)"
+    description: |
+      The categories your framework measures. Used by control-translate
+      to anchor commentary by domain.
+    required: false
+    skippable: true
+    type: multiline
+    depends_on:
+      framework_name: "*"
+
+  - id: critical_controls
+    phase: org_framework
+    prompt: "List your critical-control set (one per line — typically 4-6: MFA, EDR, Backup, Patch, EOL, etc.)"
+    description: |
+      The small set you treat as cross-org-unit baseline. Lead stakeholder
+      reports with these; per-org-unit domains underneath.
+    required: false
+    skippable: true
+    type: multiline
+
+  - id: dashboard_tool
+    phase: org_framework
+    prompt: "Your source-of-truth dashboard / GRC tool"
+    description: |
+      Where do your scores / verdicts live? Used to seed
+      feedback_data_accuracy.md ("dashboard is source of truth; never
+      compute"). Skip if you don't have one — the rule stays generic.
+    required: false
+    skippable: true
+    type: string
+
+  - id: tool_exceptions
+    phase: org_framework
+    prompt: "Any standardised tool exceptions? (vendors you DO name without 'or similar tool'; one per line as 'capability — vendor — reason')"
+    description: |
+      The harness defaults to 'X or similar tool' framing on every vendor
+      recommendation. Named exceptions skip the framing for that vendor only.
+      E.g.: 'EDR - <your EDR vendor> - org-wide contract'.
+    required: false
+    skippable: true
+    type: multiline
+
+  # --- Phase 3: Voice profile ---
+
+  - id: voice_emphasis
+    phase: voice
+    prompt: "How do you signal emphasis in writing? (caps? italics? em-dashes? parens?)"
+    description: |
+      Voice-content rule reads this on every draft. Even one or two
+      examples is enough — the rule pattern-matches your style.
+    required: true
+    skippable: false
+    type: string
+    validate: non_empty
+
+  - id: voice_cadence
+    phase: voice
+    prompt: "Your sentence-length cadence (uniformly crisp? loose-and-rough? conversational drift?)"
+    required: true
+    skippable: false
+    type: string
+    validate: non_empty
+
+  - id: voice_personality
+    phase: voice
+    prompt: "Personality moments — what do you DO that's distinctly you? (confessions, asides, winks, swears, callbacks)"
+    required: true
+    skippable: false
+    type: multiline
+    validate: non_empty
+
+  - id: voice_refrains
+    phase: voice
+    prompt: "Recurring metaphors / refrains you use (one per line — blank if none)"
+    required: false
+    skippable: true
+    type: multiline
+
+  - id: voice_closer
+    phase: voice
+    prompt: "Your typical closer style (reflective? punchy line? question? short list?)"
+    required: true
+    skippable: false
+    type: string
+    validate: non_empty
+
+  - id: voice_anti_voice
+    phase: voice
+    prompt: "What do you NOT want to sound like? (uniformly tight magazine prose? polished aphorisms? brand-voice?)"
+    description: |
+      Anti-voice is as informative as voice — tells the harness what to
+      strip in review passes.
+    required: true
+    skippable: false
+    type: multiline
+    validate: non_empty
+
+  # --- Phase 4: Workflow and integrations ---
+
+  - id: org_specific_rules
+    phase: workflow
+    prompt: "Any standing workflow rules? (one per line — 'always X', 'never Y', 'when Z escalate to W')"
+    description: |
+      Each becomes a feedback_*.md entry indexed in MEMORY.md. You can add
+      more later via the save-on-mention rule (every operational fact
+      mentioned in chat).
+    required: false
+    skippable: true
+    type: multiline
+
+  - id: capture_pipeline_setup
+    phase: workflow
+    prompt: "Set up an automated capture pipeline (M365 / Slack / Notion / etc.)? (y/n)"
+    description: |
+      If yes, the wizard creates the capture-pipeline directory and points
+      to docs for wiring your provider. Doesn't auto-create credentials.
+    default: "n"
+    required: false
+    skippable: true
+    type: yes-no
+
+  - id: scheduled_tasks_setup
+    phase: workflow
+    prompt: "Set up scheduled tasks now? (capture, weekly-checkin, scheduled-audit) (y/n)"
+    description: |
+      Creates platform-appropriate task entries (Windows Task Scheduler /
+      cron) for the standard recurring runners. Skippable; you can wire
+      these later via CONFIGURATION.md.
+    default: "n"
+    required: false
+    skippable: true
+    type: yes-no
+
+# --- Templates ---
+# Each template renders to a file under <memory-root> or <vault-root>.
+# {{question-id}} substitutions are applied with the user's answers.
+# Multi-line answers are bullet-listed; empty answers omit the file.
+
+templates:
+  user_role:
+    target: "<memory-root>/user_role.md"
+    require_any:
+      - identity_name
+    body: |
+      ---
+      name: User role
+      description: User's role, expertise, and how they collaborate with the harness
+      type: user
+      ---
+      # User role
+
+      - **Name:** {{identity_name}}
+      - **Role:** {{identity_role}}
+      - **Organisation:** {{identity_org}}
+
+      Created by first-run wizard. Update freely as your role evolves.
+
+  user_voice:
+    target: "<memory-root>/user_voice.md"
+    require_any:
+      - voice_emphasis
+      - voice_cadence
+    body: |
+      ---
+      name: Voice profile
+      description: User's writing style — read by voice-content rule on every draft
+      type: user
+      ---
+      # Voice profile
+
+      ## Emphasis
+      {{voice_emphasis}}
+
+      ## Sentence cadence
+      {{voice_cadence}}
+
+      ## Personality moments
+      {{voice_personality}}
+
+      ## Recurring refrains
+      {{voice_refrains}}
+
+      ## Closer style
+      {{voice_closer}}
+
+      ## Anti-voice (NOT this)
+      {{voice_anti_voice}}
+
+  reference_org_units:
+    target: "<memory-root>/reference_org_units.md"
+    require_any:
+      - org_units
+    body: |
+      ---
+      name: Org units
+      description: Structural primitive for the harness — the user's org-unit list
+      type: reference
+      ---
+      # {{org_unit_label}}s
+
+      {{org_units}}
+
+      Populated by first-run wizard. Edit freely.
+
+  reference_audience_tiers:
+    target: "<memory-root>/reference_audience_tiers.md"
+    require_any:
+      - audience_tiers
+    body: |
+      ---
+      name: Audience tiers
+      description: Per-tier framing reminders for stakeholder-facing artefacts
+      type: reference
+      ---
+      # Audience tiers
+
+      {{audience_tiers}}
+
+      Populated by first-run wizard. Add per-tier lenses (what to
+      emphasise, what to drop) as you learn each audience.
+
+  reference_framework:
+    target: "<memory-root>/reference_framework.md"
+    require_any:
+      - framework_name
+    body: |
+      ---
+      name: Security framework
+      description: User's nominated maturity / control framework + domains
+      type: reference
+      ---
+      # Framework: {{framework_name}}
+
+      ## Domains
+      {{framework_domains}}
+
+      Populated by first-run wizard. Calibration (per-domain targets,
+      org-unit-specific tolerances) added as you score real cycles.
+
+  reference_critical_controls:
+    target: "<memory-root>/reference_critical_controls.md"
+    require_any:
+      - critical_controls
+    body: |
+      ---
+      name: Critical controls
+      description: Cross-org-unit baseline controls — headline for stakeholder reports
+      type: reference
+      ---
+      # Critical controls
+
+      {{critical_controls}}
+
+      These are the apples-to-apples comparison across all your org-units.
+      Lead stakeholder reports with these; full domain detail underneath.
+
+  feedback_data_accuracy:
+    target: "<memory-root>/feedback_data_accuracy.md"
+    require_any:
+      - dashboard_tool
+    body: |
+      ---
+      name: Dashboard is source of truth
+      description: Never compute scores; the dashboard tool is canonical
+      type: feedback
+      ---
+      # Dashboard is source of truth
+
+      **Tool:** {{dashboard_tool}}
+
+      **Why:** Recomputing scores in the harness diverges from the source
+      and causes costly mismatches in stakeholder reports.
+
+      **How to apply:** When asked for scores / verdicts, ask the user to
+      paste from {{dashboard_tool}}. Never recompute. Corrections go to
+      the dashboard, not to a separate vault file.
+
+  feedback_no_tool_mandate:
+    target: "<memory-root>/feedback_no_tool_mandate.md"
+    require_any:
+      - tool_exceptions
+    body: |
+      ---
+      name: Tool exceptions register
+      description: Vendors named without the "or similar tool" framing
+      type: feedback
+      ---
+      # Tool exceptions
+
+      The harness defaults to "X or similar tool" framing on every vendor
+      recommendation. The following are user-configured exceptions —
+      vendors named directly because they're standardised:
+
+      {{tool_exceptions}}
+
+      Everything else gets the framing. If a vendor isn't on this list,
+      treat the recommendation as capability-led ("an EDR tool — e.g.
+      Vendor X or similar").
+
+  feedback_org_rules:
+    target: "<memory-root>/feedback_org_rules.md"
+    require_any:
+      - org_specific_rules
+    body: |
+      ---
+      name: Standing workflow rules
+      description: User-stated workflow rules to apply across sessions
+      type: feedback
+      ---
+      # Standing workflow rules
+
+      {{org_specific_rules}}
+
+      Add more via save-on-mention — every "from now on" / "always X" /
+      "never Y" the user states in chat lands here in the same turn.
+
+# --- Env var configuration ---
+# What gets exported to the user's shell profile after the wizard.
+
+env_vars:
+  - name: HARNESS_VAULT_ROOT
+    value_from: vault_path
+  - name: HARNESS_SECRETS_DIR
+    value_from: secrets_path

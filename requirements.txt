@@ -1,0 +1,14 @@
+# Charon — core runtime dependencies.
+# Optional features (semantic search, knowledge graph, voice input) have
+# their own requirements files; the first-run wizard installs the extras
+# you opt into.
+
+# PyYAML — required by the first-run wizard for question definitions.
+PyYAML>=6.0
+
+# Anthropic SDK — used by the save-on-mention hook's Haiku classifier (optional).
+# Hook gracefully no-ops if this isn't installed or no API key is configured.
+anthropic>=0.40.0
+
+# MCP Python SDK — required by vault-readonly and vault-ops servers.
+mcp>=1.0.0

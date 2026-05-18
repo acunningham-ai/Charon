@@ -1,0 +1,47 @@
+# Per-user accumulated allowlist — never ship
+.claude/settings.local.json
+
+# Runtime state, telemetry, audit logs
+state/
+**/state/
+00-Inbox/_captured/
+00-Inbox/_reports/
+01-Daily/
+05-Meetings/captured/
+06-Decisions/
+09-Archive/
+
+# Memory directory (user-specific; lives under ~/.claude/projects/<...>/memory/ by default, but if a user co-locates it inside the vault, skip it)
+memory/sessions/
+memory/*.md
+!memory-templates/
+
+# Capture pipeline runtime
+capture-pipeline/state/
+capture-pipeline/node_modules/
+capture-pipeline/*.bak
+capture-pipeline/*.corrupt-bak
+capture-pipeline/_inflight.json
+capture-pipeline/config.json
+!capture-pipeline/config.example.json
+
+# Secrets — should never be in the repo regardless of path
+**/.secrets/
+*.env
+.env.*
+!.env.example
+
+# Obsidian + binary blobs
+.obsidian/
+_Attachments/
+!_Templates/
+
+# Common cruft
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.bak
