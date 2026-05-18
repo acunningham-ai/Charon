@@ -21,7 +21,7 @@ Charon turns Claude Code into a system that:
 
 ---
 
-## What makes this differentiated
+## What makes this different
 
 Most personal-AI projects ship one or two of the patterns below. Charon ships all of them — and tests that they fire.
 
