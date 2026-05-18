@@ -1,6 +1,6 @@
 # Installing Charon
 
-The fast path is a single command. Read on for what it does and how to handle anything it can't do for you.
+Charon is a CISO harness. We teach security-hygiene discipline through the rules, so we model it from the install instructions: **read the script before you run it**, and run it under the least-permissive policy that works.
 
 ## Quick start
 
@@ -8,13 +8,44 @@ The fast path is a single command. Read on for what it does and how to handle an
 # Clone the repo (anywhere — outside cloud-synced folders is faster)
 git clone https://github.com/acunningham-ai/Charon.git ~/second-brain
 cd ~/second-brain
+```
 
+**Step 1 — Inspect the installer.** Open `install.ps1` / `install.sh` in your editor. It's short (≈100 lines). You're checking: which package manager it invokes, where it writes (your `~/.secrets/`), what Python deps it pulls.
+
+**Step 2 — (Optional) verify integrity.** Every tagged release publishes a SHA-256 of `install.ps1` in the release notes. Compare:
+
+```powershell
 # Windows
-powershell -ExecutionPolicy Bypass -File install.ps1
+Get-FileHash install.ps1 -Algorithm SHA256
+```
 
+```bash
+# macOS / Linux
+shasum -a 256 install.sh
+```
+
+Mismatch → don't run; open an issue.
+
+**Step 3 — Run.**
+
+```powershell
+# Windows — RemoteSigned is the least-permissive policy that runs a locally-cloned script.
+# git clone does NOT mark files with the internet Zone.Identifier, so RemoteSigned accepts it.
+powershell -ExecutionPolicy RemoteSigned -File install.ps1
+```
+
+```bash
 # macOS / Linux
 bash install.sh
 ```
+
+**Fallback for locked-down Windows machines.** If your policy is `AllSigned` (uncommon outside managed enterprise environments), `RemoteSigned` will reject the unsigned script. After you've inspected it:
+
+```powershell
+powershell -ExecutionPolicy Bypass -Scope Process -File install.ps1
+```
+
+`-Scope Process` confines the bypass to the single invocation; it does **not** change your machine or user policy. Avoid the older `-ExecutionPolicy Bypass` without `-Scope Process` — same blast radius for this run, but easier to copy-paste into other contexts without thinking.
 
 The bootstrap installer:
 
@@ -157,7 +188,7 @@ See [`FIRST-RUN.md`](FIRST-RUN.md) for the question flow.
 | `ImportError: yaml` | `pip install PyYAML` (or re-run `install.ps1` / `install.sh`) |
 | `ImportError: anthropic` | `pip install anthropic`. Save-on-mention hook will no-op until installed + API key configured. |
 | `ImportError: mcp` | `pip install mcp` |
-| Bootstrap script blocked on Windows | Run with `powershell -ExecutionPolicy Bypass -File install.ps1`, or set `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. |
+| Bootstrap script blocked on Windows | Try `powershell -ExecutionPolicy RemoteSigned -File install.ps1` first (default policy for locally-cloned scripts). Locked-down machine? After inspecting the file: `powershell -ExecutionPolicy Bypass -Scope Process -File install.ps1` (process-scoped, not machine-wide). Or persistently relax for your user account: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. |
 | `winget` not found (Windows) | Install App Installer from Microsoft Store, then re-run. Or pick (m)anual at the prompt. |
 | Python install via bootstrap "succeeded" but `python --version` doesn't work | Open a fresh shell — PATH only updates for new sessions. |
 | Hooks not firing | Verify `.claude/settings.json` exists and hooks point at `${CLAUDE_PROJECT_DIR}/scripts/...`. Set `CLAUDE_PROJECT_DIR` to your vault root. |

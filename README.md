@@ -163,13 +163,27 @@ See [`ROADMAP.md`](ROADMAP.md) for what's coming next and what won't ship.
 # Clone the repo (anywhere — outside cloud-synced folders is faster)
 git clone https://github.com/acunningham-ai/Charon.git ~/second-brain
 cd ~/second-brain
+```
 
-# Windows
-powershell -ExecutionPolicy Bypass -File install.ps1
+**Inspect the installer before running it.** Charon is a CISO tool; modelling the discipline it teaches starts here. Open `install.ps1` / `install.sh` in your editor and skim — it's short, it tells you what package managers it'll invoke and where it'll write.
 
+```powershell
+# Windows — least-permissive policy that works for a locally-cloned script
+powershell -ExecutionPolicy RemoteSigned -File install.ps1
+```
+
+```bash
 # macOS / Linux
 bash install.sh
 ```
+
+> **Optional integrity check:** every tagged release publishes a SHA-256 of `install.ps1` in the release notes. To verify before running:
+> ```powershell
+> Get-FileHash install.ps1 -Algorithm SHA256
+> ```
+> Compare the output to the hash on the release page. Mismatch → don't run; open an issue.
+
+If your machine policy is locked to `AllSigned` and `RemoteSigned` rejects the script, fall back to `-ExecutionPolicy Bypass -Scope Process -File install.ps1` (scoped to one process, not machine-wide) AFTER you've read the file. See [`INSTALL.md`](INSTALL.md) troubleshooting for the full ladder.
 
 The bootstrap installer detects Python 3.10+ and Obsidian, offers auto-install via `winget` / `brew` / `apt|dnf|pacman` OR shows install instructions, installs Python dependencies, creates `~/.secrets/` with restricted permissions, then hands off to the first-run wizard.
 

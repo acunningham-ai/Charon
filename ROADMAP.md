@@ -75,6 +75,10 @@ ATLAS v5.4.0 (Feb 2026) shipped 16 tactics, 84 techniques, 32 mitigations — in
 
 **Source:** https://github.com/stevesolun/ctx 🟡
 
+### 💡 Code-signed installer + per-release SHA-256
+
+`install.ps1` / `install.sh` currently ship unsigned. The README/INSTALL flow already teaches inspect-first + `RemoteSigned`, but signed binaries are the only fully tamper-evident option for users on `AllSigned` policies (managed enterprise environments) and for users who can't be expected to read the script. Two-step rollout: (1) publish a SHA-256 of `install.ps1` in every tagged GitHub release (zero cost, immediate); (2) acquire a code-signing cert and sign release artefacts (~$300-700/yr for an EV cert from a public CA 🔴 — verify before purchase). Considering rather than planned because (a) cost vs. user base in the validation phase isn't justified yet, and (b) self-signed-cert-with-fingerprint is a cheaper middle option that's worth evaluating before paying for a CA-issued cert.
+
 ### 💡 Encryption at rest for memory files
 
 Anthropic docs explicitly note Claude Code artifacts are NOT encrypted at rest 🟡. CISO-relevant. `llmsecrets.com` ships LLM Secrets + Secret Vault skill that encrypts `.env`-style content so Claude never reads plaintext. Charon's memory files contain operational facts the user wouldn't want leaked from a stolen laptop. Considering rather than planned because encryption-at-rest is a significant UX cost (key management, Claude can't read encrypted files without the key being in context, which defeats the point) — needs design before commitment.
