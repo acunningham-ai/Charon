@@ -1,10 +1,28 @@
 # Changelog
 
-All notable changes to this project will be documented here. Format follows [Keep a Changelog](https://keepachangelog.com/). During private validation, releases are tagged `v0.X.Y-preview`.
+All notable changes to this project will be documented here. Format follows [Keep a Changelog](https://keepachangelog.com/). During private validation, releases are tagged `v0.X.Y-preview`. See [`VERSIONING.md`](VERSIONING.md) for when each number bumps (MINOR = new capability, PATCH = update / feedback fix).
 
 ## [Unreleased]
 
 *Nothing pending — next change lands here.*
+
+---
+
+## [0.2.0-preview] - 2026-05-19
+
+### Added — versioning framework (your projects get the same discipline)
+
+When you use Charon to build your own projects, you now get a consistent versioning convention applied automatically.
+
+- **New file: [`VERSIONING.md`](VERSIONING.md)** at the repo root — the user-facing doc that explains the convention: MINOR for a new capability, PATCH for an update / fix / feedback refinement, `-preview` suffix during private validation, and a one-question authoring test to decide which number to bump (*"could a user describe this as 'now I can do X' where X is new?"*).
+- **New always-helpful rule: `.claude/rules/versioning.md`** — auto-loads when you (or Claude Code) are working on a CHANGELOG, cutting a release, picking a tag name, or asking "is this a MINOR or PATCH?". The rule names the workflow steps (decide → CHANGELOG → tag → push), surfaces the anti-patterns (don't inflate PATCH to MINOR for marketing, don't use non-standard `.5 / .6` increments, never tag without updating CHANGELOG).
+- **CHANGELOG header** now links readers to `VERSIONING.md` so the convention is one click away from the release log.
+
+This applies to Charon itself AND to any project you build under the harness — it's a shared discipline that signals across all your work which kind of change happened from the version number alone.
+
+### Why this is a MINOR and not a PATCH
+
+`VERSIONING.md` + the new path-rule didn't exist in `v0.1.1-preview`. They're a new capability the harness now ships with — so MINOR.
 
 ---
 
@@ -34,7 +52,7 @@ The capture pipeline already existed in `v0.1.0-preview`. This release makes it 
 
 ## [0.1.0-preview] - 2026-05-18
 
-Initial preview release — invited to private validators (Joh Leonhardt, Ben Dowling) on 2026-05-18. Everything below shipped as part of this preview.
+Initial preview release — distributed to invited private validators on 2026-05-18. Everything below shipped as part of this preview.
 
 ### Added — capture pipeline scheduling
 
@@ -120,6 +138,7 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.1.1-preview...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.2.0-preview...HEAD
+[0.2.0-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.2.0-preview
 [0.1.1-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.1.1-preview
 [0.1.0-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.1.0-preview
