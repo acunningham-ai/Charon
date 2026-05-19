@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to this project will be documented here. Format follows [Keep a Changelog](https://keepachangelog.com/).
+All notable changes to this project will be documented here. Format follows [Keep a Changelog](https://keepachangelog.com/). During private validation, releases are tagged `v0.X.Y-preview`.
 
 ## [Unreleased]
 
@@ -19,6 +19,12 @@ This release fixes that. Three changes work together:
 If you've ever been annoyed that your capture pipeline silently lost a morning of email, this is the fix.
 
 Technical implementation: new `setNonInteractive()` on the M365 provider, `--non-interactive` CLI flag on `fetch-mail.mjs`, distinct exit code `2` on auth failure, `state/REAUTH-NEEDED.flag` JSON marker, cross-platform notification logic in `scheduled-capture.bat` and `scheduled-capture.sh`, new `scripts/hooks/check-reauth-flag.py` SessionStart hook wired in `.claude/settings.json`.
+
+---
+
+## [0.1.0-preview] - 2026-05-18
+
+Initial preview release — invited to private validators (Joh Leonhardt, Ben Dowling) on 2026-05-18. Everything below shipped as part of this preview.
 
 ### Added — capture pipeline scheduling
 
@@ -104,4 +110,5 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/commits/main
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.1.0-preview...HEAD
+[0.1.0-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.1.0-preview
