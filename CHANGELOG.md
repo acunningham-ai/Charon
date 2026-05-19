@@ -4,6 +4,12 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+*Nothing pending — next change lands here.*
+
+---
+
+## [0.1.1-preview] - 2026-05-19
+
 ### Added — reliable email capture (no more silent failures)
 
 A common frustration with scheduled email capture: it runs at 7am, your sign-in has expired overnight, and the script gets stuck waiting for you to sign in again — but nobody's there. You discover the failure hours later, missing a day of mail.
@@ -19,6 +25,10 @@ This release fixes that. Three changes work together:
 If you've ever been annoyed that your capture pipeline silently lost a morning of email, this is the fix.
 
 Technical implementation: new `setNonInteractive()` on the M365 provider, `--non-interactive` CLI flag on `fetch-mail.mjs`, distinct exit code `2` on auth failure, `state/REAUTH-NEEDED.flag` JSON marker, cross-platform notification logic in `scheduled-capture.bat` and `scheduled-capture.sh`, new `scripts/hooks/check-reauth-flag.py` SessionStart hook wired in `.claude/settings.json`.
+
+### Why this is a PATCH and not a MINOR
+
+The capture pipeline already existed in `v0.1.0-preview`. This release makes it more reliable but doesn't add a new capability — so PATCH.
 
 ---
 
@@ -110,5 +120,6 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.1.0-preview...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.1.1-preview...HEAD
+[0.1.1-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.1.1-preview
 [0.1.0-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.1.0-preview
