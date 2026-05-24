@@ -25,6 +25,7 @@ Three reasons:
 | `owasp-llm-reviewer` | OWASP LLM01-LLM10 review | Read, Grep, Glob | sonnet |
 | `owasp-agentic-reviewer` | OWASP ASI01-ASI10 review | Read, Grep, Glob | sonnet |
 | `knowledge-synthesizer` | Synthesise a framework doc on a topic | Read, Grep, Glob, Write | sonnet |
+| `cerberus` | Security specialist for Claude Code installations — audit, harden, recover | Read, Grep, Glob, Bash | inherit |
 
 ## Dispatch pattern
 

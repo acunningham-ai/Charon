@@ -22,7 +22,7 @@ These rules auto-inject into the assistant's context when the user's prompt ment
 
 ## Slash commands (`.claude/commands/*.md`)
 
-21 invokable skills. Most accept arguments after the slash command.
+25 invokable commands. Most accept arguments after the slash command.
 
 ### Reporting + governance
 
@@ -65,6 +65,28 @@ These rules auto-inject into the assistant's context when the user's prompt ment
 | `/telemetry-summary` | Roll up hook telemetry — counts, tokens, cost over the last N days |
 | `/check-service <name>` | Quick triage of a deployed service over SSH (status / logs / errors) |
 
+### Security audit / vet — Cerberus
+
+Defends your Claude Code installation. Original by [Joh Leonhardt](https://github.com/JohL29/claude-security-auditor) (MIT); the Charon build extends with the V0–V8 threat model for third-party-artifact vetting, OWASP LLM crosswalk, MCP-specific coverage, and the remediation library.
+
+| Command | What it does |
+|---|---|
+| `/cerberus-setup` | First-run hardening wizard — audits the gold standard, walks you through each gap, verifies the result |
+| `/cerberus-audit` | Read-only security audit across the 7-layer threat model — produces a 0–100 score and findings |
+| `/cerberus-vet <repo-url>` | Pre-install risk assessment of a third-party plugin / skill / MCP server. Clones to sandbox, scans against V0–V8, returns risk level (LOW / MEDIUM / HIGH / CRITICAL) + score 0–100. Output is risk evidence, not approval |
+| `/cerberus-recover` | Post-leak runbook — rotation, git-history cleanup, session invalidation, hardening |
+
+## Skills (`.claude/skills/*/SKILL.md`)
+
+Model-triggered skills — invoked by the assistant when the task matches their description, not via slash command. Each skill has its own SKILL.md describing when it fires and what it does.
+
+| Skill | What it does | Triggered by |
+|---|---|---|
+| `audit-claude-setup` | Full read-only security audit of a Claude Code installation across the 7-layer threat model | `/cerberus-audit` |
+| `harden-claude-setup` | Interactive guided hardening — applies fixes for findings from `audit-claude-setup` | `/cerberus-setup` |
+| `vet-external-skill` | Pre-install threat-model assessment (V0–V8) of a third-party plugin / skill / MCP from a GitHub URL | `/cerberus-vet <repo-url>` |
+| `rotate-leaked-secret` | Post-leak runbook — credential rotation, git-history cleanup, session invalidation | `/cerberus-recover` |
+
 ## Hooks (`scripts/hooks/*.py`)
 
 Event-driven scripts wired into `.claude/settings.json`. Most are silent until something fires.
@@ -80,6 +102,8 @@ Event-driven scripts wired into `.claude/settings.json`. Most are silent until s
 | **ssh-recovery.py** | PostToolUse (Bash) | On SSH auth failure, nudges the assistant to run the credential recovery script |
 | **notification-toast.py** | Notification | Desktop notification (Windows; no-op elsewhere) |
 | **on-error.py** | (called from scheduled bats) | Logs failure + shows desktop notification when an unattended runner exits non-zero |
+
+Cerberus also ships its own hook scripts under `scripts/hooks/cerberus/` — `block-secrets.sh` (PreToolUse regex secret-pattern scan, 30+ patterns), `audit-claude-md.sh` (UserPromptSubmit prompt-injection audit), `secret-pattern-scan.py` (shared engine). **Not auto-wired** — opt-in via `/cerberus-setup`, which adds them to `.claude/settings.json` after walking the user through the change.
 
 ## MCP servers (`scripts/mcp/*.py`)
 
@@ -122,6 +146,7 @@ Dispatched in parallel by parent skills for heavyweight tasks. Each has its own 
 | `owasp-llm-reviewer` | OWASP LLM01-LLM10 review | Read, Grep, Glob |
 | `owasp-agentic-reviewer` | OWASP ASI01-ASI10 review | Read, Grep, Glob |
 | `knowledge-synthesizer` | Synthesise a topic-scoped framework doc to `07-References/` | Read, Grep, Glob, Write |
+| `cerberus` | Security specialist for Claude Code installations — audit / harden / recover. Dispatches the Cerberus skills | Read, Grep, Glob, Bash |
 
 See `.claude/agents/README.md` for the dispatch pattern.
 

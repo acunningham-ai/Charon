@@ -81,6 +81,15 @@ Built into the harness, not bolted on. Each is enforced by a specific mechanism,
 - **`/owasp-agentic-review`** — OWASP Agentic AI Security 2026 (ASI01-ASI10): goal hijack, tool misuse, identity/privilege abuse, supply chain, code execution, memory poisoning, inter-agent comms, cascading failures, human-agent trust, rogue agents
 - **`/fp-check`** — false-positive verification gate that re-reads cited file:line, reproduces or withdraws each 🔴 finding. Forces evidence before any block-merge claim.
 
+### Cerberus — protects the harness itself
+
+The reviews above protect the *code you're working on*. Cerberus protects the *Claude Code installation* it runs in. Original by [Joh Leonhardt](https://github.com/JohL29/claude-security-auditor) (MIT); the Charon build adds the V0–V8 third-party-artifact threat model, OWASP LLM crosswalk, MCP-specific coverage, and the remediation library.
+
+- **`/cerberus-setup`** — first-run hardening wizard. Audits your current setup against the gold standard, walks you through each gap interactively, verifies the result. Run before using Claude Code on any sensitive project.
+- **`/cerberus-audit`** — read-only diagnostic across the 7-layer threat model (secrets at rest, env vars, egress, prompt injection, supply chain, bypass containment, audit trail). Produces a 0–100 score and per-finding fixes.
+- **`/cerberus-vet <repo-url>`** — pre-install risk assessment of a third-party plugin, skill, or MCP server. Clones to sandbox, scans against the V0–V8 threat model, returns risk level (LOW / MEDIUM / HIGH / CRITICAL) + score 0–100 with per-finding remediation references. Output is risk evidence, not approval — final tool-approval authority sits with your organization's defined policy.
+- **`/cerberus-recover`** — post-leak runbook. Rotation, git-history cleanup, session invalidation, hardening to prevent recurrence.
+
 ### Bi-directional email capture (inbox + sent items)
 
 A working capture pipeline ships in `capture-pipeline/` — not a pattern, a runnable Node.js reference implementation. Pulls **both inbox and sent items** from your email provider into your vault as markdown captures, with a `direction: inbound|outbound` frontmatter flag that downstream skills read.

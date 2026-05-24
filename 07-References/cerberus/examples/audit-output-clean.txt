@@ -1,0 +1,41 @@
+## Security Audit Report — MacBook Pro — 2026-04-27
+
+**Score: 7/7 layers adequately protected**
+
+#### Critical Findings
+None ✅
+
+#### Important Findings
+None ✅
+
+#### What's Working
+- L0 Secrets at rest: 31 deny rules covering .env, .pem, .key, .ssh, .aws, .gcloud, .kube,
+  .gnupg, .p12, .pfx, id_rsa, id_ed25519, secrets/, credentials/, and Bash cat/head/tail variants.
+  Zero gaps against the golden-settings.json baseline.
+- L1 Env var protection: printenv, env |, export -p all denied. No process substitution bypass
+  patterns detected. ENABLE_CERBERUS environment flag is absent (default: enforcing).
+- L2 Egress: curl, wget, nc, scp all denied. WebFetch denied at the permissions layer. MCP server
+  tokens use environment variables (GITHUB_PERSONAL_ACCESS_TOKEN) — no plaintext tokens found
+  in ~/.claude.json or ~/.claude/settings.json.
+- L3 Prompt injection: audit-claude-md.sh registered on UserPromptSubmit. Scanned CLAUDE.md,
+  CLAUDE.local.md, .claude/CLAUDE.md, and project MEMORY.md — no injection markers found.
+  No base64 blobs, no curl-pipe patterns, no [INST] / SYSTEM: / IGNORE PREVIOUS markers.
+- L4 Supply chain: 4 official plugins installed (pr-review-toolkit, superpowers, code-simplifier,
+  security-guidance). All sourced from claude-plugins-official registry. No third-party plugins
+  with unreviewed hooks detected.
+- L5 Bypass: disableBypassPermissionsMode: "disable" confirmed. No managed settings override
+  detected (solo developer setup). Bypass flag unavailable to Claude in this configuration.
+- L6 Audit trail: settings.json passes python3 -m json.tool validation (exit 0). All 31 deny
+  rules visible in /permissions. No silent-ignore risk from malformed JSON.
+
+#### Hooks Active
+- PreToolUse → block-secrets.sh (matcher: Bash|Read|Edit|Write|MultiEdit)
+- UserPromptSubmit → audit-claude-md.sh
+- block-secrets.sh delegates to secret-pattern-scan.py for regex-level matching.
+
+#### Plugin Version
+Cerberus Claude Code Security Agent v1.0.0 — last scan: 2026-04-27T14:03:12Z
+
+#### Next Step
+No action required. Run /cerberus-audit periodically or after installing new plugins.
+Consider running: scripts/verify.sh to confirm baseline after any settings change.

@@ -1,0 +1,35 @@
+# Secrets and credentials — append to your project .gitignore
+.env
+.env.*
+*.env
+!.env.example
+!.env.template
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+
+# Cloud provider credentials
+.aws/
+.gcloud/
+.kube/config
+.gnupg/
+
+# Claude Code project-local settings (may contain approved dangerous-command overrides)
+.claude/settings.local.json
+
+# AI tool config directories (can leak settings, token paths, session data)
+.cursor/
+.continue/
+.aider/
+
+# Cerberus session state files
+cerberus_state_*.json
+security_warnings_state_*.json

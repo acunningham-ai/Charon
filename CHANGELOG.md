@@ -8,6 +8,39 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.3.0-preview] - 2026-05-25
+
+### Added — Cerberus, the security capability that protects the harness itself
+
+The reviews already in Charon (`/secure-code-review`, `/owasp-llm-review`, `/owasp-agentic-review`) protect the *code you're working on*. Cerberus protects the *Claude Code installation* the harness runs in. Two different surfaces, both now covered.
+
+Original Cerberus was built by [Joh Leonhardt](https://github.com/JohL29/claude-security-auditor) as a Claude Code plugin. This release ports the engine into the harness directly and extends it with the V0–V8 third-party-artifact threat model, OWASP LLM crosswalk, MCP-specific coverage, and a remediation library.
+
+**Four new slash commands:**
+
+- **`/cerberus-setup`** — first-run hardening wizard. Audits your Claude Code configuration against the gold standard, walks you through each gap interactively, verifies the result. Designed to be the first thing you run on any new machine.
+- **`/cerberus-audit`** — read-only diagnostic across a 7-layer threat model: secrets at rest, secrets in environment variables, egress channels, prompt injection in CLAUDE.md / MEMORY.md, supply chain (installed plugins / skills), bypass containment, audit trail. Produces a 0–100 score and per-finding fixes.
+- **`/cerberus-vet <repo-url>`** — pre-install risk assessment of a third-party Claude Code plugin, skill, or MCP server. Clones the repo to a sandbox, walks the file tree, applies a 9-layer threat model (V0–V8) covering OWASP LLM01 / LLM02 / LLM03 / LLM06, and returns a risk level (LOW / MEDIUM / HIGH / CRITICAL) + 0–100 score. **MCP-specific coverage** includes tool-schema audit, transport-aware egress, HTTP-transport auth-scheme audit, tool-description poisoning detection, and MCP SDK typosquat checks. Per-finding mitigations cite the remediation-library template ID where available. Output is risk evidence — final tool-approval authority sits with your organization's defined policy.
+- **`/cerberus-recover`** — post-leak runbook. Walks you through credential rotation, git-history cleanup, session invalidation, and enabling ongoing protection.
+
+**Four new model-triggered skills under `.claude/skills/`** — `audit-claude-setup`, `harden-claude-setup`, `vet-external-skill`, `rotate-leaked-secret`. Each command dispatches the matching skill. This is the first set of `.claude/skills/`-style skills shipping in Charon — they're auto-triggered by the assistant when the task matches their description (separate from the slash-command invocation model).
+
+**One new subagent** — `.claude/agents/cerberus.md` — the security specialist that orchestrates the four skills. Wires into the existing multi-agent dispatch pattern.
+
+**Reference material under `07-References/cerberus/`** — architecture overview, 7-layer threat-model rationale, the OWASP LLM 2025 crosswalk for the vetting layers (V0–V8), and a starter remediation library (REM-001 through REM-010) with author-side fix + adopter-side acceptance for the most common findings.
+
+**Cerberus's own hooks** (`scripts/hooks/cerberus/block-secrets.sh`, `audit-claude-md.sh`, `secret-pattern-scan.py`) ship alongside the existing hooks but are **not auto-wired**. The block-secrets and CLAUDE.md-audit hooks change harness behaviour at the write-path layer; `/cerberus-setup` walks you through enabling them deliberately rather than turning them on by default.
+
+### Attribution
+
+Joh Leonhardt's original Cerberus shipped as a Claude Code plugin under MIT. The Charon build preserves that licence and credits Joh in every commands file (`upstream:` frontmatter field), in `CAPABILITIES.md`, and in the README's Cerberus section. The Charon extensions (V0–V8, `/cerberus-vet`, OWASP crosswalk, remediation library) ship on top.
+
+### Why this is a MINOR and not a PATCH
+
+Cerberus is a new capability surface — four new slash commands, four new model-triggered skills, a new subagent, new reference material, new hook scripts. The authoring test (*"could a user describe this as 'now I can do X' where X is new?"*) is yes — "now I can audit, harden, vet, and recover my Claude Code installation from inside the harness." That's new capability, so MINOR.
+
+---
+
 ## [0.2.0-preview] - 2026-05-19
 
 ### Added — versioning framework (your projects get the same discipline)

@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "disableBypassPermissionsMode": "disable",
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/id_rsa)",
+      "Read(**/id_ed25519)",
+      "Read(**/secrets/**)",
+      "Read(**/credentials/**)",
+      "Read(**/.aws/**)",
+      "Read(**/.ssh/**)",
+      "Read(**/.gcloud/**)",
+      "Read(**/.kube/config)",
+      "Bash(cat .env*)",
+      "Bash(cat ~/.aws/*)",
+      "Bash(cat ~/.ssh/*)",
+      "Bash(printenv)",
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "WebFetch"
+    ]
+  },
+  "allowManagedPermissionRulesOnly": true,
+  "allowManagedHooksOnly": true,
+  "allowManagedMcpServersOnly": true,
+  "forceRemoteSettingsRefresh": true,
+  "cleanupPeriodDays": 7,
+  "disableAutoMode": "disable"
+}

@@ -22,8 +22,9 @@ Where Charon is going. Status, rationale, and what isn't on the list.
 - ✅ ASCII trademark logo banner with auto-detect by terminal width
 - ✅ **Local semantic search** — sentence-transformers + bge-micro-v2 (~80MB) + sqlite-vec; `semantic_search` MCP tool in `vault-readonly`; on-demand indexer at `scripts/semantic_index.py`
 - ✅ **Knowledge graph** — kuzu-backed `vault-graph` MCP server with `get_entity` / `query_graph` / `stats` tools; Haiku-driven extraction at `scripts/extract_entities.py`; closed entity-type + relationship-type vocabulary (C-3.1)
-- ✅ **Multi-agent / subagents** — 4 subagent specs in `.claude/agents/` (secure-code-reviewer, owasp-llm-reviewer, owasp-agentic-reviewer, knowledge-synthesizer); dispatch pattern documented; least-privilege tool grants per subagent
+- ✅ **Multi-agent / subagents** — 5 subagent specs in `.claude/agents/` (secure-code-reviewer, owasp-llm-reviewer, owasp-agentic-reviewer, knowledge-synthesizer, cerberus); dispatch pattern documented; least-privilege tool grants per subagent
 - ✅ **Voice input** — local Whisper transcription via `scripts/voice-capture.py` + `/voice-note` slash command; audio never leaves the machine; transcripts land in `00-Inbox/_captured/voice/` as untrusted content per the captures rule
+- ✅ **Cerberus — protects the harness itself** (`v0.3.0-preview`, 2026-05-25). 4 slash commands (`/cerberus-{setup,audit,vet,recover}`), 4 model-triggered skills in `.claude/skills/`, 1 subagent, OWASP LLM crosswalk + remediation library under `07-References/cerberus/`, 3 hook scripts (opt-in, not auto-wired). Original by [Joh Leonhardt](https://github.com/JohL29/claude-security-auditor) (MIT); Charon build extends with V0–V8 third-party-artifact threat model, MCP-specific coverage, and remediation library. Closes the install-side surface that the existing review skills (`/secure-code-review`, `/owasp-{llm,agentic}-review`) don't cover
 
 ---
 

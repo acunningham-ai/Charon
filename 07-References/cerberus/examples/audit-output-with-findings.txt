@@ -1,0 +1,57 @@
+## Security Audit Report — Engineering Laptop — 2026-04-27
+
+**Score: 4/7 layers adequately protected**
+
+#### Critical Findings (fix before proceeding)
+
+**Finding 1**: settings.json has a JSON parse error (confidence: 95)
+- Risk: ALL deny rules are silently ignored when settings.json is invalid. Claude operates with
+  no restrictions — every file is readable, every command is executable, every URL is fetchable.
+  This is a total protection failure.
+- Detection: python3 -m json.tool ~/.claude/settings.json returned exit code 1.
+- Error: Expecting ',' delimiter: line 14 column 5 (char 312)
+- Fix: Open ~/.claude/settings.json, find the syntax error on line 14, correct it, then run:
+    python3 -m json.tool ~/.claude/settings.json
+  Confirm it exits cleanly, then run /cerberus-audit again.
+
+**Finding 2**: Literal API token in MCP config (confidence: 92)
+- Risk: Token stored as plaintext in ~/.claude.json is readable by Claude and any process
+  with home directory access. If Claude is ever compromised or logs are leaked, the token
+  is exposed. Tokens in plaintext also appear in transcript logs.
+- Detection: ~/.claude.json contains: "token": "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+- Fix: Replace the literal value with an environment variable reference:
+    "token": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+  Then add to your shell profile (~/.zshrc or ~/.bashrc):
+    export GITHUB_PERSONAL_ACCESS_TOKEN="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  Reload your shell and confirm Claude picks up the variable.
+
+#### Important Findings (fix soon)
+
+**Finding 3**: No PreToolUse hook registered (confidence: 84)
+- Risk: Bash commands that reference .env files bypass Read deny rules at the permission layer.
+  `cat .env` cannot be blocked by a deny rule — it requires a hook. Without block-secrets.sh,
+  secret-pattern-scan.py never runs, and Claude can exfiltrate secrets via Bash.
+- Detection: settings.json has no hooks.PreToolUse entries.
+- Fix: Add block-secrets.sh hook to settings.json PreToolUse, or run:
+    scripts/install.sh
+  This adds the hook registration and copies block-secrets.sh to ~/.claude/hooks/.
+
+#### What's Working
+- L0 Secrets at rest: 22 deny rules present — covers most file paths but missing Bash command
+  patterns (cat *.env*, head *.env*, grep * .env*). Partial protection only.
+- L5 Bypass: disableBypassPermissionsMode: "disable" confirmed — bypass mode is locked out.
+- L6 Audit trail: /permissions shows all active rules (22 deny rules visible).
+
+#### Layers Not Checked (blocked by Finding 1)
+- L1, L2, L3, L4: Cannot audit reliably while settings.json is invalid. Fix Finding 1 first.
+
+#### Plugin Version
+Cerberus Claude Code Security Agent v1.0.0 — last scan: 2026-04-27T09:17:44Z
+
+#### Next Step
+Critical: Fix the settings.json parse error first — until it's fixed, you have zero protection.
+Run:
+  python3 -m json.tool ~/.claude/settings.json
+
+Then run /cerberus-setup to address all remaining findings in the correct order.
+Do NOT proceed with development tasks until Finding 1 is resolved.

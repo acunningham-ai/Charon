@@ -76,13 +76,26 @@ PERSONAL_PATTERNS = [
     (r"\bSchmutter\b", "personnel name", "FAIL", []),
     (r"\bKaren Chung\b", "personnel name", "FAIL", []),
     (r"\bRaj Gurusinghe\b", "personnel name", "FAIL", []),
-    (r"\bJoh Leonhardt\b", "personnel name", "FAIL", []),
+    # Joh Leonhardt — original Cerberus author; attribution allowed in Cerberus-related files
+    (r"\bJoh Leonhardt\b", "personnel name", "FAIL", [
+        ".claude/commands/cerberus-setup.md",
+        ".claude/commands/cerberus-audit.md",
+        ".claude/commands/cerberus-vet.md",
+        ".claude/commands/cerberus-recover.md",
+        "CAPABILITIES.md",
+        "README.md",
+        "CHANGELOG.md",
+        "ROADMAP.md",
+    ]),
     (r"\bBrad Mason\b", "personnel name", "FAIL", []),
     (r"\bLuke Haites\b", "personnel name", "FAIL", []),
     (r"\bBen Dowling\b", "personnel name", "FAIL", []),
     (r"\bMark Clearwater\b", "personnel name", "FAIL", []),
     (r"Payroll\s+Bot", "Payroll Bot reference", "FAIL", []),
-    (r"\bCerberus\b", "Cerberus reference", "FAIL", []),
+    # Cerberus — now a shipping capability in Charon (v0.3.0-preview, 2026-05-25)
+    # Previously excluded; the proprietary fork concern was resolved when Adam released
+    # the engine under MIT with Vela approval. The capability ships from the .claude/
+    # tree alongside the rest of the harness.
     (r"\bWardgate\b", "Wardgate reference", "FAIL", []),
     (r"\bPlaud\b", "Plaud reference", "FAIL", []),
     (r"\bCrowdStrike\b", "CrowdStrike reference", "FAIL", []),
