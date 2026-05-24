@@ -8,6 +8,31 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.3.1-preview] - 2026-05-25
+
+### Changed — sharper V3 classification in `vet-external-skill`
+
+First real-world run of `/cerberus-vet` (against a defensive-security Go tool) surfaced a calibration gap in the V3 (filesystem access) layer. The grep returns hits in code that **reads** sensitive paths AND in code that **defends** them — both legitimate, opposite risk profiles, but the original scoring treated all hits the same way.
+
+This release teaches V3 to classify each grep hit by intent before scoring:
+
+- **Read** — path is an input to a file-read primitive. Score as the rubric says.
+- **Defensive listing** — path appears in a deny-list, block-list, or dangerous-paths array used by a sandbox / scanner / allowlist enforcer. Variable names like `DANGEROUS_*` / `DENY_*` / `BLOCKED_*` / `SENSITIVE_*` / `PROTECTED_*` and structures like `AddDeny` / `BlockPath` / `RestrictAccess` are the signal. **Not a finding** — recorded under *What Passed Cleanly* as a positive note (the artifact defends these paths rather than reading them).
+- **Test fixture** — path is in a test tree, used to exercise a deny-rule with fake secrets. Not a finding.
+- **Documentation** — `.md`-only mention. Not a finding.
+
+The intent classification step is now load-bearing; the grep alone is necessary but not sufficient.
+
+### Changed — V3 grep extended to more languages
+
+Original V3 grep only walked `.py` / `.js` / `.ts` / `.sh`. Added `.go` / `.rs` / `.rb` / `.java` — without these, the grep would silently miss V3 patterns in any non-script-language artifact.
+
+### Why this is a PATCH and not a MINOR
+
+The `/cerberus-vet` capability is unchanged in what it does — same artifact-vetting surface, same V0–V8 threat model, same scoring rubric, same output. V3 inside it is now better calibrated. The authoring test (*"could a user describe this as 'now I can do X' where X is new?"*) is no — vet still does what it did; it's just less likely to misclassify defensive-purpose artifacts as risky. Calibration fix, not new capability → PATCH.
+
+---
+
 ## [0.3.0-preview] - 2026-05-25
 
 ### Added — Cerberus, the security capability that protects the harness itself

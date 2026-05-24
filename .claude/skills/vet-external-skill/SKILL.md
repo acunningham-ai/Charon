@@ -151,17 +151,28 @@ For each hit:
 
 **OWASP LLM Top 10 (2025):** [LLM02:2025 Sensitive Information Disclosure](https://genai.owasp.org/llmrisk/llm022025-sensitive-information-disclosure/) — third-party components reading sensitive paths (`~/.ssh`, `~/.aws`, `.env`) outside their stated purpose enables exfiltration.
 
-Grep for code that reads paths typically associated with secrets:
+Grep for code that references paths typically associated with secrets. **The grep is necessary but not sufficient** — the same hit can come from credential-read code (a finding), defensive deny-list code (a positive note), test fixtures (no finding), or documentation (no finding). Intent classification is the load-bearing step.
 
 ```bash
 grep -rEn "(\.env|\.aws/credentials|\.ssh/|id_rsa|id_ed25519|\.kube/config|\.gcloud/|\.config/git|\.netrc|\.docker/config|\.pgpass)" "$SANDBOX_DIR" \
-  --include="*.py" --include="*.js" --include="*.ts" --include="*.sh"
+  --include="*.py" --include="*.js" --include="*.ts" --include="*.sh" --include="*.go" --include="*.rs" --include="*.rb" --include="*.java"
 ```
 
-**Score:**
+**Classify each hit by intent before scoring.** Read 10–20 lines of surrounding context on each hit:
+
+| Intent | Signal | Score impact |
+|---|---|---|
+| **Read** — path is an input to `open()` / `os.ReadFile` / `fs.readFile` / `io.ioutil.ReadFile` / equivalent | A file-read primitive operates on the path | Apply score table below |
+| **Defensive listing** — path appears in a deny-list, block-list, or dangerous-paths array used by a security mechanism (sandbox, scanner, allowlist enforcer) | Variable / constant name like `DANGEROUS_*`, `DENY_*`, `BLOCKED_*`, `SENSITIVE_*`, `PROTECTED_*`; or path appended to a sandbox / firewall / policy structure (`AddDeny`, `BlockPath`, `RestrictAccess`); or surrounding comment names the path as something to *protect from* third-party code | **No finding** — note as positive in *What Passed Cleanly* (artifact defends these paths rather than reading them) |
+| **Test fixture** — file under a test directory (`*_test.*`, `tests/`, `__tests__/`, `fixtures/`, `__mocks__/`) and the path is a fake-secret used to exercise a deny-rule | File path is in a test tree | **No finding** — note as test-only |
+| **Documentation** — path mentioned only in `*.md` | File extension is `.md` and no code reference exists | **No finding** |
+
+**Score (only for confirmed *read* intent):**
 - Code that reads `~/.ssh/*` or `~/.aws/credentials` or `~/.kube/config` without explicit user-facing documentation of the need → **Critical** finding.
 - Code that reads `.env` files → **Important** finding (often legitimate for local dev tooling, but should be documented).
 - Reads that match the artifact's stated purpose (e.g. a SSH-key-management skill reading `~/.ssh/`) → pass with note.
+
+**Positive-finding pattern.** When the artifact's stated purpose IS defensive (sandboxing, secret-scanning, credential-blocking, install-script-guarding), V3 hits in the defensive-listing intent are *evidence the artifact is doing its job*. Record under *What Passed Cleanly* as a positive note, not as a finding.
 
 ## Step 5 — Hook Footprint and Override Risk (V4)
 
