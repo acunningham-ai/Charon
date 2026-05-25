@@ -49,6 +49,24 @@ except ImportError:
     sys.exit(1)
 
 
+# ---------- Quick-path constants (added v0.4.2-preview) ----------
+# Quick mode = 3 questions, sensible defaults for everything else.
+# Solves the tester feedback that the full wizard "expects tech understanding"
+# and feels long. User gets productive in ~60 seconds; refines any phase later.
+
+# The three questions Quick mode actually asks.
+QUICK_MODE_ASK_IDS = {"identity_name", "identity_role", "identity_org"}
+
+# Defaults applied silently in Quick mode for identity_paths questions
+# we DON'T ask. Keys are question IDs; values are raw default strings that
+# get passed through expand_default() (same path as YAML defaults).
+QUICK_MODE_AUTO_DEFAULTS = {
+    "vault_path": "$cwd",
+    "secrets_path": "$home/.secrets",
+    "anthropic_key_setup": "n",
+}
+
+
 QUESTIONS_FILE = Path(__file__).resolve().parent / "first-run-questions.yaml"
 STATE_FILE = Path.home() / ".charon-first-run-state.json"
 
@@ -434,8 +452,12 @@ def filter_phases(all_phases: list[dict], only: str | None) -> list[dict]:
     return matching
 
 
-def run_phase(phase: dict, questions: list[dict], answers: dict[str, str]) -> None:
+def run_phase(phase: dict, questions: list[dict], answers: dict[str, str], mode: str = "full") -> None:
     qs_in_phase = [q for q in questions if q["phase"] == phase["id"]]
+    if mode == "quick":
+        # Quick mode: only ask the three identity questions; auto-defaults
+        # for everything else were pre-populated into `answers` in main().
+        qs_in_phase = [q for q in qs_in_phase if q["id"] in QUICK_MODE_ASK_IDS]
     if not qs_in_phase:
         return
     heading(f"[{phase['id']}] {phase.get('title', PHASE_TITLES_FALLBACK.get(phase['id'], phase['id']))}")
@@ -498,6 +520,16 @@ def main():
     parser.add_argument("--no-logo", action="store_true")
     parser.add_argument("--phase", help="run a single phase only")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="Express install: 3 questions, sensible defaults for everything else. ~60 seconds.",
+    )
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Full install: all 24 questions across 4 phases. ~20 minutes. (Default if --quick not set and not interactive.)",
+    )
     args = parser.parse_args()
 
     if args.no_logo:
@@ -510,7 +542,6 @@ def main():
         banner.print_banner()
 
     print("Welcome to Charon — second-brain harness for Claude Code.")
-    print("This wizard captures the user-specific layer the harness can't ship.")
     print("Press Ctrl+C any time — your progress is saved and you can resume later.")
 
     data = load_questions()
@@ -524,8 +555,61 @@ def main():
         print(f"\nResuming from saved state: {STATE_FILE}")
         print(f"  ({len(answers)} prior answers)")
 
+    # ---------- Mode selection (quick vs full) ----------
+    # Mode is only relevant when starting fresh (no resume state) and not
+    # already targeted with --phase. Otherwise we always run full breadth
+    # within the requested scope.
+    mode = "full"
+    if args.phase:
+        mode = "full"  # --phase always runs that phase's full question set
+    elif args.quick and args.full:
+        print(
+            "\nBoth --quick and --full specified. They're mutually exclusive — defaulting to --full."
+        )
+        mode = "full"
+    elif args.quick:
+        mode = "quick"
+    elif args.full:
+        mode = "full"
+    elif not answers:
+        # Fresh start, no flag → interactive prompt
+        print()
+        print("How configured do you want to start?")
+        print()
+        print("  1. Quick — 3 questions, ~60 seconds. Sensible defaults for everything else.")
+        print("            Get productive immediately; refine any phase later with --phase.")
+        print()
+        print("  2. Full  — 24 questions across 4 phases, ~20 minutes. Voice, org structure,")
+        print("            framework, integrations all captured up front.")
+        print()
+        while True:
+            choice = input("  Choice [1/2, default 1]: ").strip() or "1"
+            if choice in ("1", "q", "quick"):
+                mode = "quick"
+                break
+            if choice in ("2", "f", "full"):
+                mode = "full"
+                break
+            print("  Please answer 1 or 2.")
+    # else: resuming a partial run, no flags → continue in full mode
+
+    if mode == "quick":
+        print()
+        soft(
+            "Quick mode — three questions (name, role, organisation). "
+            "Vault path defaults to current directory, secrets to ~/.secrets, "
+            "Anthropic-key setup deferred, voice / framework / integrations skipped. "
+            "You can refine any of those any time with `python scripts/first-run.py --phase <name>`."
+        )
+        # Pre-populate the auto-default answers so run_phase doesn't ask them
+        # AND so downstream rendering / env-var hints have the right values.
+        for qid, raw_default in QUICK_MODE_AUTO_DEFAULTS.items():
+            if qid not in answers:
+                answers[qid] = expand_default(raw_default)
+        save_state(answers)
+
     for phase in phases:
-        run_phase(phase, questions, answers)
+        run_phase(phase, questions, answers, mode=mode)
 
     vault = expand_path(answers.get("vault_path") or str(Path.cwd()))
     if answers.get("vault_path"):
@@ -549,6 +633,20 @@ def main():
     env_lines = env_var_hints(env_vars, answers)
 
     confirm_and_write(plans, vault, mem, answers, env_lines, anthropic_target, args.dry_run)
+
+    # Quick-mode tail: explicit refinement-commands print so the user knows
+    # exactly what to run to deepen any phase later. No-op for full mode
+    # since the existing "Re-run any time" line already covers it.
+    if mode == "quick" and not args.dry_run:
+        print()
+        print("Quick install complete. To refine any phase later:")
+        print()
+        print("  python scripts/first-run.py --phase identity_paths   # vault path, secrets, Anthropic key")
+        print("  python scripts/first-run.py --phase org_framework    # org-units, audience tiers, framework")
+        print("  python scripts/first-run.py --phase voice            # your writing voice (6 short questions)")
+        print("  python scripts/first-run.py --phase workflow         # standing rules + optional integrations")
+        print()
+        print("Or run `python scripts/first-run.py` again to walk every phase in --full mode.")
 
 
 if __name__ == "__main__":

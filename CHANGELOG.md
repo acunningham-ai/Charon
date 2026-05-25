@@ -8,6 +8,43 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.4.2-preview] - 2026-05-25
+
+### Added — Quick install path (`--quick`): 3 questions, ~60 seconds
+
+Tester feedback flagged the 24-question first-run wizard as too tech-heavy and clunky for non-developer audiences. This release adds an **Express path** that gets a user productive in ~60 seconds with sensible defaults for everything that isn't load-bearing on day one.
+
+**New behaviour:**
+
+- **Interactive prompt at the top of the wizard** — first time you run `python scripts/first-run.py`, you're asked:
+  ```
+  How configured do you want to start?
+    1. Quick — 3 questions, ~60 seconds. Sensible defaults for everything else.
+              Get productive immediately; refine any phase later with --phase.
+    2. Full  — 24 questions across 4 phases, ~20 minutes. Voice, org structure,
+              framework, integrations all captured up front.
+  Choice [1/2, default 1]:
+  ```
+- **`--quick` and `--full` flags** for non-interactive use.
+- **Quick mode asks 3 questions only** — name, role, organisation. Auto-defaults: vault path = `$cwd`, secrets dir = `~/.secrets`, Anthropic key setup deferred, voice / org structure / framework / integrations skipped.
+- **Tail message after Quick completes** explicitly names the four `--phase <name>` commands to refine any deferred phase later. Users see the path forward, not a dead end.
+- **`--phase`-targeted runs and resume-from-state runs bypass the mode prompt** — they're always full-breadth within the requested scope.
+
+**Why this matters.** Charon's stated audience is "tech people a great resource, non-tech people a place to start with full capability". Tester feedback (May 2026) showed the previous install undershot on the non-tech side — too many concepts upfront (audience tiers, org-units, framework specifics, voice exercise). Quick mode is the answer: meet non-technical users where they are, get them functional in a minute, let the rules do their universal work, and let users refine over weeks.
+
+The harness's discipline layer (always-fire rules, save-on-mention, confidence tags, session-start ritual) all still fire from day one — those don't depend on the deferred phases. What Quick mode defers is the *tailoring* layer, not the *enforcement* layer.
+
+### Changed — INSTALL.md and FIRST-RUN.md updated
+
+- **`FIRST-RUN.md`** — new "Quick path" section at the top with the three-question summary, list of defaults, and refinement commands. Existing Full path documentation preserved.
+- **`INSTALL.md`** — bootstrap handoff section now mentions the Quick / Full choice and points at `FIRST-RUN.md` for details.
+
+### Why this is a PATCH and not a MINOR
+
+Same wizard capability, new mode option. The first-run wizard has been present since v0.1.0-preview; Quick mode is a feedback-driven refinement that makes the existing capability friendlier. Authoring test (*"could a user describe this as 'now I can do X' where X is new?"*) is borderline — the user-experience IS materially different in Quick mode — but the underlying capability set is unchanged. Calling it PATCH per the conservative read of the versioning rule. If validator response confirms this opens a significantly broader audience, the next semver MINOR bump can re-classify retroactively in narrative.
+
+---
+
 ## [0.4.1-preview] - 2026-05-25
 
 ### Added — Cerberus documentation at the level the capability deserves
