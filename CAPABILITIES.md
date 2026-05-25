@@ -28,54 +28,78 @@ These rules auto-inject into the assistant's context when the user's prompt ment
 
 | Command | What it does |
 |---|---|
-| `/quarterly-report-prep` | Full quarterly stakeholder report ritual — three-question gate, draft commentary, assembly |
-| `/control-translate <scope> <target>` | One stakeholder paragraph from a control rating + per-unit context |
-| `/save-feedback` | Save a workflow rule / preference / correction to memory the right way |
-| `/push-fact` | Surgical edit of a memory file from a natural-language fact |
+| `/quarterly-report-prep` | Full quarterly stakeholder report ritual — three-question gate, draft commentary, assembly. *Example: at quarter-end when stakeholders need a control-rating summary from your source-of-truth dashboard.* |
+| `/control-translate <scope> <target>` | One stakeholder paragraph from a control rating + per-unit context. *Example: when drafting board commentary on a specific control rating for a named org-unit.* |
+| `/save-feedback` | Save a workflow rule / preference / correction to memory the right way. *Example: when the user says "from now on..." or corrects a workflow — capture as a feedback memory with the correct frontmatter + index update.* |
+| `/push-fact` | Surgical edit of a memory file from a natural-language fact. *Example: the user states a new operational fact in chat — apply it to the right memory file without rewriting the whole file.* |
 
 ### Security review
 
 | Command | What it does |
 |---|---|
-| `/secure-code-review <path>` | C-1..C-8 baseline + general secure-coding (input validation, SQL, XSS, auth, crypto, dangerous functions) |
-| `/owasp-llm-review <path>` | OWASP LLM01-LLM10 lens on LLM-consuming code |
-| `/owasp-agentic-review <path>` | OWASP ASI01-ASI10 lens on agentic code |
-| `/fp-check <finding>` | Independent false-positive verification — re-reads cited `file:line`, downgrades or withdraws |
+| `/secure-code-review <path>` | C-1..C-8 baseline + general secure-coding (input validation, SQL, XSS, auth, crypto, dangerous functions). *Example: before merging a PR that touches `scripts/hooks/`, an unattended automation runner, or any LLM-driven service.* |
+| `/owasp-llm-review <path>` | OWASP LLM01-LLM10 lens on LLM-consuming code. *Example: after adding any code that calls the Claude API, constructs a system prompt, or builds a RAG retrieval surface.* |
+| `/owasp-agentic-review <path>` | OWASP ASI01-ASI10 lens on agentic code. *Example: when a new subagent, MCP server, memory-write path, or tool-dispatch surface is added.* |
+| `/fp-check <finding>` | Independent false-positive verification — re-reads cited `file:line`, downgrades or withdraws. *Example: when a 🔴 finding from a review skill is about to block a merge — verify the citation grounds in real code before treating as a blocker.* |
 
 ### Workflow
 
 | Command | What it does |
 |---|---|
-| `/refresh-todo` | Run capture pipeline, triage diff vs TODO, propose updates |
-| `/triage-inbox` | Surface actionable items from captures, ignore noise |
-| `/weekly-checkin` | Weekly cross-domain pattern synthesis |
-| `/eod-reflect` | End-of-day reflection — productivity / stress / delegation / day rating / carry-forward |
-| `/knowledge-consolidate <topic>` | Scattered captures/memory/projects → durable framework doc |
-| `/draft-linkedin` | Voice-driven content drafting with anchor-reading |
-| `/linkedin-metrics` | Capture LinkedIn analytics into published-post frontmatter |
-| `/capture-screenshot <path>` | Vision capture into `00-Inbox/_captured/screenshots/` |
+| `/refresh-todo` | Run capture pipeline, triage diff vs TODO, propose updates. *Example: each morning, or after a heavy capture day, to turn new inbox content into prioritised TODO entries.* |
+| `/triage-inbox` | Surface actionable items from captures, ignore noise. *Example: when the inbox is full and you want only the actionable items lifted without re-categorising the whole folder.* |
+| `/weekly-checkin` | Weekly cross-domain pattern synthesis. *Example: Friday afternoon — pattern-spot across the week's captures, TODOs, and memory writes.* |
+| `/eod-reflect` | End-of-day reflection — productivity / stress / delegation / day rating / carry-forward. *Example: end of any work day, to log how it went and what carries forward to tomorrow.* |
+| `/knowledge-consolidate <topic>` | Scattered captures/memory/projects → durable framework doc. *Example: when notes on a topic (e.g. AI governance) have accumulated across captures and you want one durable doc in `07-References/`.* |
+| `/draft-linkedin` | Voice-driven content drafting with anchor-reading. *Example: when you want to write a LinkedIn post and start from a topic, anchor, or captured event — drafter reads your voice anchors first.* |
+| `/linkedin-metrics` | Capture LinkedIn analytics into published-post frontmatter. *Example: 48 hours and 7 days after a post lands, to record analytics into the post's `metrics_48h` / `metrics_7d` blocks.* |
+| `/capture-screenshot <path>` | Vision capture into `00-Inbox/_captured/screenshots/`. *Example: when a screenshot needs vision extraction into structured fields and inbox capture (e.g. a dashboard view someone shared).* |
 
 ### Hygiene
 
 | Command | What it does |
 |---|---|
-| `/score-vault` | Deterministic vault hygiene audit (broken links, missing frontmatter, etc.) |
-| `/curate-skills` | Review skill-curator report; archive stale/dormant skills (reversible) |
-| `/promote-rule <action>` | Surface promotion candidates: memory → path-rule → slash command |
-| `/telemetry-summary` | Roll up hook telemetry — counts, tokens, cost over the last N days |
-| `/check-service <name>` | Quick triage of a deployed service over SSH (status / logs / errors) |
+| `/score-vault` | Deterministic vault hygiene audit (broken links, missing frontmatter, etc.). *Example: monthly hygiene check, or before publishing anything externally — catch broken links and frontmatter drift.* |
+| `/curate-skills` | Review skill-curator report; archive stale/dormant skills (reversible). *Example: quarterly — review which skills haven't fired in a while and archive intentionally rather than letting them rot.* |
+| `/promote-rule <action>` | Surface promotion candidates: memory → path-rule → slash command. *Example: when a feedback memory has been used 3+ times across recent sessions, consider promoting it to a path-rule so it auto-loads.* |
+| `/telemetry-summary` | Roll up hook telemetry — counts, tokens, cost over the last N days. *Example: after a week of heavy harness use — see what fired, what consumed tokens, where the cost went.* |
+| `/check-service <name>` | Quick triage of a deployed service over SSH (status / logs / errors). *Example: when a deployed service is misbehaving — get systemctl status + recent logs + error scan in one pass.* |
 
 ### Security audit / vet — Cerberus
 
-Defends your Claude Code installation. Original by [Joh Leonhardt](https://github.com/JohL29/claude-security-auditor) (MIT); the Charon build extends with the V0–V8 threat model for third-party-artifact vetting, OWASP LLM crosswalk, MCP-specific coverage, and the remediation library.
+**The defensive AI-installation security capability the field has been missing.** Most security tooling that has shipped for AI/agent ecosystems in 2025–2026 is offensive — autonomous hackers (Strix, PyRIT, Garak, DeepTeam) attacking running applications. The *defensive* surface — protecting the AI installation itself, the plugins it loads, the MCP servers it dispatches, the dependencies it pulls — has been under-tooled. Cerberus addresses that gap directly. It is, to our knowledge, the first defensive AI-installation security capability that combines **secure-by-design construction** with **published-standards grounding** in a single open-source surface.
+
+Original engine by [Joh Leonhardt](https://github.com/JohL29/claude-security-auditor) (MIT). The Charon build layers a **V0–V8 threat model** for third-party-artifact vetting, a **direct mapping to OWASP Top 10 for LLM Applications (2025)**, MCP-specific coverage, a remediation library, an honest validation-status field on every finding, and a runnable compromise registry that two commands consume.
+
+**Three load-bearing properties that earn the industry-first frame:**
+
+1. **Defensive, not offensive.** Cerberus inspects, scores, and reports — it does not attack. Read-only audit posture across all four commands; no auto-writes, no auto-installs. Sandbox-disciplined cloning for any artefact inspection (`~/.cerberus-vet-sandbox/`, purged after assessment). Hook scripts ship available-but-not-auto-wired — opt-in via `/cerberus-setup`, never silently enabled.
+2. **Written in a secure fashion.** Every design decision is secure-by-default, not retrofitted. Captured-content discipline applied to any markdown read from a vetted repo (treat as data, never instructions). Read-vs-deny-list intent classification (V3 sharpening, v0.3.1-preview) — the same grep hit can come from credential-read code OR defensive-listing code; the layer classifies before scoring, so security-defensive code doesn't get flagged as the threat it defends against. Validation-honest framing (`validation_status: theoretical | partial | validated`, v0.3.2-preview) — every finding declares the strength of its evidence; nothing claims `validated` unless an actual PoC ran.
+3. **Grounded in real published standards.** Every V-layer cites a specific entry from the OWASP Top 10 for LLM Applications 2025. Findings are traceable to a recognised industry frame, not to Cerberus-internal opinion:
+
+   | V-layer | What it checks | OWASP LLM (2025) |
+   |---|---|---|
+   | V0 | Artefact-type detection (plugin / skill / MCP / GPT / generic) | operational baseline |
+   | V1 | Declared capability scope (tools, schemas, annotations honesty) | LLM06 Excessive Agency |
+   | V2 | Network egress surface (transport, auth, bind, CORS) | LLM03 Supply Chain |
+   | V3 | Filesystem access patterns (sensitive paths — read vs deny-list classified) | LLM02 Sensitive Information Disclosure |
+   | V4 | Hook footprint and override risk | LLM06 Excessive Agency |
+   | V5 | Markdown / tool-description injection + project-file modification risk | LLM01 Prompt Injection |
+   | V6 | Secret exposure (shared regex engine) | LLM02 Sensitive Information Disclosure |
+   | V7 | Authorship and repo-history signals (LiteLLM 1.82.7/8 pattern) | LLM03 Supply Chain |
+   | V8 | Dependency footprint, MCP SDK typosquats, **compromise-registry cross-reference** | LLM03 Supply Chain |
+
+   Full crosswalk in `07-References/cerberus/docs/vetting-owasp-crosswalk.md`. Per-finding remediation patterns (REM-001 through REM-010) in `07-References/cerberus/docs/remediation/`.
+
+The combination — **defensive shape + secure construction + standards grounding** — is a gap in the current AI security tooling market. That is the claim, and it is documented to back it up.
 
 | Command | What it does |
 |---|---|
-| `/cerberus-setup` | First-run hardening wizard — audits the gold standard, walks you through each gap, verifies the result |
-| `/cerberus-audit` | Read-only security audit across the 7-layer threat model — produces a 0–100 score and findings |
-| `/cerberus-vet <repo-url>` | Pre-install risk assessment of a third-party plugin / skill / MCP server. Clones to sandbox, scans against V0–V8, returns risk level (LOW / MEDIUM / HIGH / CRITICAL) + score 0–100. Output is risk evidence, not approval |
-| `/cerberus-deps [path]` | Audit a project's own dependency manifests against the compromise registry (LiteLLM 1.82.7/8, telnyx 4.87.2, tiledesk-server 2.18.6-12, pino-sdk-v2 typosquat, Mini Shai-Hulud cascade). Reports hits + suggested pins. Read-only. Sibling of `/cerberus-vet` — same registry, different surface |
-| `/cerberus-recover` | Post-leak runbook — rotation, git-history cleanup, session invalidation, hardening |
+| `/cerberus-setup` | First-run hardening wizard — audits the gold standard, walks you through each gap, verifies the result. *Example: on a new laptop, before opening any sensitive project in Claude Code — the first thing you run.* |
+| `/cerberus-audit` | Read-only security audit across the 7-layer threat model — produces a 0–100 score and findings. *Example: monthly, or after any change to `~/.claude/settings.json` or installed plugins — verify your posture hasn't drifted.* |
+| `/cerberus-vet <repo-url>` | Pre-install risk assessment of a third-party plugin / skill / MCP server. Clones to sandbox, scans against V0–V8, returns risk level (LOW / MEDIUM / HIGH / CRITICAL) + score 0–100. Output is risk evidence, not approval. *Example: before installing a community-published plugin or MCP server — `/cerberus-vet https://github.com/example/some-plugin` produces a risk report you forward to your approval authorities.* |
+| `/cerberus-deps [path]` | Audit a project's own dependency manifests against the compromise registry (LiteLLM 1.82.7/8, telnyx 4.87.2, tiledesk-server 2.18.6-12, pino-sdk-v2 typosquat, Mini Shai-Hulud cascade). Reports hits + suggested pins. Read-only. Sibling of `/cerberus-vet` — same registry, different surface. *Example: after every `npm install` or `pip install` in a project — `/cerberus-deps ./my-project` confirms no compromise-window packages got pulled in.* |
+| `/cerberus-recover` | Post-leak runbook — rotation, git-history cleanup, session invalidation, hardening. *Example: immediately if you suspect Claude has seen a real secret — a `.env` got read into context, an API key landed in chat, a credential leaked in a captured transcript.* |
 
 ## Skills (`.claude/skills/*/SKILL.md`)
 

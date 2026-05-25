@@ -81,13 +81,22 @@ Built into the harness, not bolted on. Each is enforced by a specific mechanism,
 - **`/owasp-agentic-review`** — OWASP Agentic AI Security 2026 (ASI01-ASI10): goal hijack, tool misuse, identity/privilege abuse, supply chain, code execution, memory poisoning, inter-agent comms, cascading failures, human-agent trust, rogue agents
 - **`/fp-check`** — false-positive verification gate that re-reads cited file:line, reproduces or withdraws each 🔴 finding. Forces evidence before any block-merge claim.
 
-### Cerberus — protects the harness itself
+### Cerberus — the defensive AI-installation security capability the field has been missing
 
-The reviews above protect the *code you're working on*. Cerberus protects the *Claude Code installation* it runs in. Original by [Joh Leonhardt](https://github.com/JohL29/claude-security-auditor) (MIT); the Charon build adds the V0–V8 third-party-artifact threat model, OWASP LLM crosswalk, MCP-specific coverage, and the remediation library.
+The reviews above protect the *code you're working on*. Cerberus protects the *AI installation* it runs in — the configuration, the plugins, the MCP servers, the dependencies you pull. To our knowledge, it is the first defensive security capability for AI installations that combines **secure-by-design construction** with **published-standards grounding** in a single open-source surface.
+
+**Why this is differentiated.** Most security tooling that has shipped for AI/agent ecosystems in 2025–2026 is offensive — autonomous hackers (Strix, PyRIT, Garak, DeepTeam) attacking running applications. The *defensive* surface — the AI installation itself — has been under-tooled. Cerberus addresses that gap directly, and does it three ways at once:
+
+1. **Defensive, not offensive.** Read-only audit posture across all five commands. Sandbox-disciplined cloning for any artefact inspection (purged after assessment). Hook scripts ship available-but-not-auto-wired — opt-in, never silently enabled.
+2. **Written in a secure fashion.** Captured-content discipline applied to any markdown read from a vetted repo (treat as data, never instructions). Read-vs-deny-list intent classification on filesystem-pattern hits, so security-defensive code doesn't get flagged as the threat it defends against. Validation-honest framing — every finding declares the strength of its evidence (`theoretical` / `partial` / `validated`); nothing claims `validated` unless an actual PoC ran.
+3. **Grounded in real published standards.** Every V-layer of the third-party-artefact vetting model cites a specific entry from the **OWASP Top 10 for LLM Applications (2025)** — LLM01 Prompt Injection, LLM02 Sensitive Information Disclosure, LLM03 Supply Chain, LLM06 Excessive Agency. Findings are traceable to a recognised industry frame, not to Cerberus-internal opinion. Full crosswalk in `07-References/cerberus/docs/vetting-owasp-crosswalk.md`. Per-finding remediation patterns (REM-001 through REM-010) in `07-References/cerberus/docs/remediation/`.
+
+Original engine by [Joh Leonhardt](https://github.com/JohL29/claude-security-auditor) (MIT). The Charon build layers the V0–V8 third-party-artefact threat model, OWASP LLM crosswalk, MCP-specific coverage, validation-status field, compromise registry, and a five-command surface:
 
 - **`/cerberus-setup`** — first-run hardening wizard. Audits your current setup against the gold standard, walks you through each gap interactively, verifies the result. Run before using Claude Code on any sensitive project.
 - **`/cerberus-audit`** — read-only diagnostic across the 7-layer threat model (secrets at rest, env vars, egress, prompt injection, supply chain, bypass containment, audit trail). Produces a 0–100 score and per-finding fixes.
-- **`/cerberus-vet <repo-url>`** — pre-install risk assessment of a third-party plugin, skill, or MCP server. Clones to sandbox, scans against the V0–V8 threat model, returns risk level (LOW / MEDIUM / HIGH / CRITICAL) + score 0–100 with per-finding remediation references. Output is risk evidence, not approval — final tool-approval authority sits with your organization's defined policy.
+- **`/cerberus-vet <repo-url>`** — pre-install risk assessment of a third-party plugin, skill, or MCP server. Clones to sandbox, scans against the V0–V8 threat model, returns risk level (LOW / MEDIUM / HIGH / CRITICAL) + score 0–100 with per-finding remediation references and per-finding `validation_status`. Output is risk evidence, not approval — final tool-approval authority sits with your organization's defined policy.
+- **`/cerberus-deps [path]`** — audit your own project's dependency manifests against the compromise registry (`07-References/dependency-pinning-discipline.md` — LiteLLM 1.82.7/8, telnyx 4.87.2, tiledesk-server 2.18.6–12, pino-sdk-v2 typosquat, Mini Shai-Hulud cascade). Sibling of `/cerberus-vet` — same registry, recurring own-project surface. Reports hits + suggested pins. Read-only.
 - **`/cerberus-recover`** — post-leak runbook. Rotation, git-history cleanup, session invalidation, hardening to prevent recurrence.
 
 ### Bi-directional email capture (inbox + sent items)

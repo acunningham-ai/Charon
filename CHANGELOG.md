@@ -8,6 +8,22 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.4.1-preview] - 2026-05-25
+
+### Added — Cerberus documentation at the level the capability deserves
+
+Two doc improvements landed together — `CAPABILITIES.md` and `README.md` now describe Cerberus at the level its industry-first positioning earns.
+
+- **`CAPABILITIES.md` Cerberus section** — expanded from a brief intro + 5-row table to a multi-paragraph writeup that names the gap (defensive AI-installation security is under-tooled while offensive tooling proliferates), the three load-bearing properties that earn the industry-first frame (defensive shape, secure construction, standards grounding), and an inline V0–V8 → OWASP Top 10 for LLM Applications (2025) crosswalk table. Each command row now carries an italic *Example:* tail with a concrete use case.
+- **`README.md` Cerberus section** — same positioning, written for the broader audience. Adds `/cerberus-deps` to the command list (was 4 commands; now 5). Names the validation-honest framing and the compromise registry explicitly.
+- **`CAPABILITIES.md` all-command example tails** — every command in the catalogue (26 total, across Reporting / Security review / Workflow / Hygiene / Cerberus) now carries an italic *Example:* tail with a concrete scenario.
+
+### Why this is a PATCH and not a MINOR
+
+Documentation only — no capability changes, no new commands, no skill or hook surface added. The Cerberus capabilities have been there since v0.3.0-preview / v0.4.0-preview; the docs now match what's already shipped. Authoring test (*"could a user describe this as 'now I can do X' where X is new?"*) is no — same capability, sharper writeup.
+
+---
+
 ## [0.4.0-preview] - 2026-05-25
 
 ### Added — `/cerberus-deps` — audit your own project's deps against the compromise registry
