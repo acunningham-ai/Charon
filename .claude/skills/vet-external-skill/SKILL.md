@@ -294,6 +294,16 @@ The canonical MCP SDK packages are well known. Typosquats are a documented suppl
 - **The canonical authors** are `@modelcontextprotocol` org on npm and `mcp` package on PyPI (published by Anthropic). Any package claiming MCP support from a different author/scope → **Important** finding unless the README explicitly justifies (e.g. "our company maintains a forked SDK").
 - **Direct downloads** of MCP SDK from a non-canonical URL (`pip install` from a git repo, `npm install` from a GitHub tarball URL when a canonical version exists) → **Critical** finding.
 
+**Compromise-registry cross-reference (added v0.4.0-preview, 2026-05-25, sibling of `audit-dependencies` skill):**
+
+Read `07-References/dependency-pinning-discipline.md` and extract the **compromise registry** table. For each declared dep in the artifact's manifest, cross-reference against the registry:
+
+- Package + ecosystem match AND declared version-spec PERMITS an excluded version (no upper-bound exclusion) → **Critical** finding ("artifact declares `<package>` permitting compromised version `<X>` per registry").
+- Package + ecosystem match AND declared version-spec correctly EXCLUDES the registry's excluded versions → positive note (record under *What Passed Cleanly* — the artifact author already defended).
+- Typosquat from registry present at any version (e.g. `pino-sdk-v2`) → **Critical TYPOSQUAT** finding. Escalates immediately; do not treat as a normal V8 finding.
+
+If `07-References/dependency-pinning-discipline.md` is not reachable in the assessor's workspace, note the degraded mode in the report ("compromise-registry cross-reference skipped — discipline doc not in scope") and proceed with the rest of V8.
+
 ## Step 10 — Compile the Risk Assessment
 
 Apply the Cerberus severity rubric (same as `audit-claude-setup`):

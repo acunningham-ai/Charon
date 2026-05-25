@@ -22,7 +22,7 @@ These rules auto-inject into the assistant's context when the user's prompt ment
 
 ## Slash commands (`.claude/commands/*.md`)
 
-25 invokable commands. Most accept arguments after the slash command.
+26 invokable commands. Most accept arguments after the slash command.
 
 ### Reporting + governance
 
@@ -74,6 +74,7 @@ Defends your Claude Code installation. Original by [Joh Leonhardt](https://githu
 | `/cerberus-setup` | First-run hardening wizard — audits the gold standard, walks you through each gap, verifies the result |
 | `/cerberus-audit` | Read-only security audit across the 7-layer threat model — produces a 0–100 score and findings |
 | `/cerberus-vet <repo-url>` | Pre-install risk assessment of a third-party plugin / skill / MCP server. Clones to sandbox, scans against V0–V8, returns risk level (LOW / MEDIUM / HIGH / CRITICAL) + score 0–100. Output is risk evidence, not approval |
+| `/cerberus-deps [path]` | Audit a project's own dependency manifests against the compromise registry (LiteLLM 1.82.7/8, telnyx 4.87.2, tiledesk-server 2.18.6-12, pino-sdk-v2 typosquat, Mini Shai-Hulud cascade). Reports hits + suggested pins. Read-only. Sibling of `/cerberus-vet` — same registry, different surface |
 | `/cerberus-recover` | Post-leak runbook — rotation, git-history cleanup, session invalidation, hardening |
 
 ## Skills (`.claude/skills/*/SKILL.md`)
@@ -85,6 +86,7 @@ Model-triggered skills — invoked by the assistant when the task matches their 
 | `audit-claude-setup` | Full read-only security audit of a Claude Code installation across the 7-layer threat model | `/cerberus-audit` |
 | `harden-claude-setup` | Interactive guided hardening — applies fixes for findings from `audit-claude-setup` | `/cerberus-setup` |
 | `vet-external-skill` | Pre-install threat-model assessment (V0–V8) of a third-party plugin / skill / MCP from a GitHub URL | `/cerberus-vet <repo-url>` |
+| `audit-dependencies` | Walks the target project for manifests, cross-references declared deps against the compromise registry in `07-References/dependency-pinning-discipline.md`, reports hits + suggested pins | `/cerberus-deps [path]` |
 | `rotate-leaked-secret` | Post-leak runbook — credential rotation, git-history cleanup, session invalidation | `/cerberus-recover` |
 
 ## Hooks (`scripts/hooks/*.py`)

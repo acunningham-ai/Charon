@@ -82,6 +82,7 @@ PERSONAL_PATTERNS = [
         ".claude/commands/cerberus-audit.md",
         ".claude/commands/cerberus-vet.md",
         ".claude/commands/cerberus-recover.md",
+        ".claude/commands/cerberus-deps.md",
         "CAPABILITIES.md",
         "README.md",
         "CHANGELOG.md",

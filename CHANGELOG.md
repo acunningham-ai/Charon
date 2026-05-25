@@ -8,6 +8,50 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.4.0-preview] - 2026-05-25
+
+### Added — `/cerberus-deps` — audit your own project's deps against the compromise registry
+
+A new slash command + backing skill that walks your project for dependency manifests (Python `requirements*.txt` / `pyproject.toml` / `setup.py`, Node `package.json`, Go `go.mod`, Rust `Cargo.toml`, Ruby `Gemfile`), parses every declared package + version-spec, and cross-references each against the **compromise registry** maintained in `07-References/dependency-pinning-discipline.md` (v0.3.2-preview).
+
+This is the **recurring sibling** of `/cerberus-vet`. Where `/cerberus-vet` evaluates a third-party artifact pre-install, `/cerberus-deps` audits your *own* project's deps on demand — every install, every PR, every quarterly review.
+
+**What it produces:**
+
+- **Verdict** — `CLEAN`, `FINDINGS-PRESENT`, or `TYPOSQUAT-PRESENT` (the last escalates to incident-response posture)
+- **Compromise hits** with package, ecosystem, declared spec, excluded versions, suggested pin, source citation
+- **Load-bearing pins** — packages where the spec already correctly excludes the compromise window (positive notes; don't drop the pin)
+- **What passed cleanly** — count of deps confirmed not in the registry (note: this is registry-cross-reference only, NOT a full SCA / CVE audit)
+- **Recommended next step** keyed to the verdict
+
+**Usage:**
+
+```bash
+/cerberus-deps              # audit current directory
+/cerberus-deps ./my-project # audit a specific project path
+```
+
+**Why it matters.** A manifest is a security artefact. The compromise registry pattern was established in v0.3.2-preview as a forward-looking discipline; `/cerberus-deps` makes it **runnable** instead of paper-only. Run it after any dep addition or version bump to confirm the pin held.
+
+### Changed — `/cerberus-vet` V8 layer extended with registry cross-reference
+
+The V8 (dependency footprint) step in the `vet-external-skill` skill now also cross-references each declared dep of the *vetted* artifact against the same compromise registry. Same registry, two surfaces:
+
+- `/cerberus-vet <repo-url>` catches typosquats / compromise-window versions in the **artifact's** deps before you adopt
+- `/cerberus-deps [path]` catches the same patterns in your **own** project on a recurring basis
+
+Both fail gracefully ("compromise-registry cross-reference skipped — discipline doc not in scope") if the discipline doc isn't reachable.
+
+### Changed — `run-deterministic-checks.py` allowlist
+
+`cerberus-deps.md` added to the Joh Leonhardt attribution allowlist for the No-personal-content scrub check. Mechanical addition to keep D5 green now that the new command exists.
+
+### Why this is a MINOR and not a PATCH
+
+`/cerberus-deps` is a new invokable capability — new slash command, new skill, new audit surface. Authoring test (*"could a user describe this as 'now I can do X' where X is new?"*) — yes: "now I can audit my own project's dependencies for known supply-chain compromises". That's MINOR.
+
+---
+
 ## [0.3.2-preview] - 2026-05-25
 
 ### Added — `validation_status` field on Cerberus vet findings
