@@ -347,8 +347,17 @@ For each finding:
 - **Layer:** Vetting layer (V0–V8)
 - **OWASP:** OWASP LLM Top 10 (2025) entry the layer implements (e.g. `LLM06:2025 Excessive Agency`)
 - **Evidence:** File path, line number, quoted in fenced code block
+- **Validation status:** `theoretical` | `partial` | `validated` — see definitions below; default `theoretical` for the current static V0–V8 model
 - **Risk:** What could go wrong if installed
 - **Mitigation:** How the risk can be reduced or accepted — author-side fix, adopter-side acceptance condition, or both. **If a matching remediation template exists in `docs/remediation/REM-NNN-*.md`, cite it by ID and surface its "Author-side fix" and "adopter-side acceptance" sections inline.** Library index at `docs/remediation/README.md`.
+
+**Validation status field — definitions (added v0.3.2-preview, 2026-05-25, borrowed from `usestrix/strix` validation framing):**
+
+- **`theoretical`** — pattern matched against the artifact's source / structure / metadata via the static V0–V8 model. The finding describes what *could* happen if the artifact were installed and exercised. The current Cerberus model is static; every finding produced today is `theoretical` by default.
+- **`partial`** — the pattern was matched AND a secondary signal corroborates the risk (e.g. the vet read the README and found documented confirmation, OR the vet ran a non-invasive probe like a syntax-check / import-resolution / annotation-honesty check that confirmed the artifact behaves as the pattern suggests). Used when more evidence is available than static-only but a full PoC was not reproduced.
+- **`validated`** — the finding was reproduced via dynamic exercise of the artifact in a sandbox. The risk has been observed, not just inferred. Reserved for the future dynamic-eval layer. Don't claim `validated` unless an actual PoC ran.
+
+**Why this field exists.** Without it, every finding reads as if the risk is confirmed. Adding `validation_status` makes the static-vs-dynamic distinction visible to the consumer of the report, and future-proofs the report shape for when a dynamic-eval layer ships — no migration needed for older outputs.
 
 #### What Passed Cleanly
 [brief list of layers that passed]

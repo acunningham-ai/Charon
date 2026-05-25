@@ -8,6 +8,34 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.3.2-preview] - 2026-05-25
+
+### Added — `validation_status` field on Cerberus vet findings
+
+Every Cerberus vet finding now carries a `validation_status` field with three possible values:
+
+- **`theoretical`** — pattern matched against the artifact's source / structure / metadata via the static V0–V8 model. The default for everything the current Cerberus produces.
+- **`partial`** — pattern matched AND a secondary signal corroborates (README confirms, a non-invasive probe confirmed behaviour, etc.). For cases where evidence is stronger than static-only but a full PoC was not reproduced.
+- **`validated`** — the finding was reproduced via dynamic exercise of the artifact in a sandbox. Reserved for the future dynamic-eval layer.
+
+**Why it matters.** Without this field, every finding reads as if the risk is confirmed. The static-vs-dynamic distinction is invisible to the consumer of the report. Adding `validation_status` makes it visible AND future-proofs the report shape — when a dynamic-eval layer eventually ships, older outputs don't need a migration. Borrowed from the `usestrix/strix` framing where they ship "validated PoCs" vs "theoretical findings".
+
+### Added — `07-References/dependency-pinning-discipline.md`
+
+A new reference doc establishing the practice for adding or bumping any dependency in this harness or in projects built with it:
+
+- **Compromise registry** — known-bad package versions across PyPI and npm (LiteLLM 1.82.7/8, telnyx 4.87.2, tiledesk-server 2.18.6–12, pino-sdk-v2 typosquat, Mini Shai-Hulud cascade). Each entry cites a source and names the action.
+- **The practice** — five steps (check registry → read release history → pin with intent → comment the why → audit before deploy) with examples of the three pinning patterns (compatibility-release, upper-bound exclusion, exact pin) and what to avoid.
+- **Audit state** — manifest-by-manifest cross-reference against the registry. As of 2026-05-25 no known-compromised versions are present in any current manifest. Discipline is forward-looking.
+
+**Why it matters.** A dependency manifest is a security artefact, not just a build artefact. The pinning posture should be the default, not the exception — and it should be documented somewhere reviewers can read instead of folklore.
+
+### Why this is a PATCH and not a MINOR
+
+Both additions sit inside existing capabilities. `validation_status` adds a field to `/cerberus-vet`'s existing report template — same skill, sharper output. The dependency-pinning doc is a reference, not a new capability. Authoring test (*"could a user describe this as 'now I can do X' where X is new?"*) is no — the user is still vetting artifacts and managing dependencies; both just got more disciplined.
+
+---
+
 ## [0.3.1-preview] - 2026-05-25
 
 ### Changed — sharper V3 classification in `vet-external-skill`
