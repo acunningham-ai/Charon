@@ -62,6 +62,8 @@ ALWAYS_FIRE_RULES = [
 STANDALONE_HOOKS = {
     "on-error.py",       # called from scheduled .bat runners on non-zero exit
     "_telemetry.py",     # imported by other hooks, not invoked by Claude Code
+    "_verdict.py",       # imported by hooks adopting the verdict layer, not invoked directly
+    "_jsonl_append.py",  # imported by _verdict.py and _telemetry.py for safe append
 }
 
 # Personal-content patterns — must NOT appear in any Charon file.

@@ -99,6 +99,36 @@ schtasks /Create /SC MONTHLY /D 1 /ST 06:00 /TN "Harness Archive" /TR "python C:
 
 **Hard rule (per the harness security baseline):** scheduled tasks must be **interactive-only** — never "run whether user is logged on or not", never with stored credentials, never wake-from-sleep. The harness is opinionated about this: automation in your shell is fine; daemonised background processes with admin rights are not.
 
+#### Reliability enhancement — missed-run catchup (logon + unlock)
+
+The interactive-only rule has a tradeoff: if your machine is asleep, off, or on battery at the scheduled time, that day's run is **skipped** — Windows Task Scheduler rolls the next run forward rather than running late (when "run task as soon as possible after a scheduled start is missed" is off, which it must be to stay interactive-only). Result: a stale TODO / triage / digest until the next day.
+
+Charon ships an optional catchup that fixes this **without** breaking the interactive-only rule. It runs at **logon** and on **workstation unlock** — both moments when you are present at the machine, so nothing becomes unattended. If today's run already happened it no-ops instantly; if it was missed, it triggers the daily task(s) to catch up.
+
+```powershell
+# capture-pipeline/login-catchup.ps1       - the catchup logic (gated, sequential)
+# capture-pipeline/register-login-catchup.ps1 - one-time registration (run elevated)
+
+# Register (from an ELEVATED PowerShell - task-store writes need admin):
+& "C:\path\to\capture-pipeline\register-login-catchup.ps1"
+
+# If your TODO refresh is a separate task from capture, list both in order:
+& "C:\path\to\capture-pipeline\register-login-catchup.ps1" -CatchupArgs '-Tasks "Harness Daily","Harness TODO Refresh"'
+```
+
+How it decides whether to run (all gates in `login-catchup.ps1`):
+
+1. **Before the scheduled hour** (default 07:00) → defer to the scheduled task.
+2. **Freshness file already today's** (default `<vault>/TODO.md` mtime == today) → no-op. TODO.md is the heartbeat: if the refresh step stamped today, the morning run happened.
+3. **A target task already running** → don't pile on.
+4. Otherwise → trigger the configured task(s) **sequentially** (never concurrently — tasks that share capture-cursor / dedup state can corrupt it if run in parallel).
+
+The registered task is non-elevated (RunLevel Limited), `AllowStartIfOnBatteries` (so it runs when you open a laptop lid unplugged — the very case the daily task skips), and `WakeToRun=False` (never wakes the machine — still compliant). Test the gating without side effects via `login-catchup.ps1 -DryRun` (logs the decision to `state/login-catchup.log`).
+
+> **Gotcha for Windows PowerShell 5.1 users:** keep these `.ps1` files ASCII-only. PS 5.1 reads BOM-less UTF-8 as the ANSI codepage and mangles non-ASCII punctuation (em dashes, smart quotes) into parser errors. Also: registration needs an elevated shell (Access Denied otherwise), but `-ExecutionPolicy Bypass` is **not** required — a `RemoteSigned` CurrentUser policy runs locally-authored scripts fine.
+
+**macOS / Linux equivalent:** cron has no built-in catchup either, but `anacron` (or a systemd timer with `Persistent=true`) runs missed jobs on next wake — that's the platform-native way to get the same resilience. Pair it with the same freshness-file gate if you want the no-op-when-already-current behaviour.
+
 ### macOS / Linux (cron)
 
 ```cron

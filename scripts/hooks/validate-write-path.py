@@ -4,12 +4,17 @@ PreToolUse hook: enforce write-path allowlist for UNATTENDED claude -p runs.
 
 Dormant by default. Only activates when the env var
 `HARNESS_UNATTENDED_ALLOWLIST` is set to the path of a JSON allowlist file.
-That file is set by the wrapper bat that invokes `claude -p`, so this hook
-has zero effect on interactive sessions.
+That file is set by the wrapper bat / shell script that invokes `claude -p`,
+so this hook has zero effect on interactive sessions.
 
-This is C-3 from `07-References/security-baselines.md` — the preventive
-control that bounds the blast radius of an injection attack on a captured-content
-read.
+This is the C-3 preventive control from the harness security baseline —
+bounds the blast radius of an injection attack on a captured-content read.
+
+**Verdict-layer integration:** This hook is the first adopter of the
+verdict vocabulary (`_verdict.py`). Decisions are emitted as structured
+verdicts to `<project>/state/verdict/{YYYY-MM-DD}.jsonl` for audit. Exit
+codes are unchanged for backwards compatibility; the verdict log is purely
+additive observability.
 
 Allowlist file shape:
   {
@@ -20,11 +25,11 @@ Allowlist file shape:
   }
 
 Behaviour:
-  - No env var set                       → exit 0 (allow). Interactive default.
-  - Env var set, file unreadable         → exit 2 (block). Fail closed.
-  - Tool call with no target path        → exit 0 (allow). Not our business.
-  - Target matches any allowlist glob    → exit 0 (allow).
-  - Target matches none                  → exit 2 (block), explain in stderr.
+  - No env var set                       -> exit 0 (allow). Interactive default.
+  - Env var set, file unreadable         -> exit 2 (block). Fail closed.
+  - Tool call with no target path        -> exit 0 (allow). Not our business.
+  - Target matches any allowlist glob    -> exit 0 (allow).
+  - Target matches none                  -> exit 2 (block), explain in stderr.
 
 Exit codes match the Claude Code hook protocol used by deny-destructive.py:
   0 = allow, 2 = block.
@@ -44,6 +49,16 @@ try:
 except Exception:
     pass
 
+# Local sibling module — fail-silent if missing so the hook stays operable
+# even if _verdict.py is removed or broken.
+try:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from _verdict import emit_verdict  # noqa: E402
+except Exception:
+    def emit_verdict(*args, **kwargs):  # type: ignore
+        return kwargs.get("verdict", "allow")
+
+HOOK_NAME = "validate-write-path"
 ENV_VAR = "HARNESS_UNATTENDED_ALLOWLIST"
 
 
@@ -80,24 +95,36 @@ def matches(glob: str, path: str) -> bool:
 def main() -> int:
     allowlist_path = os.environ.get(ENV_VAR)
     if not allowlist_path:
-        return 0  # interactive session — not our gate
+        # Interactive session — not our gate. No verdict emitted (would be
+        # noise: every interactive tool call would log "allow").
+        return 0
 
     try:
         cfg = json.loads(Path(allowlist_path).read_text(encoding="utf-8"))
     except Exception as e:
-        sys.stderr.write(
-            f"BLOCKED by validate-write-path: allowlist unreadable at "
-            f"{allowlist_path} ({type(e).__name__}: {e}). Failing closed.\n"
+        reason = f"allowlist unreadable at {allowlist_path} ({type(e).__name__}: {e})"
+        emit_verdict(
+            hook=HOOK_NAME,
+            rule="config-error",
+            verdict="deny",
+            reason=reason,
+            context={"allowlist_path": allowlist_path, "error": str(e)},
         )
+        sys.stderr.write(f"BLOCKED by validate-write-path: {reason}. Failing closed.\n")
         return 2
 
     automation = cfg.get("automation", "<unnamed>")
     write_globs = cfg.get("write_globs") or []
     if not isinstance(write_globs, list) or not write_globs:
-        sys.stderr.write(
-            f"BLOCKED by validate-write-path: allowlist for '{automation}' "
-            f"has no write_globs. Failing closed.\n"
+        reason = f"allowlist for '{automation}' has no write_globs"
+        emit_verdict(
+            hook=HOOK_NAME,
+            rule="config-empty",
+            verdict="deny",
+            reason=reason,
+            context={"automation": automation, "allowlist_path": allowlist_path},
         )
+        sys.stderr.write(f"BLOCKED by validate-write-path: {reason}. Failing closed.\n")
         return 2
 
     try:
@@ -117,7 +144,34 @@ def main() -> int:
     target_norm = target.replace("\\", "/")
     for glob in write_globs:
         if matches(glob, target_norm):
+            emit_verdict(
+                hook=HOOK_NAME,
+                rule="allowlist-match",
+                verdict="allow",
+                reason=f"target matches glob '{glob}'",
+                context={
+                    "automation": automation,
+                    "target": target_norm,
+                    "matched_glob": glob,
+                    "tool_name": data.get("tool_name", ""),
+                },
+                session_id=data.get("session_id", ""),
+            )
             return 0  # allowed
+
+    emit_verdict(
+        hook=HOOK_NAME,
+        rule="allowlist-miss",
+        verdict="deny",
+        reason="target not on allowlist for this unattended run",
+        context={
+            "automation": automation,
+            "target": target_norm,
+            "write_globs": write_globs,
+            "tool_name": data.get("tool_name", ""),
+        },
+        session_id=data.get("session_id", ""),
+    )
 
     sys.stderr.write(
         f"BLOCKED by validate-write-path hook (automation='{automation}'): "

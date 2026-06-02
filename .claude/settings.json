@@ -51,6 +51,10 @@
           {
             "type": "command",
             "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/validate-memory-frontmatter.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/voice-anchor-ralph-loop.py\""
           }
         ]
       },

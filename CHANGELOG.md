@@ -8,6 +8,58 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.6.0-preview] - 2026-06-02
+
+### Added — Verdict vocabulary + monitor-mode shadow-testing for hooks
+
+Introduces a structured verdict layer (`allow` / `deny` / `ask` / `observe`) for hooks that gate tool calls, plus a `HARNESS_MODE=monitor` env var that downgrades every `ask`/`deny` to `observe` for shadow-testing new rules before they enforce. Every verdict is appended to a daily JSONL audit log at `state/verdict/{YYYY-MM-DD}.jsonl` so promotion decisions are evidence-based, not vibes-based.
+
+**New files (`scripts/hooks/`):**
+
+- **`_verdict.py`** — the verdict-emit module. `emit_verdict(hook, rule, verdict, reason, context, session_id)` writes a structured line and returns the *effective* verdict (after monitor-mode downgrade). `verdict_to_exit_code()` and `write_ask_stderr()` round out the surface. Fail-silent on audit-log error; fail-closed on unknown verdict (typo'd verdicts become `deny`, surfaced via rule tag). Concurrent-safe append via `_jsonl_append.safe_append_line`.
+- **`_jsonl_append.py`** — cross-platform safe-append helper. Windows uses `msvcrt.locking` with retry; POSIX uses `fcntl.flock LOCK_EX`. Falls through to unlocked write on lock-acquisition timeout rather than dropping the line.
+
+**New rule:** `.claude/rules/verdict-vocabulary.md` — auto-loads under `scripts/hooks/**` and for prompts about hook authoring. Documents the four verdicts, monitor mode, the module surface, conventions for hook authors (including the secret-redaction obligation on `context`), and the audit-log shape.
+
+**Hook upgrade:** `validate-write-path.py` is the first adopter of the verdict layer. Emits a verdict on every decision (`config-error`, `config-empty`, `allowlist-match`, `allowlist-miss`). Exit codes unchanged — the verdict log is purely additive observability. Fail-silent import-guard means the hook keeps working if `_verdict.py` is missing.
+
+### Added — `/harness-watch-review` skill (end-of-shadow promotion call)
+
+Companion to the verdict layer. Reads the verdict audit log over a window (default: last 14 days), surfaces per-rule monitor-mode fire counts, asks the user to classify each fire (TP / FP / borderline), and recommends — per rule — **promote to enforcing**, **kill**, or **extend monitor period** against the trust-build threshold (≥2 false positives in a fortnight → kill until reviewed). Decision-grade, not daily — run end-of-shadow-window for each new rule.
+
+### Added — `/linkedin-reply` skill (interactive reply drafter)
+
+Sibling to `/draft-linkedin` (new posts) and `/linkedin-metrics` (engagement). Takes a pasted inbound LinkedIn message (DM, comment, or thread reply), classifies the reply context, picks an intent (acknowledge / engage / decline / handoff), drafts **two short candidates** with different angles, and inlines them for fast copy. Optional save to `08-Projects/LinkedIn-Agent/replies/{YYYY-MM-DD}-{slug}.md` with `trust: untrusted` frontmatter on the source excerpt. Loads `voice-content.md` for voice anchors; never auto-saves; never auto-promotes to memory.
+
+### Added — `voice-anchor-ralph-loop.py` (PostToolUse verbatim-lift detector)
+
+Deterministic hook that catches verbatim lifts from voice-anchor files into drafts. When Claude writes a draft under `08-Projects/LinkedIn-Agent/drafts/**`, the hook scans for 10+ word runs that appear in any sibling `voice-examples/` file. **Talk anchors** (frontmatter `type: speaker-talk|talk`) trigger a HARD violation (per the voice-content rule, source content is PREMISE not COPY). Other voice-examples trigger a soft violation (don't republish your own past prose). Exit 2 with stderr listing the lifted phrase + source file, so Claude rewrites before showing the user. Wired into PostToolUse for Edit|Write|MultiEdit.
+
+### Test-scenarios — STANDALONE_HOOKS extended
+
+`run-deterministic-checks.py` STANDALONE_HOOKS allowlist now includes `_verdict.py` and `_jsonl_append.py` (imported by hooks, not invoked directly by Claude Code). D2 (Hook wiring coverage) continues to PASS. Full suite remains **11 PASS, 0 WARN, 0 FAIL** after the v0.6.0 additions.
+
+---
+
+## [0.5.0-preview] - 2026-05-27
+
+### Added — Missed-run catchup (logon + unlock) for scheduled harness tasks
+
+Reliability enhancement. The harness's daily scheduled tasks are deliberately interactive-only (never wake-from-sleep, never run-when-logged-off, per the security baseline). The tradeoff: if the machine is asleep / off / on battery at the scheduled time, that day's run is silently skipped and TODO / triage / digest go stale until the next day.
+
+This release ships an optional catchup that closes that gap **without** breaking the interactive-only rule — it fires at logon and on workstation unlock (both moments the user is present), so nothing becomes unattended.
+
+**New files (`capture-pipeline/`):**
+
+- **`login-catchup.ps1`** — gated, parameterised catchup. Gates: (1) before the scheduled hour → defer; (2) freshness file (default `<vault>/TODO.md`) already today's → no-op; (3) a target task already running → don't pile on; (4) otherwise → trigger the configured task(s) **sequentially** (concurrent runs can corrupt shared capture-cursor / dedup state). Parameters: `-Tasks`, `-FreshnessFile`, `-VaultRoot`, `-NotBeforeHour`, `-DryRun`.
+- **`register-login-catchup.ps1`** — one-time elevated registration. Creates a task with logon + workstation-unlock triggers, RunLevel Limited (non-admin), `AllowStartIfOnBatteries` (runs when a laptop lid opens unplugged — the case the daily task skips), `WakeToRun=False` (compliant — never wakes the machine). Idempotent (`-Force`).
+
+**Docs:** `CONFIGURATION.md` §Scheduled tasks gains a "Reliability enhancement — missed-run catchup" subsection covering the gates, the elevated-registration step, the `-DryRun` test path, the PS 5.1 ASCII-only gotcha, and the macOS/Linux `anacron` / systemd-`Persistent=true` equivalent.
+
+**Why this matters.** The interactive-only rule is the right security posture, but on a laptop that sleeps it means the morning automation frequently just doesn't run. Catchup makes the *attended* path self-heal: open your machine any time after the scheduled hour and the missed run completes, gated so it never double-runs or runs stale. The rule's security guarantee is preserved; only the reliability gap is closed.
+
+---
+
 ## [0.4.2-preview] - 2026-05-25
 
 ### Added — Quick install path (`--quick`): 3 questions, ~60 seconds
