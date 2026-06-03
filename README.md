@@ -200,10 +200,19 @@ See [`ROADMAP.md`](ROADMAP.md) for what's coming next and what won't ship.
 
 ## Quick start
 
+Clone the repo (anywhere — outside cloud-synced folders is faster).
+
 ```bash
-# Clone the repo (anywhere — outside cloud-synced folders is faster)
-git clone https://github.com/acunningham-ai/Charon.git ~/second-brain
-cd ~/second-brain
+# macOS / Linux
+git clone https://github.com/acunningham-ai/Charon.git "$HOME/second-brain"
+cd "$HOME/second-brain"
+```
+
+```powershell
+# Windows (PowerShell). Don't use `~/second-brain` — git is a native command and
+# won't expand the tilde; you'll end up with a literal `~` directory.
+git clone https://github.com/acunningham-ai/Charon.git "$env:USERPROFILE\second-brain"
+cd "$env:USERPROFILE\second-brain"
 ```
 
 **Inspect the installer before running it.** Charon is a CISO tool; modelling the discipline it teaches starts here. Open `install.ps1` / `install.sh` in your editor and skim — it's short, it tells you what package managers it'll invoke and where it'll write.

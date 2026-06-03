@@ -219,7 +219,15 @@ Never store secrets in memory files or `CLAUDE.md` — both reference the secret
 ## Updating
 
 ```bash
-cd ~/second-brain
+# macOS / Linux
+cd "$HOME/second-brain"
+git pull origin main
+pip install -r requirements.txt --upgrade
+```
+
+```powershell
+# Windows (PowerShell)
+cd "$env:USERPROFILE\second-brain"
 git pull origin main
 pip install -r requirements.txt --upgrade
 ```

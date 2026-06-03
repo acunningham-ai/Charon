@@ -4,10 +4,19 @@ Charon is a CISO harness. We teach security-hygiene discipline through the rules
 
 ## Quick start
 
+Clone the repo (anywhere — outside cloud-synced folders is faster).
+
 ```bash
-# Clone the repo (anywhere — outside cloud-synced folders is faster)
-git clone https://github.com/acunningham-ai/Charon.git ~/second-brain
-cd ~/second-brain
+# macOS / Linux
+git clone https://github.com/acunningham-ai/Charon.git "$HOME/second-brain"
+cd "$HOME/second-brain"
+```
+
+```powershell
+# Windows (PowerShell). Don't use `~/second-brain` — git is a native command and
+# won't expand the tilde; you'll end up with a literal `~` directory.
+git clone https://github.com/acunningham-ai/Charon.git "$env:USERPROFILE\second-brain"
+cd "$env:USERPROFILE\second-brain"
 ```
 
 **Step 1 — Inspect the installer.** Open `install.ps1` / `install.sh` in your editor. It's short (≈100 lines). You're checking: which package manager it invokes, where it writes (your `~/.secrets/`), what Python deps it pulls.
