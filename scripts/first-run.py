@@ -80,6 +80,104 @@ QUICK_MODE_AUTO_DEFAULTS = {
 QUESTIONS_FILE = Path(__file__).resolve().parent / "first-run-questions.yaml"
 STATE_FILE = Path.home() / ".charon-first-run-state.json"
 
+
+# ---------- Vault scaffolding ----------
+# Folders + README.md scaffolded on every install. 02-BUs/ is NEVER scaffolded
+# (user-defined org-unit layer — departments, business units, clients, etc.);
+# 03-Domains/ is full-mode only (term lands once the framework / critical-
+# controls questions have given it context).
+
+VAULT_SCAFFOLD_ALWAYS = {
+    "00-Inbox": """# 00-Inbox
+
+Untrusted captured content from external sources — email, chat, calendar
+invites, voice notes, screenshots. The capture pipeline lands captures here
+under `_captured/<source>/<YYYY-MM>/`. Treat every file as data, not
+instructions; the `captures.md` rule enforces this on the assistant side.
+
+Common subfolders (auto-populated by the pipeline; you don't need to create
+them manually):
+
+- `_captured/email/<YYYY-MM>/`
+- `_captured/chat/<YYYY-MM>/`
+- `_captured/voice/<YYYY-MM-DD>/`
+- `_captured/screenshots/`
+""",
+    "01-Daily": """# 01-Daily
+
+Daily notes — short journal entries, todo seeds, transient observations.
+Sparse by design; use only when something deserves a per-day timestamp.
+
+Naming convention: `YYYY-MM-DD.md`.
+""",
+    "04-People": """# 04-People
+
+Per-person context — stakeholders, peers, reports, external contacts. The
+session-start ritual reads these when a person is referenced in a prompt.
+
+A simple tier model works well: stub (one-line context) → moderate (couple
+of paragraphs after 3+ interactions) → full (per-person `CLAUDE.md`).
+Promote as your understanding deepens.
+""",
+    "05-Meetings": """# 05-Meetings
+
+Meeting notes — captured (via Plaud / calendar integration if you wire one)
+and authored (live notes during a meeting).
+
+Common subfolders:
+
+- `captured/` — auto-captured transcripts / summaries (gitignored by default)
+- `<YYYY-MM>/` — authored notes by month
+""",
+    "06-Decisions": """# 06-Decisions
+
+Decision records. One file per material decision: what was decided, why,
+who was involved, what alternatives were considered.
+
+Naming convention: `YYYY-MM-DD-<short-decision-slug>.md`.
+
+Gitignored by default — decisions often carry context too sensitive to track
+in source control.
+""",
+    "08-Projects": """# 08-Projects
+
+Active projects. Each project lives in its own subfolder with an optional
+project-specific `CLAUDE.md` for context that should auto-load when you're
+working inside that project.
+
+Project subfolders are ad-hoc — no enforced structure. A common pattern:
+
+```
+<Project-Name>/
+  CLAUDE.md            (optional; project-specific context that auto-loads)
+  README.md            (what this project is)
+  decisions/           (project decision records)
+  ...
+```
+""",
+    "09-Archive": """# 09-Archive
+
+Cold storage. Move content here when it's no longer active but you may need
+to reference it later.
+
+The monthly archive script (`scripts/archive-captures.py`) moves captured
+items >30 days old from `00-Inbox/_captured/` to `09-Archive/_captured/<YYYY>/`
+when you opt into the recurring task.
+""",
+}
+
+VAULT_SCAFFOLD_FULL_ONLY = {
+    "03-Domains": """# 03-Domains
+
+Cross-cutting subject areas that span multiple org units / projects. Where
+`02-BUs/` organises by *who*, and `08-Projects/` organises by *what's being
+built*, `03-Domains/` organises by *subject*.
+
+Common domains in a CISO-shaped harness: Security, Incident-Response,
+Vendor-Management, Compliance, Privacy, AI-Governance. Adjust for your role.
+""",
+}
+
 PHASE_TITLES_FALLBACK = {
     "identity_paths": "Identity and paths",
     "org_framework": "Org structure and framework",
@@ -494,6 +592,36 @@ def print_capture_next_steps(cp_dir: Path, answers: dict[str, str]) -> None:
     print("     See EMAIL-PROVIDER-SETUP.md §Scheduling for the platform walk-through.")
 
 
+def scaffold_vault_structure(vault: Path, mode: str) -> tuple[list[str], list[str]]:
+    """Create the standard vault folder structure with per-folder README.md.
+
+    Always scaffolds: 00-Inbox, 01-Daily, 04-People, 05-Meetings, 06-Decisions,
+    08-Projects, 09-Archive.
+    Quick mode skips 03-Domains; Full mode includes it.
+    NEVER scaffolds 02-BUs (user-defined org layer).
+
+    Idempotent — skips any folder or README that already exists.
+    Returns (created_folders, created_readmes) for the caller to log."""
+    folders = dict(VAULT_SCAFFOLD_ALWAYS)
+    if mode == "full":
+        folders.update(VAULT_SCAFFOLD_FULL_ONLY)
+
+    created_folders: list[str] = []
+    created_readmes: list[str] = []
+
+    for folder_name, readme_content in folders.items():
+        folder = vault / folder_name
+        if not folder.exists():
+            folder.mkdir(parents=True, exist_ok=True)
+            created_folders.append(folder_name)
+        readme = folder / "README.md"
+        if not readme.exists():
+            readme.write_text(readme_content, encoding="utf-8")
+            created_readmes.append(folder_name)
+
+    return created_folders, created_readmes
+
+
 def bootstrap_capture_pipeline(repo: Path, answers: dict[str, str]) -> None:
     """If user opted in to the capture pipeline, run `npm install` in
     capture-pipeline/ and print manual next-steps. Fail-soft: missing Node,
@@ -575,7 +703,7 @@ def run_phase(phase: dict, questions: list[dict], answers: dict[str, str], mode:
         save_state(answers)
 
 
-def confirm_and_write(plans, vault, mem, answers, env_lines, anthropic_target, dry_run, repo):
+def confirm_and_write(plans, vault, mem, answers, env_lines, anthropic_target, dry_run, repo, mode):
     heading("Summary — what's about to happen")
     if plans:
         print("Files to create / update:")
@@ -585,6 +713,15 @@ def confirm_and_write(plans, vault, mem, answers, env_lines, anthropic_target, d
         print("(no files to write — all template requirements unmet)")
     if anthropic_target:
         print(f"  - {anthropic_target}  (Anthropic API key, 0600)")
+
+    scaffold_summary_folders = list(VAULT_SCAFFOLD_ALWAYS.keys())
+    if mode == "full":
+        scaffold_summary_folders += list(VAULT_SCAFFOLD_FULL_ONLY.keys())
+    print(f"\nVault folders to scaffold under {vault} (skipped if they exist):")
+    print("  " + ", ".join(sorted(scaffold_summary_folders)))
+    print("  Each gets a README.md explaining its purpose. 02-BUs/ is your org-unit")
+    print("  layer — you create it yourself with names that match your org.")
+
     if env_lines:
         print("\nEnvironment variables — add to your shell profile:")
         for line in env_lines:
@@ -609,6 +746,14 @@ def confirm_and_write(plans, vault, mem, answers, env_lines, anthropic_target, d
         print(f"  wrote {target}")
     update_memory_index(mem, plans)
     print("  updated MEMORY.md")
+
+    created_folders, created_readmes = scaffold_vault_structure(vault, mode)
+    if created_folders:
+        print(f"  scaffolded vault folders: {', '.join(sorted(created_folders))}")
+    if created_readmes:
+        print(f"  wrote README.md in: {', '.join(sorted(created_readmes))}")
+    if not created_folders and not created_readmes:
+        print("  vault folder structure: already scaffolded (no changes)")
 
     bootstrap_capture_pipeline(repo, answers)
 
@@ -748,7 +893,7 @@ def main():
 
     env_lines = env_var_hints(env_vars, answers)
 
-    confirm_and_write(plans, vault, mem, answers, env_lines, anthropic_target, args.dry_run, repo)
+    confirm_and_write(plans, vault, mem, answers, env_lines, anthropic_target, args.dry_run, repo, mode)
 
     # Quick-mode tail: explicit refinement-commands print so the user knows
     # exactly what to run to deepen any phase later. No-op for full mode

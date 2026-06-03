@@ -8,6 +8,43 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.6.2] - 2026-06-03
+
+**First release without the `-preview` suffix.** The repo flipped public sometime between v0.1.0-preview (2026-05-18) and now, so the versioning convention's *"drop `-preview` at first public release"* clause kicks in. Past tags (`v0.1.0-preview` through `v0.6.1-preview`) stay as historical artefacts — no retagging, no rewriting of past CHANGELOG headers.
+
+### Added — Vault folder scaffolding with per-folder `README.md`
+
+Tester report (same Quick-install path): after `v0.6.1` the wizard wrote `capture-pipeline/config.json` and the memory templates correctly — but the vault folder structure the scripts and hooks reference (`00-Inbox/`, `08-Projects/`, `04-People/`, etc.) didn't exist. Captures would land in folders that hadn't been created; `08-Projects/**` globs in hooks silently no-op'd; the user saw a near-empty vault and had to infer the convention from the docs.
+
+This release scaffolds the standard vault structure during install, with two principled exceptions:
+
+| Folder | Quick install | Full install | Rationale |
+|---|---|---|---|
+| `00-Inbox/` | ✅ | ✅ | Capture pipeline target |
+| `01-Daily/` | ✅ | ✅ | Daily notes |
+| `02-BUs/` | ❌ **NEVER** | ❌ **NEVER** | User-defined org layer (departments / business units / clients) — the user creates this with names that match their org. The installer must not pre-create it. |
+| `03-Domains/` | ❌ skip | ✅ | Domain organisation lands once Full-mode questions have given the term context; Quick-mode users without that context find the empty folder confusing. |
+| `04-People/` | ✅ | ✅ | Per-person context files |
+| `05-Meetings/` | ✅ | ✅ | Meeting notes (captured + authored) |
+| `06-Decisions/` | ✅ | ✅ | Decision records |
+| `07-References/` | (ships in repo) | (ships in repo) | Reference content (Cerberus docs, framework refs) is in the repo already |
+| `08-Projects/` | ✅ | ✅ | Active projects; many hooks glob `08-Projects/**` |
+| `09-Archive/` | ✅ | ✅ | Cold storage; `scripts/archive-captures.py` writes here |
+
+Each scaffolded folder gets a short `README.md` explaining its purpose, common subfolders, and naming convention. Content stays generic — no Vela / CISO-specific examples that would lock in an opinionated structure.
+
+**Idempotency.** Folders and READMEs that already exist are skipped — re-running the wizard, switching from Quick to Full later, or running `--phase <name>` on an existing install all behave correctly. Re-runs that find everything already in place print *"vault folder structure: already scaffolded (no changes)"*.
+
+**Why scaffold instead of leaving empty.** The harness ships ~50 references across hooks, scripts, and skills to paths like `00-Inbox/_captured/**`, `08-Projects/**`, `09-Archive/_captured/<YYYY>/`. On a fresh install with no scaffolding, these are all silent no-ops — the user sees the rules and skills "working" but the vault never accumulates anything they'd expect to see. Scaffolding fixes the mismatch between marketed convention and on-disk reality.
+
+**Why not scaffold `02-BUs/`.** This is the deliberate user-defined layer. A 47-BU software group uses business-unit names; a traditional company uses departments (HR, IT, Finance, etc.); a solo consultant might use client names. Pre-creating an empty `02-BUs/` implies an opinion the harness doesn't have. The user creates this folder themselves once they know what shape it should take. Documented in the `08-Projects/README.md` and the wizard's summary line.
+
+### Why this is a PATCH and not a MINOR
+
+The install capability has existed since v0.1.0-preview. This release makes the post-install vault state match what the rest of the harness already references — refinement of an existing capability, not a new one. Authoring test (*"could a user describe this as 'now I can do X' where X is new?"*) is no: the user is still installing; the installer just produces a more useful starter state. Consistent with the v0.4.2 (Quick mode added) and v0.6.1 (M365 wired into Quick mode) precedents — both PATCHes that refined install reach.
+
+---
+
 ## [0.6.1-preview] - 2026-06-03
 
 Two tester-reported install bugs, both fixed and verified end-to-end on Windows. Mirror-applied to the macOS / Linux installer in the same release per the cross-platform-parity rule (installer drift is a recurring class of bug; close it at source).
@@ -434,7 +471,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.6.1-preview...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/acunningham-ai/Charon/releases/tag/v0.6.2
 [0.6.1-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.6.1-preview
 [0.6.0-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.6.0-preview
 [0.5.0-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.5.0-preview
