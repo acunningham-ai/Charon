@@ -14,6 +14,7 @@
 # Skip flags:
 #   SKIP_PYTHON=1   skip Python detection / install
 #   SKIP_OBSIDIAN=1 skip Obsidian detection / install
+#   SKIP_NODE=1     skip Node detection / install
 #   SKIP_FIRST_RUN=1 skip running the wizard
 #
 # This script will request sudo only when invoking a Linux package
@@ -25,6 +26,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ACCEPT_DEFAULTS="${ACCEPT_DEFAULTS:-}"
 SKIP_PYTHON="${SKIP_PYTHON:-}"
 SKIP_OBSIDIAN="${SKIP_OBSIDIAN:-}"
+SKIP_NODE="${SKIP_NODE:-}"
 SKIP_FIRST_RUN="${SKIP_FIRST_RUN:-}"
 
 # ANSI colors (only if stdout is a tty)
@@ -155,6 +157,55 @@ install_python() {
     esac
 }
 
+node_major() {
+    # Returns the major version of `node` if present and >=0; empty string otherwise.
+    if have_cmd node; then
+        local v
+        v="$(node --version 2>/dev/null || true)"
+        # node --version emits e.g. "v20.10.0"
+        if [[ "$v" =~ ^v([0-9]+) ]]; then
+            echo "${BASH_REMATCH[1]}"
+            return 0
+        fi
+    fi
+    echo ""
+}
+
+install_node() {
+    case "$OS_KIND" in
+        mac)
+            if have_cmd brew; then
+                echo "  ${C_CYAN}Running: brew install node${C_RESET}"
+                brew install node
+                return $?
+            else
+                echo "  ${C_YELLOW}Homebrew not installed. Install brew first: https://brew.sh${C_RESET}"
+                return 1
+            fi
+            ;;
+        debian)
+            echo "  ${C_CYAN}Running: sudo apt-get update && sudo apt-get install -y nodejs npm${C_RESET}"
+            echo "  ${C_YELLOW}Note: distro nodejs may be older than 18. If so, see https://nodejs.org/ for nvm or the NodeSource setup script.${C_RESET}"
+            sudo apt-get update && sudo apt-get install -y nodejs npm
+            return $?
+            ;;
+        rhel)
+            echo "  ${C_CYAN}Running: sudo dnf install -y nodejs npm${C_RESET}"
+            sudo dnf install -y nodejs npm
+            return $?
+            ;;
+        arch)
+            echo "  ${C_CYAN}Running: sudo pacman -S --noconfirm nodejs npm${C_RESET}"
+            sudo pacman -S --noconfirm nodejs npm
+            return $?
+            ;;
+        *)
+            echo "  ${C_YELLOW}Unsupported OS - install Node.js 18+ from https://nodejs.org/${C_RESET}"
+            return 1
+            ;;
+    esac
+}
+
 install_obsidian() {
     case "$OS_KIND" in
         mac)
@@ -239,9 +290,53 @@ else
     esac
 fi
 
-# --- Step 3: Python dependencies ---
+# --- Step 3: Node.js (for capture-pipeline) ---
 echo
-echo "${C_GREEN}Step 3 - Python dependencies (PyYAML, anthropic, mcp)${C_RESET}"
+echo "${C_GREEN}Step 3 - Node.js 18+ (required by the email capture pipeline)${C_RESET}"
+if [ -n "$SKIP_NODE" ]; then
+    echo "  Skipped per SKIP_NODE"
+else
+    NODE_MAJ="$(node_major)"
+    if [ -n "$NODE_MAJ" ] && [ "$NODE_MAJ" -ge 18 ]; then
+        echo "  Found: $(node --version)"
+    else
+        if [ -n "$NODE_MAJ" ]; then
+            echo "  ${C_YELLOW}Found older Node v${NODE_MAJ}. Need 18+.${C_RESET}"
+        else
+            echo "  ${C_YELLOW}Node.js not found. The email capture pipeline needs Node 18+ to run.${C_RESET}"
+        fi
+        echo
+        echo "  Install URL:  https://nodejs.org/"
+        case "$OS_KIND" in
+            mac)    echo "  brew:         brew install node" ;;
+            debian) echo "  apt:          sudo apt-get install nodejs npm" ;;
+            rhel)   echo "  dnf:          sudo dnf install nodejs npm" ;;
+            arch)   echo "  pacman:       sudo pacman -S nodejs npm" ;;
+        esac
+        echo
+        choice="$(ask_choice "(a)uto-install / (m)anual / (s)kip - you can install later" "a" a m s)"
+        case "$choice" in
+            a)
+                if install_node; then
+                    echo "  ${C_GREEN}Node.js installed. Continuing.${C_RESET}"
+                else
+                    echo "  ${C_YELLOW}Auto-install failed. Install manually if you want the capture pipeline.${C_RESET}"
+                fi
+                ;;
+            m)
+                echo "  ${C_YELLOW}Install Node.js 18+ from the URL above and re-run install.sh.${C_RESET}"
+                exit 0
+                ;;
+            s)
+                echo "  ${C_YELLOW}Skipping. Note: without Node, the capture pipeline cannot run.${C_RESET}"
+                ;;
+        esac
+    fi
+fi
+
+# --- Step 4: Python dependencies ---
+echo
+echo "${C_GREEN}Step 4 - Python dependencies (PyYAML, anthropic, mcp)${C_RESET}"
 if PY="$(py_cmd 2>/dev/null)"; then
     REQS="${REPO_ROOT}/requirements.txt"
     if [ -f "$REQS" ]; then
@@ -255,16 +350,16 @@ else
     echo "  ${C_YELLOW}No Python found - skipping deps. Re-run install.sh after installing Python.${C_RESET}"
 fi
 
-# --- Step 4: Secrets directory ---
+# --- Step 5: Secrets directory ---
 echo
-echo "${C_GREEN}Step 4 - Secrets directory${C_RESET}"
+echo "${C_GREEN}Step 5 - Secrets directory${C_RESET}"
 SECRETS_DEFAULT="${HOME}/.secrets"
 SECRETS="$(ask "Where should credentials live?" "$SECRETS_DEFAULT")"
 mkdir -p "$SECRETS"
 chmod 700 "$SECRETS"
 echo "  Created $SECRETS with mode 700"
 
-# --- Step 5: First-run wizard ---
+# --- Step 6: First-run wizard ---
 if [ -n "$SKIP_FIRST_RUN" ]; then
     echo
     echo "${C_YELLOW}Skipping first-run wizard per SKIP_FIRST_RUN. Run later with:${C_RESET}"
@@ -272,7 +367,7 @@ if [ -n "$SKIP_FIRST_RUN" ]; then
     exit 0
 fi
 echo
-echo "${C_GREEN}Step 5 - Hand off to first-run wizard${C_RESET}"
+echo "${C_GREEN}Step 6 - Hand off to first-run wizard${C_RESET}"
 if PY="$(py_cmd 2>/dev/null)"; then
     WIZARD="${REPO_ROOT}/scripts/first-run.py"
     if [ -f "$WIZARD" ]; then

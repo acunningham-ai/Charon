@@ -25,6 +25,7 @@ param(
     [switch]$AcceptDefaults,
     [switch]$SkipPython,
     [switch]$SkipObsidian,
+    [switch]$SkipNode,
     [switch]$SkipFirstRun
 )
 
@@ -84,6 +85,22 @@ function Get-PythonVersion {
                 }
             } catch { }
         }
+    }
+    return $null
+}
+
+function Get-NodeVersion {
+    if (Test-Command "node") {
+        try {
+            $v = & node --version 2>&1
+            if ($v -match "v(\d+)\.(\d+)") {
+                return [pscustomobject]@{
+                    Major = [int]$Matches[1]
+                    Minor = [int]$Matches[2]
+                    Raw = $v
+                }
+            }
+        } catch { }
     }
     return $null
 }
@@ -171,9 +188,48 @@ if ($obsidianInstalled) {
     }
 }
 
-# --- Step 3: Python dependencies ---
+# --- Step 3: Node.js (for capture-pipeline) ---
 Write-Host ""
-Write-Host "Step 3 - Python dependencies (PyYAML, anthropic, mcp)" -ForegroundColor Green
+Write-Host "Step 3 - Node.js 18+ (required by the email capture pipeline)" -ForegroundColor Green
+$nodeVer = Get-NodeVersion
+if ($nodeVer -and $nodeVer.Major -ge 18) {
+    Write-Host "  Found: $($nodeVer.Raw)"
+} elseif ($SkipNode) {
+    Write-Host "  Skipped per -SkipNode"
+} else {
+    if ($nodeVer) {
+        Write-Host "  Found older Node: $($nodeVer.Raw). Need 18+." -ForegroundColor Yellow
+    } else {
+        Write-Host "  Node.js not found. The email capture pipeline needs Node 18+ to run." -ForegroundColor Yellow
+    }
+    Write-Host ""
+    Write-Host "  Install URL:  https://nodejs.org/"
+    Write-Host "  winget id:    OpenJS.NodeJS.LTS"
+    Write-Host ""
+    $choice = Ask-Choice -Prompt "(a)uto-install via winget / (m)anual install (open URL, then re-run) / (s)kip - you can install later" -Choices @("a","m","s") -Default "a"
+    switch ($choice) {
+        "a" {
+            $ok = Install-WithWinget -Id "OpenJS.NodeJS.LTS" -Friendly "Node.js LTS"
+            if ($ok) {
+                Write-Host "  Node.js installed. You may need to open a new shell for PATH to update." -ForegroundColor Green
+                Write-Host "  Re-run install.ps1 in a fresh terminal." -ForegroundColor Yellow
+                exit 0
+            }
+        }
+        "m" {
+            Start-Process "https://nodejs.org/"
+            Write-Host "  Browser opened. Install Node.js 18+ and re-run install.ps1." -ForegroundColor Yellow
+            exit 0
+        }
+        "s" {
+            Write-Host "  Skipping. Note: without Node, the capture pipeline cannot run." -ForegroundColor Yellow
+        }
+    }
+}
+
+# --- Step 4: Python dependencies ---
+Write-Host ""
+Write-Host "Step 4 - Python dependencies (PyYAML, anthropic, mcp)" -ForegroundColor Green
 $pyCmd = (Get-PythonVersion).Command
 if (-not $pyCmd) {
     Write-Host "  No Python found - skipping dependency install. Re-run install.ps1 after installing Python." -ForegroundColor Yellow
@@ -187,9 +243,9 @@ if (-not $pyCmd) {
     }
 }
 
-# --- Step 4: Secrets directory ---
+# --- Step 5: Secrets directory ---
 Write-Host ""
-Write-Host "Step 4 - Secrets directory" -ForegroundColor Green
+Write-Host "Step 5 - Secrets directory" -ForegroundColor Green
 $secretsDefault = Join-Path $env:USERPROFILE ".secrets"
 $secrets = Ask -Prompt "Where should credentials live?" -Default $secretsDefault
 if (-not (Test-Path $secrets)) {
@@ -204,7 +260,7 @@ try {
     Write-Host "  Couldn't restrict permissions automatically. Right-click - Properties - Security - restrict to your user." -ForegroundColor Yellow
 }
 
-# --- Step 5: First-run wizard ---
+# --- Step 6: First-run wizard ---
 if ($SkipFirstRun) {
     Write-Host ""
     Write-Host "Skipping first-run wizard per -SkipFirstRun. Run later with:" -ForegroundColor Yellow
@@ -212,7 +268,7 @@ if ($SkipFirstRun) {
     exit 0
 }
 Write-Host ""
-Write-Host "Step 5 - Hand off to first-run wizard" -ForegroundColor Green
+Write-Host "Step 6 - Hand off to first-run wizard" -ForegroundColor Green
 $pyCmd = (Get-PythonVersion).Command
 if (-not $pyCmd) {
     Write-Host "  No Python found - can't run the wizard. Install Python and re-run install.ps1." -ForegroundColor Red

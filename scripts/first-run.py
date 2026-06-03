@@ -28,6 +28,7 @@ import getpass
 import json
 import os
 import shutil
+import subprocess
 import sys
 import textwrap
 from pathlib import Path
@@ -54,8 +55,17 @@ except ImportError:
 # Solves the tester feedback that the full wizard "expects tech understanding"
 # and feels long. User gets productive in ~60 seconds; refines any phase later.
 
-# The three questions Quick mode actually asks.
-QUICK_MODE_ASK_IDS = {"identity_name", "identity_role", "identity_org"}
+# Questions Quick mode asks. Three identity + one capture y/n + (conditionally)
+# two M365 fields. Other capture questions (provider, sent items, schedule)
+# get implicit defaults via apply_implicit_propagations() when the user opts in.
+QUICK_MODE_ASK_IDS = {
+    "identity_name",
+    "identity_role",
+    "identity_org",
+    "capture_pipeline_setup",
+    "m365_tenant_id",
+    "m365_client_id",
+}
 
 # Defaults applied silently in Quick mode for identity_paths questions
 # we DON'T ask. Keys are question IDs; values are raw default strings that
@@ -216,6 +226,19 @@ def validate_answer(answer: str, validators: str | None) -> tuple[bool, str]:
 
 
 # ---------- Question UI ----------
+
+def apply_implicit_propagations(answers: dict[str, str], qid: str, mode: str) -> None:
+    """Quick-mode shortcut: when the user opts in to the capture pipeline, fill in
+    provider + sane capture defaults so we don't ask 8 more questions. Quick mode
+    is M365-only by design; Gmail / IMAP users go via `--phase workflow`."""
+    if mode != "quick":
+        return
+    if qid == "capture_pipeline_setup" and answers.get(qid) == "y":
+        answers.setdefault("capture_pipeline_provider", "m365")
+        answers.setdefault("capture_sent_items", "y")
+        answers.setdefault("pipeline_schedule_frequency", "daily")
+        answers.setdefault("pipeline_schedule_time", "07:00")
+
 
 def depends_on_satisfied(q: dict, answers: dict[str, str]) -> bool:
     deps = q.get("depends_on") or {}
@@ -423,20 +446,94 @@ def write_anthropic_secret(secrets: Path, api_key: str) -> Path:
 
 # ---------- Env var hints ----------
 
+PATH_TYPE_QIDS = {"vault_path", "secrets_path"}
+
+
 def env_var_hints(env_vars: list[dict], answers: dict[str, str]) -> list[str]:
     """Return shell-snippet lines the user should add to their profile."""
     lines = []
     is_windows = sys.platform.startswith("win")
     for ev in env_vars:
         name = ev["name"]
-        value = answers.get(ev.get("value_from", ""), "")
+        qid = ev.get("value_from", "")
+        value = answers.get(qid, "")
         if not value.strip():
             continue
+        # Normalise path-type values: `$home/.secrets` joins `/` after Path.home()
+        # returns `\` on Windows, producing mixed slashes in the env-var output.
+        if qid in PATH_TYPE_QIDS:
+            value = str(Path(value))
         if is_windows:
             lines.append(f'$env:{name} = "{value}"')
         else:
             lines.append(f'export {name}="{value}"')
     return lines
+
+
+def print_capture_next_steps(cp_dir: Path, answers: dict[str, str]) -> None:
+    """Print manual next-steps after npm install: auth + scheduler. These stay
+    manual on purpose — device-code OAuth is interactive (browser); scheduler
+    registration is platform-specific."""
+    provider = answers.get("capture_pipeline_provider", "m365")
+    print()
+    print("Next steps to activate the capture pipeline:")
+    print()
+    print("  1. Run the one-time auth flow:")
+    print(f"       cd {cp_dir}")
+    print("       node fetch-mail.mjs auth")
+    if provider == "m365":
+        print("     Device-code flow — copy the code into your browser; sign in with your M365 account.")
+    print()
+    print("  2. Test the pipeline end-to-end:")
+    print("       node fetch-mail.mjs all")
+    print("     Captures should land under <vault>/00-Inbox/_captured/email/")
+    print()
+    print("  3. Register the scheduled task (one-time, platform-specific):")
+    print("       Windows:        schtasks /Create /TN \"Charon Capture\" /TR <full-path>\\scheduled-capture.bat /SC DAILY /ST <HH:MM>")
+    print("       macOS / Linux:  crontab -e   (or a launchd plist on macOS)")
+    print("     See EMAIL-PROVIDER-SETUP.md §Scheduling for the platform walk-through.")
+
+
+def bootstrap_capture_pipeline(repo: Path, answers: dict[str, str]) -> None:
+    """If user opted in to the capture pipeline, run `npm install` in
+    capture-pipeline/ and print manual next-steps. Fail-soft: missing Node,
+    missing capture-pipeline/, or install failure prints clear recovery —
+    wizard does not abort."""
+    if answers.get("capture_pipeline_setup") != "y":
+        return
+
+    cp_dir = repo / "capture-pipeline"
+    if not cp_dir.exists():
+        print(f"\n  WARN: capture-pipeline/ not found at {cp_dir} - skipping npm install.")
+        return
+
+    print("\nBootstrapping capture pipeline...")
+
+    if not shutil.which("node") or not shutil.which("npm"):
+        print("  Node.js / npm not detected on PATH.")
+        print("  Install Node 18+, then run:")
+        print(f"       cd {cp_dir}")
+        print("       npm install")
+        print_capture_next_steps(cp_dir, answers)
+        return
+
+    try:
+        subprocess.run(["npm", "install"], cwd=str(cp_dir), check=True)
+        print("  npm install: ok")
+    except subprocess.CalledProcessError as e:
+        print(f"  npm install failed (exit {e.returncode}). Run it manually:")
+        print(f"       cd {cp_dir}")
+        print("       npm install")
+        print_capture_next_steps(cp_dir, answers)
+        return
+    except FileNotFoundError:
+        print("  npm not found on PATH (race with Node install?). Run manually:")
+        print(f"       cd {cp_dir}")
+        print("       npm install")
+        print_capture_next_steps(cp_dir, answers)
+        return
+
+    print_capture_next_steps(cp_dir, answers)
 
 
 # ---------- Main flow ----------
@@ -474,10 +571,11 @@ def run_phase(phase: dict, questions: list[dict], answers: dict[str, str], mode:
             save_state(answers)
             sys.exit(130)
         answers[q["id"]] = ans
+        apply_implicit_propagations(answers, q["id"], mode)
         save_state(answers)
 
 
-def confirm_and_write(plans, vault, mem, answers, env_lines, anthropic_target, dry_run):
+def confirm_and_write(plans, vault, mem, answers, env_lines, anthropic_target, dry_run, repo):
     heading("Summary — what's about to happen")
     if plans:
         print("Files to create / update:")
@@ -491,6 +589,9 @@ def confirm_and_write(plans, vault, mem, answers, env_lines, anthropic_target, d
         print("\nEnvironment variables — add to your shell profile:")
         for line in env_lines:
             print(f"  {line}")
+    if answers.get("capture_pipeline_setup") == "y":
+        cp_dir = repo / "capture-pipeline"
+        print(f"\nCapture pipeline: `npm install` will run in {cp_dir} after writes.")
 
     if dry_run:
         print("\n--dry-run: nothing written.")
@@ -509,12 +610,27 @@ def confirm_and_write(plans, vault, mem, answers, env_lines, anthropic_target, d
     update_memory_index(mem, plans)
     print("  updated MEMORY.md")
 
+    bootstrap_capture_pipeline(repo, answers)
+
     clear_state()
     print("\nDone. State file cleared.")
     print("Re-run any time with `python scripts/first-run.py` to update individual sections.")
 
 
+def configure_stdio_for_unicode() -> None:
+    """The YAML descriptions contain Unicode (arrows, em-dashes, bullets).
+    Windows defaults stdout/stderr to cp1252 in piped or non-TTY contexts,
+    which crashes on `→` and friends. Force UTF-8 on Windows. Python 3.7+."""
+    if sys.platform.startswith("win"):
+        for stream in (sys.stdout, sys.stderr):
+            try:
+                stream.reconfigure(encoding="utf-8")
+            except Exception:
+                pass
+
+
 def main():
+    configure_stdio_for_unicode()
     parser = argparse.ArgumentParser(description="Charon first-run setup wizard")
     parser.add_argument("--logo", choices=["full", "small", "auto"], default="auto")
     parser.add_argument("--no-logo", action="store_true")
@@ -632,7 +748,7 @@ def main():
 
     env_lines = env_var_hints(env_vars, answers)
 
-    confirm_and_write(plans, vault, mem, answers, env_lines, anthropic_target, args.dry_run)
+    confirm_and_write(plans, vault, mem, answers, env_lines, anthropic_target, args.dry_run, repo)
 
     # Quick-mode tail: explicit refinement-commands print so the user knows
     # exactly what to run to deepen any phase later. No-op for full mode
