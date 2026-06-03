@@ -8,6 +8,67 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.6.1-preview] - 2026-06-03
+
+Two tester-reported install bugs, both fixed and verified end-to-end on Windows. Mirror-applied to the macOS / Linux installer in the same release per the cross-platform-parity rule (installer drift is a recurring class of bug; close it at source).
+
+### Fixed — Windows install docs: `~/second-brain` doesn't expand for `git`
+
+Tester ran the documented quick-start in PowerShell and ended up with a literal `~` directory in the current working directory, with `second-brain` nested inside it. Subsequent commands broke because most Windows tooling doesn't treat `~` as a home-dir shortcut consistently.
+
+**Why this happens.** `git` is a native binary. Neither PowerShell nor `cmd.exe` expands `~` before passing arguments to native commands — only PowerShell *cmdlets* expand `~` via the path-provider. The docs were written from a bash-first mindset and assumed `~` expansion that doesn't apply on Windows.
+
+**Fix.** `INSTALL.md`, `README.md`, and `CONFIGURATION.md` now split the quick-start / updating blocks into two platform-specific code fences:
+
+- macOS / Linux: `git clone ... "$HOME/second-brain"`
+- Windows (PowerShell): `git clone ... "$env:USERPROFILE\second-brain"` with an inline warning against using `~/...`.
+
+Verified via sandbox repro: the broken instruction reproduces the bug (git emits `Cloning into '~/second-brain'...` and creates a literal `~` dir); the fixed instruction lands the clone at the expected path. Backslash vs forward-slash variants of `~` both fail the same way — git is the bottleneck, not the path separator.
+
+### Added — Quick mode now offers M365 capture-pipeline setup
+
+A second tester report — *"the installer doesn't add M365"* — surfaced a deeper gap in the Quick install path introduced in v0.4.2-preview. Quick mode previously asked only 3 identity questions and skipped the entire `workflow` phase, where every capture-pipeline question lives. Users picking the default option finished the wizard with a wizard summary saying "Quick install complete" but no `capture-pipeline/config.json` written and no email capture configured.
+
+**Why this matters.** The README sells M365 capture as *"Working — device-code OAuth, paginated inbox + sent, cursor-based incremental"*. A tester reasonably expects the installer to wire it up when they pick the default install path. The gap between marketed and delivered was real.
+
+**Fix.** Quick mode now asks one additional question — *"Set up an automated email capture pipeline? (y/n)"*. On `y`, it walks two M365 questions inline (tenant ID + client ID) and auto-populates sensible defaults for provider (m365), sent items (on), schedule frequency (daily), and schedule time (07:00) via a new `apply_implicit_propagations()` helper. Quick mode stays M365-only by design — Gmail / IMAP users still run `python scripts/first-run.py --phase workflow` for the full flow.
+
+After the wizard's write step, `bootstrap_capture_pipeline()` automatically runs `npm install` in `capture-pipeline/`. Fail-soft if Node isn't present — the wizard does not abort; it prints clear manual recovery steps.
+
+Two things explicitly stay manual:
+
+1. **Device-code OAuth flow** (`node fetch-mail.mjs auth`) — interactive (user copies a code into a browser), so the wizard prints it as next-step #1 rather than driving it.
+2. **Scheduled task registration** — platform-specific (Windows Task Scheduler / cron / launchd), printed as next-step #3 with the Charon-supplied wrapper-script path. See `EMAIL-PROVIDER-SETUP.md` §Scheduling for the per-platform walk-through.
+
+### Added — Node.js 18+ as a detected prerequisite in `install.ps1` / `install.sh`
+
+Capture-pipeline is Node.js. Before this release, neither installer detected or installed Node — users following the wizard could end up with a written `capture-pipeline/config.json` and no Node runtime to execute it. Inserted as new Step 3 between Obsidian (Step 2) and Python dependencies (now Step 4). Same auto / manual / skip ladder as Python, mirrored across the two installers:
+
+- **Windows (`install.ps1`)** — `winget install OpenJS.NodeJS.LTS`. New `-SkipNode` switch.
+- **macOS / Linux (`install.sh`)** — `brew install node` / `sudo apt-get install nodejs npm` / `sudo dnf install nodejs npm` / `sudo pacman -S nodejs npm`. New `SKIP_NODE=1` env var. Distro Node versions on older Debian/Ubuntu may be <18; the installer prints a NodeSource / nvm pointer in that case rather than silently installing an unusable version.
+
+Skipping Node is supported (the harness's other capabilities — rules, hooks, MCP, skills — don't depend on Node) and prints a clear warning that the capture pipeline cannot run without it.
+
+### Fixed — `UnicodeEncodeError` in the wizard on Windows (pre-existing latent bug)
+
+While verifying the Quick-mode M365 path in a sandbox, the wizard crashed with `UnicodeEncodeError: 'charmap' codec can't encode character '→'`. Root cause: Python on Windows defaults `sys.stdout` to cp1252 in piped / non-TTY contexts, and several question descriptions in `first-run-questions.yaml` contain Unicode characters (`→` in the M365 tenant-ID hint *"Find this in Entra ID → Overview → Tenant ID"*, em-dashes in many descriptions, `§` in cross-references).
+
+**Latent because** none of the affected questions were reachable in Quick mode before this release. Full-mode users in TTY contexts didn't hit it because Python uses the console's encoding (typically UTF-8) when stdout is a real terminal. Quick mode reaching `m365_tenant_id` for the first time exposed the bug immediately.
+
+**Fix.** `configure_stdio_for_unicode()` runs at wizard start and reconfigures `sys.stdout` / `sys.stderr` to UTF-8 on Windows. No-op on macOS / Linux. Python 3.7+ supports the `.reconfigure()` method; Charon's minimum is 3.10, so safe.
+
+### Fixed — Mixed-slash path in env-var output
+
+`$env:HARNESS_SECRETS_DIR = "C:\Users\Adam/.secrets"` — backslash for the home portion, forward slash from the YAML default's join. Cosmetic, but ugly and risks tripping native commands that parse env-var paths. Fixed by normalising path-type env-var values through `Path()` in `env_var_hints()` before formatting. Surfaced during the Quick-mode dry-run investigation; bundled into this release rather than carried as a separate ticket.
+
+### Why this is a PATCH and not a MINOR
+
+The capture-pipeline capability shipped in v0.1.0-preview. Quick mode shipped in v0.4.2-preview. M365 setup has always been reachable via Full mode. This release wires the existing pieces together so a Quick-mode user can reach M365 end-to-end, and adds the Node prerequisite so the bootstrap actually works after the wizard writes config.
+
+Authoring test (*"could a user describe this as 'now I can do X' where X is new?"*) — borderline, same shape as v0.4.2-preview. Yes for the Quick-mode UX (Quick mode users can now set up M365 in ~60 seconds without dropping to Full mode). No for the underlying capability surface (M365 wiring, capture pipeline, Quick mode all existed). Conservative read per the v0.4.2 precedent → **PATCH**.
+
+---
+
 ## [0.6.0-preview] - 2026-06-02
 
 ### Added — Verdict vocabulary + monitor-mode shadow-testing for hooks
@@ -373,7 +434,16 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.2.0-preview...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.6.1-preview...HEAD
+[0.6.1-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.6.1-preview
+[0.6.0-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.6.0-preview
+[0.5.0-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.5.0-preview
+[0.4.2-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.4.2-preview
+[0.4.1-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.4.1-preview
+[0.4.0-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.4.0-preview
+[0.3.2-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.3.2-preview
+[0.3.1-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.3.1-preview
+[0.3.0-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.3.0-preview
 [0.2.0-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.2.0-preview
 [0.1.1-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.1.1-preview
 [0.1.0-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.1.0-preview
