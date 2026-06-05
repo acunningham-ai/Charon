@@ -11,10 +11,10 @@ Work in progress across multiple incremental commits. See [`cerberus/README.md`]
 **Chunks landed:**
 
 - ✅ Chunks 1+2 — Apache-2.0 attribution scaffolding + vendor of the cisco-ai-defense/skill-scanner rule corpus (66 files: signatures, YARA, policies, prompt templates) into `cerberus/rules/`. Vendor-only — no runtime behaviour change until the engine lands.
+- ✅ Chunk 3 — YAML signature matcher engine. `cerberus/engine/{__init__,models,signatures,smoke_test}.py` loads **384 signature rules** from the vendored corpus (ATR 313 + core 45 + promptguard 26), 1 rule gracefully skipped due to uncompilable backreference. Engine handles both top-level YAML shapes (bare list + `{signatures: [...]}` ATR wrap), translates PCRE-style `\u{HEX}` Unicode escapes to Python `re` syntax, and supports an exclude-pattern false-positive suppression layer. Smoke test 4/4 PASS. Run via `python -m cerberus.engine.smoke_test`.
 
 **Chunks remaining:**
 
-- ⏳ Chunk 3 — YAML signature matcher engine
 - ⏳ Chunk 4 — YARA runner (opt-in `yara-x` dep)
 - ⏳ Chunk 5 — V3 sub-check: Magika file-type detection
 - ⏳ Chunk 6 — V8 sub-check: Unicode homoglyph detection

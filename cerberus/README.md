@@ -2,24 +2,55 @@
 
 This directory is the home of the **Cerberus declarative rule engine**, which extends `/cerberus-vet` from narrative V0–V8 analysis into rule-pack-driven detection: YAML signatures, YARA rules, scan policies, and LLM-judge prompt templates.
 
-> **Status — v0.7.0 in flight.** As of 2026-06-05, the rule corpus is vendored (this commit). The rule engine that loads and runs these rules is the next chunk of v0.7.0 work. The vendored files do not affect runtime behaviour until the engine ships.
+> **Status — v0.7.0 in flight.** As of 2026-06-05:
+>
+> - ✅ Chunks 1+2 — Apache-2.0 attribution + vendor of the cisco-ai-defense skill-scanner corpus
+> - ✅ Chunk 3 — YAML signature matcher engine. **Loads 384 signature rules** from the vendored corpus (ATR 313 + core 45 + promptguard 26), 1 rule gracefully skipped due to an uncompilable backreference. Runs via `python -m cerberus.engine.smoke_test`.
+> - ⏳ Chunks 4-10 — YARA runner, Magika file-type detection, homoglyph V8 sub-check, SARIF output, wire-up into `vet-external-skill`, tests, release.
+>
+> Note: only the `signature` layer is wired into the engine right now. The vendored `python/*.py` rules under each pack (which depend on Cisco's analyzer framework) remain dormant per the Option 1 scope lock — they stay vendored as future work.
 
 ## Layout
 
 ```
 cerberus/
 ├── README.md                    # this file
-└── rules/
+├── engine/                      # Charon-native rule engine (MIT)
+│   ├── __init__.py              # public API
+│   ├── models.py                # Severity, FileType, SignatureRule, Finding dataclasses
+│   ├── signatures.py            # YAML signature matcher (chunk 3 — landed)
+│   └── smoke_test.py            # `python -m cerberus.engine.smoke_test`
+└── rules/                       # vendored Apache-2.0 corpus
     ├── packs/                   # rule packs (loaded by the engine, run against scan targets)
-    │   ├── core/                # general-purpose detections
-    │   ├── atr/                 # AI Threat Repository — prompt injection, exfiltration, manipulation
-    │   └── promptguard/         # prompt-specific rules
+    │   ├── core/                # 45 signatures + 17 YARA + 13 python modules
+    │   ├── atr/                 # 313 signatures (AI Threat Repository — agent manipulation, prompt injection, etc.)
+    │   └── promptguard/         # 26 signatures (markdown exfil, PII, secret providers)
     ├── policies/                # scan policies (default / strict / permissive)
-    │   ├── default_policy.yaml
-    │   ├── strict_policy.yaml
-    │   └── permissive_policy.yaml
     └── prompts/                 # LLM-judge prompt templates
 ```
+
+## Run the smoke test
+
+```bash
+cd /path/to/Charon
+python -m cerberus.engine.smoke_test
+```
+
+Expected output:
+
+```
+Cerberus signature engine — smoke test
+  rules at: .../cerberus/rules/packs
+
+  [PASS] corpus loads: 384 signature rules from ...
+  [PASS] rules load from core + atr + promptguard packs
+  [PASS] COMMAND_INJECTION_EVAL fires on eval(user_input)
+  [PASS] comments about eval do NOT fire COMMAND_INJECTION_EVAL
+
+  4/4 passed
+```
+
+You may see one `WARN cerberus.engine: skipping rule 'ATR_2026_00290'` line on stderr — that's the one corpus rule with an uncompilable backreference. Graceful skip.
 
 Each pack contains:
 - `pack.yaml` — pack metadata + load order
