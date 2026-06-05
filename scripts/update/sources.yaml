@@ -1,0 +1,49 @@
+# Charon update sources
+# --------------------
+# Manifest read by `python -m scripts.update.charon_update` and the
+# `/charon-update` slash command. One entry per updateable source.
+#
+# Adding a new vendored corpus? Add an entry below. No code changes needed
+# unless the source type isn't already supported.
+#
+# Supported types:
+#   github-self      — the harness repo itself; checks origin/<branch> for
+#                      new commits and offers a fast-forward merge if the
+#                      working tree is clean.
+#   github-vendored  — content vendored from an upstream GitHub repo; checks
+#                      the upstream SHA, clones shallow at the new SHA,
+#                      copies files into local paths, re-pins SHA in named
+#                      files. Files NOT in copy_paths are left untouched.
+
+sources:
+
+  - name: charon
+    description: "The Charon harness itself"
+    type: github-self
+    repo: acunningham-ai/Charon
+    branch: main
+    post_update_smoke: "python -m cerberus.engine.smoke_test"
+
+  - name: cisco-rule-corpus
+    description: "Cisco AI Defense skill-scanner rule corpus (vendored, Apache-2.0)"
+    type: github-vendored
+    repo: cisco-ai-defense/skill-scanner
+    branch: main
+    # Paths to copy from upstream → local. Trailing slash means "directory contents".
+    copy_paths:
+      - from: "skill_scanner/data/packs/"
+        to: "cerberus/rules/packs/"
+      - from: "skill_scanner/data/policies/default_policy.yaml"
+        to: "cerberus/rules/policies/default_policy.yaml"
+      - from: "skill_scanner/data/policies/strict_policy.yaml"
+        to: "cerberus/rules/policies/strict_policy.yaml"
+      - from: "skill_scanner/data/policies/permissive_policy.yaml"
+        to: "cerberus/rules/policies/permissive_policy.yaml"
+      - from: "skill_scanner/data/prompts/"
+        to: "cerberus/rules/prompts/"
+    # Files where the pinned SHA appears as a 40-char hex string after the
+    # word "SHA" (case-insensitive). The updater rewrites the pin to the new SHA.
+    sha_pin_files:
+      - NOTICE
+      - cerberus/README.md
+    post_update_smoke: "python -m cerberus.engine.smoke_test"
