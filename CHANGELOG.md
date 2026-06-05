@@ -12,10 +12,9 @@ Work in progress across multiple incremental commits. See [`cerberus/README.md`]
 
 - ✅ Chunks 1+2 — Apache-2.0 attribution scaffolding + vendor of the cisco-ai-defense/skill-scanner rule corpus (66 files: signatures, YARA, policies, prompt templates) into `cerberus/rules/`. Vendor-only — no runtime behaviour change until the engine lands.
 - ✅ Chunk 3 — YAML signature matcher engine. `cerberus/engine/{__init__,models,signatures,smoke_test}.py` loads **384 signature rules** from the vendored corpus (ATR 313 + core 45 + promptguard 26), 1 rule gracefully skipped due to uncompilable backreference. Engine handles both top-level YAML shapes (bare list + `{signatures: [...]}` ATR wrap), translates PCRE-style `\u{HEX}` Unicode escapes to Python `re` syntax, and supports an exclude-pattern false-positive suppression layer. Smoke test 4/4 PASS. Run via `python -m cerberus.engine.smoke_test`.
+- ✅ Chunk 4 — **YARA-lite interpreter in pure Python (no `yara-x` dep).** Per `feedback_charon_dep_aversion` rule, Adam pushed back on the proposed PyPI dep; reading the corpus showed 13/14 YARA files were really just regex + boolean conditions, and the binary-detection file is ~30 LOC of header-reading. Built `cerberus/engine/yara_lite.py` (~470 LOC) — tokenizer + parser + AST + condition evaluator. Supports literal/regex/hex patterns, `and`/`or`/`not`, parens, `$name at N`, `@name OP N`, bare `@` in for-loop bodies, `for any of ($prefix_*) : (expr)` and `for any of ($a, $b) : (expr)` quantifiers, comments. Out-of-scope YARA features (hex wildcards `??`, hex jumps `[N-M]`, imports, `filesize`, `uintN`, hex alternation `|`) trigger graceful skip-with-warning. 16 YARA rules now live (1 file skipped — unicode-steganography hex alternation). **Cumulative v0.7.0 coverage: 400 detection rules** (384 signatures + 16 YARA). Smoke test 6/6 PASS.
 
 **Chunks remaining:**
-
-- ⏳ Chunk 4 — YARA runner (opt-in `yara-x` dep)
 - ⏳ Chunk 5 — V3 sub-check: Magika file-type detection
 - ⏳ Chunk 6 — V8 sub-check: Unicode homoglyph detection
 - ⏳ Chunk 7 — SARIF output format on `/cerberus-vet`

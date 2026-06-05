@@ -25,6 +25,10 @@ import tempfile
 from pathlib import Path
 
 from cerberus.engine.signatures import load_all_packs, scan_file
+from cerberus.engine.yara_lite import (
+    load_all_yara_rules,
+    scan_file_yara,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -103,6 +107,39 @@ def test_eval_pattern_fires() -> bool:
         path.unlink(missing_ok=True)
 
 
+def test_yara_corpus_loads() -> bool:
+    """The vendored YARA corpus should parse cleanly via the pure-Python engine."""
+    rules = load_all_yara_rules(PACKS_DIR)
+    return _check(
+        "YARA corpus loads (no yara-x dep)",
+        len(rules) >= 10,
+        f"{len(rules)} YARA rules parsed from {PACKS_DIR}",
+    )
+
+
+def test_yara_elf_binary_detection() -> bool:
+    """YARA's embedded_elf_binary rule should fire on a file starting with ELF magic."""
+    rules = load_all_yara_rules(PACKS_DIR)
+    elf_rules = [r for r in rules if r.name == "embedded_elf_binary"]
+    if not elf_rules:
+        return _check("YARA embedded_elf_binary rule present in corpus", False, "rule not found")
+    # Write a tiny ELF-header-prefixed fixture
+    fd, path_str = tempfile.mkstemp(suffix=".bin")
+    import os
+    with open(fd, "wb") as f:
+        f.write(b"\x7fELF" + b"\x00" * 60)
+    path = Path(path_str)
+    try:
+        findings = scan_file_yara(path, elf_rules)
+        return _check(
+            "YARA embedded_elf_binary fires on ELF-prefixed bytes",
+            any(f.rule_id == "YARA_embedded_elf_binary" for f in findings),
+            f"{len(findings)} findings: {[f.rule_id for f in findings]}",
+        )
+    finally:
+        path.unlink(missing_ok=True)
+
+
 def test_exclude_suppresses_false_positive() -> bool:
     """Comments about eval should NOT trigger the rule (exclude_pattern)."""
     rules = load_all_packs(PACKS_DIR)
@@ -130,6 +167,8 @@ def main() -> int:
         test_pack_distribution(),
         test_eval_pattern_fires(),
         test_exclude_suppresses_false_positive(),
+        test_yara_corpus_loads(),
+        test_yara_elf_binary_detection(),
     ]
     print()
     passed = sum(results)
