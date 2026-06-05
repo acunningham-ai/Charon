@@ -1,0 +1,35 @@
+Charon
+======
+
+Copyright (c) 2026 Adam Cunningham
+Licensed under the MIT License (see LICENSE).
+
+
+Third-Party Content
+-------------------
+
+This distribution contains content derived from third-party projects.
+Each is governed by its own licence as noted below.
+
+### Cisco AI Defense — skill-scanner rule corpus
+
+Location:   cerberus/rules/packs/
+            cerberus/rules/policies/
+            cerberus/rules/prompts/
+Source:     https://github.com/cisco-ai-defense/skill-scanner
+Vendored at SHA: ff708ea00fd401640112c138711c5c36ff4992a0  (2026-06-05)
+Copyright:  Cisco Systems, Inc. and its affiliates
+Licence:    Apache License, Version 2.0 (see LICENSE-cisco-apache-2.0)
+
+The rule corpus (YAML signatures, YARA rules, scan policies, LLM-judge prompt
+templates, and the rule-pack `__init__.py` files) is vendored unchanged from
+the cisco-ai-defense/skill-scanner project at the SHA noted above. Files are
+preserved with their original content; the rule engine that loads them is a
+separate, Charon-native implementation.
+
+Modifications to these vendored files, if any are made, will be marked with
+a "Modified by Charon" comment at the top of the file per Apache-2.0 §4(b).
+
+Per Apache-2.0 §4, a copy of the licence is included at LICENSE-cisco-apache-2.0.
+No NOTICE file was present in the upstream repo at the vendored SHA, so this
+attribution is the canonical record of the borrow.

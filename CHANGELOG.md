@@ -4,7 +4,24 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
-*Nothing pending — next change lands here.*
+### v0.7.0 — Cerberus rule-pack-driven detection (in flight)
+
+Work in progress across multiple incremental commits. See [`cerberus/README.md`](cerberus/README.md) for the layout, the licence boundary, and the chunk-by-chunk roadmap.
+
+**Chunks landed:**
+
+- ✅ Chunks 1+2 — Apache-2.0 attribution scaffolding + vendor of the cisco-ai-defense/skill-scanner rule corpus (66 files: signatures, YARA, policies, prompt templates) into `cerberus/rules/`. Vendor-only — no runtime behaviour change until the engine lands.
+
+**Chunks remaining:**
+
+- ⏳ Chunk 3 — YAML signature matcher engine
+- ⏳ Chunk 4 — YARA runner (opt-in `yara-x` dep)
+- ⏳ Chunk 5 — V3 sub-check: Magika file-type detection
+- ⏳ Chunk 6 — V8 sub-check: Unicode homoglyph detection
+- ⏳ Chunk 7 — SARIF output format on `/cerberus-vet`
+- ⏳ Chunk 8 — Wire engine into the `vet-external-skill` skill
+- ⏳ Chunk 9 — Test scenarios + deterministic checks
+- ⏳ Chunk 10 — Docs + CHANGELOG release entry + tag
 
 ---
 

@@ -1,0 +1,11 @@
+# Cerberus rule corpus — detection patterns by definition.
+#
+# Files under cerberus/rules/ contain secret-shaped strings used as
+# detection examples (the YARA rules and YAML signatures look for these
+# patterns in scanned skills). They are NOT real credentials.
+#
+# This mirrors the .gitleaksignore exclusion pattern Cisco uses upstream
+# in cisco-ai-defense/skill-scanner at SHA ff708ea (2026-06-05). See
+# cerberus/README.md and NOTICE for attribution.
+
+cerberus/rules/**
