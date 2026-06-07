@@ -576,6 +576,33 @@ def check_cerberus_sarif_validates() -> CheckResult:
                        f"v{sarif['version']}, {len(sarif['runs'][0]['results'])} results")
 
 
+def check_vault_graph_html() -> CheckResult:
+    """Generate HTML from a synthetic graph + community map; validate structure."""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c",
+             "import sys; sys.path.insert(0, r'" + str(REPO_ROOT / 'scripts') + "'); "
+             "from vault_graph_html import generate_html_from_data; "
+             "nodes = [{'id': f'n{i}', 'label': f'Node {i}', 'entity_type': 'person'} for i in range(5)]; "
+             "edges = [{'from': f'n{i}', 'to': f'n{i+1}', 'label': 'WORKS_ON'} for i in range(4)]; "
+             "n2c = {f'n{i}': (i // 2) for i in range(5)}; "
+             "html = generate_html_from_data(nodes, edges, n2c); "
+             "assert '<!DOCTYPE html>' in html, 'missing doctype'; "
+             "assert 'vis-network' in html, 'missing vis-network include'; "
+             "assert 'application/json' in html, 'missing inline json payload'; "
+             "assert '\"id\": \"n0\"' in html, 'node id not embedded'; "
+             "assert '#e74c3c' in html, 'palette colour not embedded'; "
+             "print(f'html ok ({len(html)} chars, {len(nodes)} nodes, {len(edges)} edges)')"],
+            capture_output=True, text=True, timeout=15,
+        )
+    except Exception as e:
+        return CheckResult("Vault graph HTML viewer", "FAIL", f"subprocess error: {e}")
+    if result.returncode != 0:
+        return CheckResult("Vault graph HTML viewer", "FAIL",
+                           result.stderr.strip()[-200:] or result.stdout.strip()[-200:])
+    return CheckResult("Vault graph HTML viewer", "PASS", result.stdout.strip())
+
+
 def check_community_detection() -> CheckResult:
     """Louvain community detection over a synthetic graph (no Kuzu required)."""
     try:
@@ -644,6 +671,7 @@ CHECKS = [
     ("D13", check_cerberus_scan_text_format),
     ("D14", check_cerberus_sarif_validates),
     ("D15", check_community_detection),
+    ("D16", check_vault_graph_html),
 ]
 
 
