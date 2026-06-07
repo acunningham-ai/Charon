@@ -33,6 +33,10 @@ from cerberus.engine.file_type import (
     detect_file_type_by_content,
     scan_file_for_magic_mismatch,
 )
+from cerberus.engine.homoglyph import (
+    find_mixed_script_words,
+    scan_text_for_homoglyphs,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -217,6 +221,54 @@ def test_magic_mismatch_silent_on_legitimate_text() -> bool:
         path.unlink(missing_ok=True)
 
 
+def test_homoglyph_detects_cyrillic_typosquat() -> bool:
+    """Mixed-script 'pаypal' (Cyrillic а) should fire HOMOGLYPH_DETECTED."""
+    text = "import pаypal  # cyrillic a in the middle"
+    findings = scan_text_for_homoglyphs(text, Path("synthetic.py"))
+    has_typosquat = any(
+        f.rule_id == "HOMOGLYPH_DETECTED" and "paypal" in f.description
+        for f in findings
+    )
+    return _check(
+        "HOMOGLYPH_DETECTED fires on Cyrillic 'a' in 'paypal'",
+        has_typosquat,
+        f"{len(findings)} findings; rules: {[f.rule_id for f in findings]}",
+    )
+
+
+def test_homoglyph_silent_on_pure_latin() -> bool:
+    """Pure-Latin 'paypal' should NOT fire."""
+    findings = scan_text_for_homoglyphs("import paypal", Path("clean.py"))
+    return _check(
+        "HOMOGLYPH_DETECTED silent on pure-Latin 'paypal'",
+        len(findings) == 0,
+        f"{len(findings)} findings (expected 0)",
+    )
+
+
+def test_homoglyph_silent_on_pure_cyrillic() -> bool:
+    """Pure-Cyrillic Russian word should NOT fire (no Latin chars present)."""
+    findings = scan_text_for_homoglyphs("документ", Path("ru.md"))
+    return _check(
+        "HOMOGLYPH_DETECTED silent on pure-Cyrillic content",
+        len(findings) == 0,
+        f"{len(findings)} findings (expected 0)",
+    )
+
+
+def test_homoglyph_detects_greek_typosquat() -> bool:
+    """Greek omicron in 'requests' (the popular Python lib) should fire."""
+    text = "from requ ο sts import get"   # Greek omicron at position
+    # Above doesn't trigger because of the space; use a tighter test
+    text = "import reqυests"  # Greek upsilon for u
+    findings = scan_text_for_homoglyphs(text, Path("synthetic.py"))
+    return _check(
+        "HOMOGLYPH_DETECTED fires on Greek upsilon in 'requests'",
+        any(f.rule_id == "HOMOGLYPH_DETECTED" for f in findings),
+        f"{len(findings)} findings",
+    )
+
+
 # ----------------- Runner -----------------
 
 def main() -> int:
@@ -233,6 +285,10 @@ def main() -> int:
         test_magic_byte_detection(),
         test_magic_mismatch_catches_disguised_binary(),
         test_magic_mismatch_silent_on_legitimate_text(),
+        test_homoglyph_detects_cyrillic_typosquat(),
+        test_homoglyph_silent_on_pure_latin(),
+        test_homoglyph_silent_on_pure_cyrillic(),
+        test_homoglyph_detects_greek_typosquat(),
     ]
     print()
     passed = sum(results)
