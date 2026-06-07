@@ -576,6 +576,35 @@ def check_cerberus_sarif_validates() -> CheckResult:
                        f"v{sarif['version']}, {len(sarif['runs'][0]['results'])} results")
 
 
+def check_vault_wiki_generation() -> CheckResult:
+    """Test wiki doc generation with mock communities + no-LLM placeholder mode."""
+    import tempfile
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c",
+             "import sys, json, tempfile, os; sys.path.insert(0, r'" + str(REPO_ROOT / 'scripts') + "'); "
+             "from vault_wiki import _render_community_doc, _community_signature, _placeholder_summary, _doc_filename; "
+             "nodes = ['alice', 'bob', 'charon-project', 'cerberus']; "
+             "sig = _community_signature(nodes); "
+             "assert len(sig) == 16 and all(c in '0123456789abcdef' for c in sig), f'bad signature {sig}'; "
+             "summary = _placeholder_summary(nodes, 'test'); "
+             "assert '4 entities' in summary or '**4 entities**' in summary, f'summary missing count: {summary}'; "
+             "doc = _render_community_doc(community_id=3, nodes=nodes, summary=summary, signature=sig, llm_status='skipped'); "
+             "assert '---' in doc and 'community_signature:' in doc, 'frontmatter missing'; "
+             "assert '# Community 03' in doc, 'heading missing'; "
+             "assert '`alice`' in doc and '`bob`' in doc, 'node list missing'; "
+             "assert _doc_filename(7) == 'community-07.md', f'wrong filename {_doc_filename(7)}'; "
+             "print(f'doc ok ({len(doc)} chars, sig={sig})')"],
+            capture_output=True, text=True, timeout=15,
+        )
+    except Exception as e:
+        return CheckResult("Vault community wiki", "FAIL", f"subprocess error: {e}")
+    if result.returncode != 0:
+        return CheckResult("Vault community wiki", "FAIL",
+                           result.stderr.strip()[-200:] or result.stdout.strip()[-200:])
+    return CheckResult("Vault community wiki", "PASS", result.stdout.strip())
+
+
 def check_vault_query_traversal() -> CheckResult:
     """Test BFS / shortest-path / explain over a synthetic graph (no Kuzu)."""
     try:
@@ -708,6 +737,7 @@ CHECKS = [
     ("D15", check_community_detection),
     ("D16", check_vault_graph_html),
     ("D17", check_vault_query_traversal),
+    ("D18", check_vault_wiki_generation),
 ]
 
 
