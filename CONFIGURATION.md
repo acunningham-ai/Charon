@@ -293,6 +293,76 @@ sources:
 
 No code changes needed — the manifest is the user-extension point.
 
+## Vault graph operations (v0.8.0+)
+
+The vault knowledge graph (Kuzu-backed, populated by `scripts/extract_entities.py`) now supports four user-facing operations beyond the original MCP query layer. All four are opt-in — they require the `kuzu` + `networkx` deps from `requirements-graph.txt`.
+
+### Community detection
+
+```bash
+python scripts/cluster_vault.py            # detect + persist
+python scripts/cluster_vault.py --stats    # show what's currently detected
+python scripts/cluster_vault.py --resolution 1.5  # smaller communities
+```
+
+Runs Louvain over the vault graph and writes `<vault>/.charon/graph-communities.json` with node→community labels. Used by the HTML viewer (colour nodes by community) and the wiki generator (one summary doc per community).
+
+Typical recommended cadence: **weekly**, alongside or just after `extract_entities.py`.
+
+### Interactive HTML graph viewer
+
+```bash
+python scripts/vault_graph_html.py
+```
+
+Reads the graph + community labels, writes a single self-contained `<vault>/.charon/graph.html`. Open in any browser. Filter by entity type / community / name search. Click a node to see its connections in a side panel. Vis-network loaded via CDN at view time — first open needs internet.
+
+### `/vault-query` — natural-language graph queries
+
+In Claude Code: `/vault-query <question>`.
+
+Or directly from a shell:
+
+```bash
+python scripts/vault_query.py search "<name-fragment>"
+python scripts/vault_query.py explain "<entity-name>"
+python scripts/vault_query.py neighbours "<entity-name>" --depth 2
+python scripts/vault_query.py path "<source>" "<target>"
+```
+
+The skill parses the user's plain-English question into one of the four subcommands. Read-only — never modifies the graph.
+
+### Community-based wiki generation
+
+```bash
+python scripts/vault_wiki.py plan          # dry-run preview
+python scripts/vault_wiki.py generate      # write/update with LLM-authored summaries
+python scripts/vault_wiki.py generate --no-llm   # placeholder mode (no API cost)
+python scripts/vault_wiki.py stats         # show what's already written
+```
+
+For each detected community, writes a summary doc at `07-References/communities/community-NN.md`. Uses Anthropic Haiku for the theme paragraph (`~/.secrets/anthropic.json` or `ANTHROPIC_API_KEY` env var). Idempotent — re-runs skip docs whose community membership hasn't changed.
+
+Cost: ~$0.01-0.05 per community via Haiku. A 12-community vault is ~$0.12-0.60 per full run.
+
+### Multimodal corpus extraction (opt-in, separate deps)
+
+PDF text + audio/video transcription. Separate `requirements-multimodal.txt`:
+
+```bash
+pip install -r requirements-multimodal.txt
+
+# PDF
+python scripts/extract_pdf.py path/to/file.pdf
+python scripts/extract_pdf.py 00-Inbox/_captured/email --recursive --skip-existing
+
+# Audio / video (Python 3.11+)
+python scripts/extract_audio.py path/to/recording.m4a
+python scripts/extract_audio.py path/to/dir --recursive --model base
+```
+
+Each writes a sibling `.txt` so the content joins the searchable + graph-extractable corpus. Audio transcription runs locally via faster-whisper (no cloud API).
+
 ## Uninstalling
 
 Charon files are constrained to:
