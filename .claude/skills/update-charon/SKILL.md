@@ -31,8 +31,8 @@ Supported `type` values:
 
 | Type | What it does |
 |---|---|
-| `github-self` | Compares local `HEAD` to `origin/<branch>`. If working tree is clean AND local is a strict ancestor of upstream, offers `git pull --ff-only`. If the user has divergent commits or uncommitted changes, blocks with a clear reason. |
-| `github-vendored` | Reads the currently pinned SHA from `sha_pin_files`. Compares against the upstream branch HEAD via GitHub API. If newer: shallow-clones upstream, copies the configured `copy_paths` into the local tree (overwriting), rewrites the SHA pin in every `sha_pin_files` entry, runs the post-update smoke check. |
+| `github-self` | Compares local `HEAD` to `origin/<branch>` AND classifies the kind of update available. Reads the **nearest semver tag** reachable from local HEAD (`git describe --tags`) and the **highest semver tag** on origin (`git ls-remote --tags`). If they differ, the update is a **capability update** (new release tag — `v0.7.0 → v0.8.0`); otherwise it's **in-flight commits** past the latest tag (bug fixes, small refinements). If working tree is clean AND local is a strict ancestor of upstream, offers `git pull --ff-only`. Blocks on divergent commits or uncommitted changes with a clear reason. |
+| `github-vendored` | Reads the currently pinned SHA from `sha_pin_files`. Compares against the upstream branch HEAD via GitHub API. If newer: shallow-clones upstream, copies the configured `copy_paths` into the local tree (overwriting), rewrites the SHA pin in every `sha_pin_files` entry, runs the post-update smoke check. For Cerberus's rule corpus, this is a **detection-rule refresh** — new / updated YARA, signatures, or policies. |
 
 ## Procedure
 

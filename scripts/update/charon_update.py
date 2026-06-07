@@ -89,21 +89,56 @@ def _check_github_self(source: dict) -> dict:
         upstream_sha = _fetch_github_branch_sha(repo, branch)
     except Exception as exc:
         return {"source": name, "status": "error", "message": f"upstream check failed: {exc}", "update_available": False}
+
+    # Version-level info — read the nearest tag reachable from local HEAD
+    # and compare to the highest semver tag on the remote. This separates
+    # "capability update" (new release tag) from "unreleased-commit update"
+    # (commits past the latest tag).
+    local_tag = _get_local_nearest_tag()
+    latest_release_tag = _get_latest_remote_release_tag()
+    release_change = None
+    if local_tag and latest_release_tag and local_tag != latest_release_tag:
+        release_change = (local_tag, latest_release_tag)
+
     if local_sha == upstream_sha:
-        return {"source": name, "status": "up-to-date", "local_sha": local_sha, "upstream_sha": upstream_sha, "update_available": False}
+        # Up to date at commit level. Even when synced, surface the version
+        # the user is on for confidence in the report.
+        return {
+            "source": name,
+            "status": "up-to-date",
+            "local_sha": local_sha,
+            "upstream_sha": upstream_sha,
+            "local_tag": local_tag,
+            "latest_release_tag": latest_release_tag,
+            "release_change": release_change,
+            "update_available": False,
+        }
+
     # Are we a strict ancestor (fast-forwardable)?
     try:
         _git("fetch", "origin", branch)  # ensure refs/remotes/origin/<branch> is fresh
     except subprocess.CalledProcessError as exc:
         return {"source": name, "status": "error", "message": f"git fetch failed: {exc}", "update_available": False}
     ahead, behind = _ahead_behind(local_sha, f"origin/{branch}")
-    # Check working tree state
     wt_clean = _is_working_tree_clean()
+
+    # Classify the kind of update available:
+    #   "new-release"        — upstream has a release tag newer than local's
+    #   "unreleased-commits" — upstream has commits past the last release tag
+    if release_change:
+        update_kind = "new-release"
+    else:
+        update_kind = "unreleased-commits"
+
     return {
         "source": name,
         "status": "update-available" if behind > 0 else "diverged",
         "local_sha": local_sha,
         "upstream_sha": upstream_sha,
+        "local_tag": local_tag,
+        "latest_release_tag": latest_release_tag,
+        "release_change": release_change,
+        "update_kind": update_kind,
         "ahead": ahead,
         "behind": behind,
         "working_tree_clean": wt_clean,
@@ -111,6 +146,50 @@ def _check_github_self(source: dict) -> dict:
         "blocked_reason": _self_block_reason(ahead, behind, wt_clean),
         "branch": branch,
     }
+
+
+# Helpers for version-tag awareness
+
+def _get_local_nearest_tag() -> Optional[str]:
+    """Return the most recent semver tag reachable from local HEAD, or None.
+
+    Uses ``git describe --tags --abbrev=0 --match 'v*.*.*'`` so we ignore
+    non-semver tags. Returns just the tag name, not the describe suffix.
+    """
+    try:
+        out = _git("describe", "--tags", "--abbrev=0", "--match", "v*.*.*").strip()
+        return out or None
+    except subprocess.CalledProcessError:
+        return None
+
+
+def _get_latest_remote_release_tag() -> Optional[str]:
+    """Return the highest semver tag on origin (vX.Y.Z), or None on failure."""
+    try:
+        out = _git("ls-remote", "--tags", "--refs", "origin")
+    except subprocess.CalledProcessError:
+        return None
+    tags: list = []
+    for line in out.splitlines():
+        # Format: "<sha>\trefs/tags/<tag>"
+        parts = line.split("\t")
+        if len(parts) != 2:
+            continue
+        tag = parts[1].replace("refs/tags/", "", 1)
+        # Only consider strict semver tags: vX.Y.Z (no -preview, no -rc, etc.)
+        if re.match(r"^v\d+\.\d+\.\d+$", tag):
+            tags.append(tag)
+    if not tags:
+        return None
+    return sorted(tags, key=_semver_sort_key)[-1]
+
+
+def _semver_sort_key(tag: str) -> tuple:
+    """Parse 'vX.Y.Z' into (X, Y, Z) for ordered comparison."""
+    m = re.match(r"^v(\d+)\.(\d+)\.(\d+)$", tag)
+    if not m:
+        return (0, 0, 0)
+    return tuple(int(m.group(i)) for i in (1, 2, 3))
 
 
 def _self_block_reason(ahead: int, behind: int, wt_clean: bool) -> Optional[str]:
@@ -340,30 +419,56 @@ def _load_manifest() -> list:
 
 def _print_status(s: dict) -> None:
     name = s["source"]
+
     if s["status"] == "up-to-date":
+        # github-vendored (rule corpus)
         if "pinned_sha" in s:
-            print(f"  ✅ {name}: up to date (pinned {s['pinned_sha'][:10]})")
+            print(f"  ✅ {name}: rules at latest (pinned {s['pinned_sha'][:10]})")
+            return
+        # github-self with version info
+        local_tag = s.get("local_tag")
+        if local_tag:
+            print(f"  ✅ {name}: up to date — currently on {local_tag} ({s['local_sha'][:10]})")
         else:
             print(f"  ✅ {name}: up to date ({s['local_sha'][:10]})")
-    elif s["status"] == "update-available":
+        return
+
+    if s["status"] == "update-available":
+        # github-vendored (rule corpus) — SHA-level diff
         if "pinned_sha" in s:
-            print(f"  ⏫ {name}: update available")
+            print(f"  ⏫ {name}: rule updates available")
             print(f"     pinned  : {s['pinned_sha'][:10]}")
             print(f"     upstream: {s['upstream_sha'][:10]}")
+            print(f"     impact  : detection-rule refresh (new / updated YARA, signatures, policies)")
+            return
+        # github-self — distinguish capability update from unreleased-commits
+        update_kind = s.get("update_kind", "unreleased-commits")
+        local_tag = s.get("local_tag") or "(no tag)"
+        latest_tag = s.get("latest_release_tag") or "(no tag)"
+        if update_kind == "new-release":
+            print(f"  🆙 {name}: NEW RELEASE available — {local_tag} → {latest_tag}")
+            print(f"     impact  : capability update (new commands / engine / rules)")
+            print(f"     commits : {s['behind']} commits ahead on upstream/{s['branch']}")
         else:
-            print(f"  ⏫ {name}: {s['behind']} commits behind upstream/{s['branch']}")
-            print(f"     local   : {s['local_sha'][:10]}")
-            print(f"     upstream: {s['upstream_sha'][:10]}")
-            if s.get("blocked_reason"):
-                print(f"     blocked : {s['blocked_reason']}")
-    elif s["status"] == "diverged":
+            print(f"  ⏫ {name}: {s['behind']} unreleased commit(s) past {local_tag} on upstream/{s['branch']}")
+            print(f"     impact  : in-flight fixes since {local_tag}, no new release yet")
+        print(f"     local   : {s['local_sha'][:10]}")
+        print(f"     upstream: {s['upstream_sha'][:10]}")
+        if s.get("blocked_reason"):
+            print(f"     blocked : {s['blocked_reason']}")
+        return
+
+    if s["status"] == "diverged":
         print(f"  ⚠️  {name}: local has diverged from upstream")
         print(f"     ahead   : {s['ahead']}  behind: {s['behind']}")
         print(f"     blocked : {s.get('blocked_reason', '?')}")
-    elif s["status"] == "error":
+        return
+
+    if s["status"] == "error":
         print(f"  ❌ {name}: error — {s['message']}")
-    else:
-        print(f"  ? {name}: {s}")
+        return
+
+    print(f"  ? {name}: {s}")
 
 
 def _configure_stdio_for_unicode() -> None:

@@ -216,23 +216,82 @@ The harness reads credentials from `~/.secrets/<service>.json` files at the mome
 
 Never store secrets in memory files or `CLAUDE.md` — both reference the secrets file by path, never quote values.
 
-## Updating
+## Updating — keeping Charon current
+
+Charon ships **one command** for all maintenance. Use it from inside Claude Code, or run the underlying script directly from a shell:
+
+```
+/charon-update                                         # interactive, in Claude Code
+python -m scripts.update.charon_update                 # interactive, from shell
+python -m scripts.update.charon_update --check         # check only, no apply
+python -m scripts.update.charon_update --yes           # non-interactive (CI-friendly)
+python -m scripts.update.charon_update --source NAME   # one source only
+```
+
+### What it checks
+
+`/charon-update` walks **every registered source** in `scripts/update/sources.yaml` and reports two distinct kinds of update:
+
+| Update kind | What it means | When you'll see it |
+|---|---|---|
+| **🆙 NEW RELEASE** (capability update) | Upstream Charon has tagged a new release (e.g. `v0.7.0 → v0.8.0`). Brings new commands / engine layers / docs. | Recommended cadence: **monthly**. Charon releases land at minor-version boundaries when capability surface changes. |
+| **⏫ unreleased commits** (in-flight fixes) | Upstream `main` has commits past the latest release tag — bug fixes, small refinements, doc tweaks. | Pull when you want the very latest; safe to defer until the next release if you prefer stable releases only. |
+| **⏫ rule updates** | The vendored Cisco rule corpus (Cerberus detection logic) has a new upstream SHA. New / updated YARA, signature, or policy rules. | Recommended cadence: **weekly**. Detection rules move fast; staying current improves coverage of recent attack patterns. |
+| **✅ up to date** | Source's local pin matches upstream. No action. | Re-running is a clean no-op. |
+
+The check is read-only and idempotent. It never auto-commits — you review `git diff` and commit yourself.
+
+### Frequency recommendation for users
+
+- **Weekly:** run `/charon-update --check` to spot rule-corpus updates. Apply them; review the diff; commit.
+- **Monthly (or when notified):** if a new Charon release tag is published, run `/charon-update` to apply the capability update. Re-read the [`CHANGELOG.md`](CHANGELOG.md) for the new release's "Added" section so you know what's new.
+- **After applying any update:** the script runs the post-update smoke test automatically (`python -m cerberus.engine.smoke_test`). If smoke fails, **review the changes before committing** — don't commit broken state. Roll back via `git checkout -- cerberus/rules/` for the rules tree, or `git reset --hard HEAD~1` for the harness itself.
+
+### What `/charon-update` does NOT do
+
+- ❌ Does NOT auto-commit. You commit manually after reviewing `git diff`.
+- ❌ Does NOT push. Pushing is your call (most users don't push — you have your own fork or no fork).
+- ❌ Does NOT edit the manifest. Adding new updateable sources is a deliberate human action — edit `scripts/update/sources.yaml`.
+
+### Manual fallback (if `/charon-update` ever can't reach upstream)
 
 ```bash
 # macOS / Linux
 cd "$HOME/second-brain"
 git pull origin main
-pip install -r requirements.txt --upgrade
+pip install -r requirements.txt --upgrade   # only if base deps changed
 ```
 
 ```powershell
 # Windows (PowerShell)
 cd "$env:USERPROFILE\second-brain"
 git pull origin main
-pip install -r requirements.txt --upgrade
+pip install -r requirements.txt --upgrade   # only if base deps changed
 ```
 
-After updates that touch hooks or rules, re-run `/score-vault` to confirm nothing drifted.
+After any update, re-run `/score-vault` if you've made any harness customisations — it confirms nothing in your local config drifted against the upstream baseline.
+
+### Adding a new updateable source
+
+When you adopt a new vendored corpus or registered project, add an entry to `scripts/update/sources.yaml`:
+
+```yaml
+sources:
+  - name: my-new-corpus
+    description: "Brief human-readable description"
+    type: github-vendored          # or github-self
+    repo: owner/repo
+    branch: main
+    copy_paths:                    # for github-vendored only
+      - from: "upstream/path/"
+        to: "local/path/"
+    sha_pin_files:                 # files where the SHA gets re-pinned
+      - NOTICE
+      - my-corpus/README.md
+    post_update_smoke: "python -m my_corpus.smoke_test"
+```
+
+No code changes needed — the manifest is the user-extension point.
 
 ## Uninstalling
 

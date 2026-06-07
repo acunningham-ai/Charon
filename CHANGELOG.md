@@ -8,6 +8,39 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.7.1] - 2026-06-07
+
+### Changed — Smarter `/charon-update` + user-facing maintenance docs
+
+User-facing refinement of the v0.7.0 update mechanism. `/charon-update` now distinguishes three kinds of update at the report layer, and there's a documented process for users to keep their harness current.
+
+**`/charon-update` output now classifies updates:**
+
+| Output | Meaning |
+|---|---|
+| `🆙 NEW RELEASE available — v0.7.0 → v0.8.0` | **Capability update**. Upstream tagged a new release. Brings new commands / engine layers / docs. |
+| `⏫ N unreleased commit(s) past v0.7.0 on upstream/main` | **In-flight fixes**. Commits past the latest tag — bug fixes, small refinements. |
+| `⏫ rule updates available` (pinned vs upstream SHA) | **Detection-rule refresh** for the vendored Cisco corpus. New / updated YARA, signatures, policies. |
+| `✅ up to date — currently on v0.7.0` | Source is at the latest. |
+
+How it works: `_get_local_nearest_tag()` runs `git describe --tags --abbrev=0 --match 'v*.*.*'` to find the nearest semver tag reachable from local HEAD; `_get_latest_remote_release_tag()` does `git ls-remote --tags origin`, filters to strict `vX.Y.Z`, semver-sorts, picks the highest. If those tags differ AND there are upstream commits, the update is classified as **capability**; if same tag but commits past it, **in-flight**. The script doesn't require GitHub Releases (the UI-level Release object) — works on annotated tags alone.
+
+**New `CONFIGURATION.md` § "Updating — keeping Charon current"** — rewrites the existing tiny "Updating" section with a process-oriented guide:
+
+- ONE-command path: `/charon-update` (in Claude Code) or `python -m scripts.update.charon_update` (shell)
+- Three-cadence recommendation: **weekly** for rule updates, **monthly (or on notification)** for capability releases, **after any apply** the smoke test runs automatically — review the diff before committing
+- Explicit "does NOT do" list — no auto-commit, no auto-push, no auto-manifest-edit
+- Manual fallback (`git pull --ff-only`) for when the API is unreachable
+- How to add a new updateable source (manifest YAML entry, no code change)
+
+**SKILL.md updated** in `.claude/skills/update-charon/SKILL.md` — the `github-self` row in the source-type table now describes the capability-vs-in-flight classification; the `github-vendored` row names the result as a "detection-rule refresh".
+
+### Why this is a PATCH and not a MINOR
+
+The `/charon-update` capability existed in v0.7.0. v0.7.1 refines the output classification and adds user-facing documentation. Same capability, sharper UX. Authoring test (*"could a user describe this as 'now I can do X' where X is new?"*) → no: they're still updating, just with clearer reporting and a documented cadence. PATCH.
+
+---
+
 ## [0.7.0] - 2026-06-07
 
 ### Added — Cerberus rule-pack-driven detection (the big swing)
@@ -549,7 +582,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.7.1
 [0.7.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.7.0
 [0.6.2]: https://github.com/acunningham-ai/Charon/releases/tag/v0.6.2
 [0.6.1-preview]: https://github.com/acunningham-ai/Charon/releases/tag/v0.6.1-preview
