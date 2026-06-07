@@ -576,6 +576,41 @@ def check_cerberus_sarif_validates() -> CheckResult:
                        f"v{sarif['version']}, {len(sarif['runs'][0]['results'])} results")
 
 
+def check_vault_query_traversal() -> CheckResult:
+    """Test BFS / shortest-path / explain over a synthetic graph (no Kuzu)."""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c",
+             "import sys; sys.path.insert(0, r'" + str(REPO_ROOT / 'scripts') + "'); "
+             "import networkx as nx; "
+             "from vault_query import neighbours, shortest_path_between, explain_node, search_entities; "
+             "g = nx.DiGraph(); "
+             "g.add_node('alice', display_name='Alice', entity_type='person'); "
+             "g.add_node('bob', display_name='Bob', entity_type='person'); "
+             "g.add_node('charon', display_name='Charon', entity_type='project'); "
+             "g.add_edge('alice', 'charon', relationship='WORKS_ON', source_file='a.md', confidence=1.0); "
+             "g.add_edge('bob', 'charon', relationship='WORKS_ON', source_file='b.md', confidence=1.0); "
+             "hits = neighbours(g, 'alice', depth=2); "
+             "assert len(hits) >= 2, f'expected >= 2 neighbours, got {len(hits)}'; "
+             "path = shortest_path_between(g, 'alice', 'bob'); "
+             "assert path and len(path) == 3, f'expected 3-node path, got {path}'; "
+             "node = explain_node(g, 'charon'); "
+             "assert node and len(node['neighbours']) == 2, f'expected 2 neighbours for charon, got {node}'; "
+             "matches = search_entities(g, 'ali'); "
+             "assert any(m['name'] == 'alice' for m in matches), 'search should find alice'; "
+             "print(f'BFS={len(hits)} hits, path={len(path)} nodes, explain={len(node[\"neighbours\"])} nbrs, search ok')"],
+            capture_output=True, text=True, timeout=15,
+        )
+    except Exception as e:
+        return CheckResult("Vault query traversal", "FAIL", f"subprocess error: {e}")
+    if result.returncode != 0:
+        if "No module named 'networkx'" in result.stderr:
+            return CheckResult("Vault query traversal", "WARN", "networkx not installed")
+        return CheckResult("Vault query traversal", "FAIL",
+                           result.stderr.strip()[-200:] or result.stdout.strip()[-200:])
+    return CheckResult("Vault query traversal", "PASS", result.stdout.strip())
+
+
 def check_vault_graph_html() -> CheckResult:
     """Generate HTML from a synthetic graph + community map; validate structure."""
     try:
@@ -672,6 +707,7 @@ CHECKS = [
     ("D14", check_cerberus_sarif_validates),
     ("D15", check_community_detection),
     ("D16", check_vault_graph_html),
+    ("D17", check_vault_query_traversal),
 ]
 
 
