@@ -14,14 +14,26 @@ Work in progress across multiple incremental commits. See [`cerberus/README.md`]
 - ✅ Chunk 3 — YAML signature matcher engine. `cerberus/engine/{__init__,models,signatures,smoke_test}.py` loads **384 signature rules** from the vendored corpus (ATR 313 + core 45 + promptguard 26), 1 rule gracefully skipped due to uncompilable backreference. Engine handles both top-level YAML shapes (bare list + `{signatures: [...]}` ATR wrap), translates PCRE-style `\u{HEX}` Unicode escapes to Python `re` syntax, and supports an exclude-pattern false-positive suppression layer. Smoke test 4/4 PASS. Run via `python -m cerberus.engine.smoke_test`.
 - ✅ Chunk 4 — **YARA-lite interpreter in pure Python (no `yara-x` dep).** Per `feedback_charon_dep_aversion` rule, Adam pushed back on the proposed PyPI dep; reading the corpus showed 13/14 YARA files were really just regex + boolean conditions, and the binary-detection file is ~30 LOC of header-reading. Built `cerberus/engine/yara_lite.py` (~470 LOC) — tokenizer + parser + AST + condition evaluator. Supports literal/regex/hex patterns, `and`/`or`/`not`, parens, `$name at N`, `@name OP N`, bare `@` in for-loop bodies, `for any of ($prefix_*) : (expr)` and `for any of ($a, $b) : (expr)` quantifiers, comments. Out-of-scope YARA features (hex wildcards `??`, hex jumps `[N-M]`, imports, `filesize`, `uintN`, hex alternation `|`) trigger graceful skip-with-warning. 16 YARA rules now live (1 file skipped — unicode-steganography hex alternation). **Cumulative v0.7.0 coverage: 400 detection rules** (384 signatures + 16 YARA). Smoke test 6/6 PASS.
 - ✅ Chunk 4b — **`/charon-update` command — single-entry-point update mechanism.** User-facing maintenance command: one slash command updates both the Charon harness itself AND any vendored content (currently the Cisco rule corpus, but designed for arbitrary future sources). Manifest-driven via `scripts/update/sources.yaml` — adding a new updateable source is a YAML entry, not a code change. Two source types in v0.7.0: `github-self` (harness repo: detect upstream commits, offer `git pull --ff-only` if working tree clean + local is strict ancestor) and `github-vendored` (vendored upstream: read pinned SHA, clone shallow at upstream HEAD, copy configured paths, re-pin SHAs, run post-update smoke). Idempotent (no-op when up to date). UTF-8 stdio reconfigured on Windows. Does NOT auto-commit — user reviews `git diff` and commits manually. New files: `scripts/update/charon_update.py` (~440 LOC), `scripts/update/sources.yaml` (manifest), `.claude/commands/charon-update.md`, `.claude/skills/update-charon/SKILL.md`. Per `feedback_charon_ease_of_use`: ONE entry point for users, not one command per source. Designed for future Charon users who don't have the prototype-author's context.
+- ✅ Chunk 5 — **Magic-byte file-type detection in pure Python (no `magika` dep).** Per `feedback_charon_dep_aversion`, the proposed `magika` dep (Google's deep-learning file-type detector, ~30MB neural model) was wrong-shape for Charon's needs. Reading what `FILE_MAGIC_MISMATCH` actually has to do — compare a file's first 256 bytes to known magic signatures and flag when content disagrees with extension — showed signature-based detection covers the ~30 common types relevant to skill scanning (ELF/PE/Mach-O, ZIP/GZIP/XZ/7z/RAR, PDF/Office OLE, PNG/JPEG/GIF/BMP/TIFF, shebang scripts, XML/HTML/YAML markers). Trade-off: ~99% accuracy across 200+ types via Magika vs ~95% across ~30 types via in-house. For Cerberus's scope the in-house path is right. New module `cerberus/engine/file_type.py` (~180 LOC). New Charon-authored rule `FILE_MAGIC_MISMATCH` lives in the new `charon` pack (sibling to vendored Cisco packs). Smoke test 9/9 PASS. **Cumulative v0.7.0 coverage: 401 detection rules** (384 signatures + 16 YARA + 1 charon-native).
 
 **Chunks remaining:**
-- ⏳ Chunk 5 — V3 sub-check: Magika file-type detection
 - ⏳ Chunk 6 — V8 sub-check: Unicode homoglyph detection
 - ⏳ Chunk 7 — SARIF output format on `/cerberus-vet`
 - ⏳ Chunk 8 — Wire engine into the `vet-external-skill` skill
 - ⏳ Chunk 9 — Test scenarios + deterministic checks
 - ⏳ Chunk 10 — Docs + CHANGELOG release entry + tag
+
+### v0.8.0 — Vault graph improvements (graphify-derived) (planned)
+
+Five capabilities borrowed from the `safishamsi/graphify` evaluation (`reference_graphify.md`, cerberus-vet MEDIUM/78). Don't vendor the package per `feedback_charon_dep_aversion`; borrow patterns into Charon's existing Kuzu-backed vault graph layer (`scripts/lib/graph.py` + `scripts/extract_entities.py` + `scripts/mcp/vault-graph-server.py`):
+
+1. **Leiden community detection** over the existing Charon vault graph — surfaces non-obvious clusters across people / projects / domains / BUs
+2. **Interactive HTML graph viewer** — single self-contained `graph.html` (vis-network or D3)
+3. **`/vault-query` natural-language graph queries** — BFS/DFS over the vault graph; slash command + skill + helper
+4. **Community-based wiki generation** — auto-summary docs per detected community in `07-References/communities/`
+5. **Multimodal corpus extraction** — PDF text extraction (modest dep) and audio/video transcription (opt-in `requirements-multimodal.txt`)
+
+v0.8.0 lands after v0.7.0 ships — keeps the release theme coherent (Cerberus rule engine in v0.7.0; vault-graph improvements in v0.8.0).
 
 ---
 
