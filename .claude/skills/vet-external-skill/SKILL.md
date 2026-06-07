@@ -389,6 +389,48 @@ For each finding:
 
 **After producing the report, leave the sandbox directory in place** (do NOT delete) so the org unit or reviewer can inspect the cloned files manually if a finding is contested. Note the sandbox path in the report's footer.
 
+## Step — Rule-pack engine scan (v0.7.0+)
+
+In parallel with the narrative V0–V8 analysis, run the Cerberus rule-pack engine over the sandbox. The engine layers four detection methods over the cloned artifact:
+
+1. **Signature engine** (384 rules from the vendored Cisco corpus, ATR + core + promptguard)
+2. **YARA-lite engine** (16 binary-detection + pattern rules, pure-Python — no `yara-x` dep)
+3. **Magic-byte file-type check** — fires `FILE_MAGIC_MISMATCH` when content magic disagrees with extension (disguised executables, archives renamed to `.txt`, etc.)
+4. **Unicode homoglyph check** — fires `HOMOGLYPH_DETECTED` on mixed-script words that look like typosquats (Cyrillic `а` in `pаypal`, Greek `υ` in `reqυests`, fullwidth Latin look-alikes)
+
+Run via:
+
+```bash
+python -m scripts.cerberus.scan "$SANDBOX_DIR" --format json --out "$SANDBOX_DIR/.cerberus-engine.json"
+```
+
+The script exits 0 if no findings, 1 if findings present, 2 on error. Parse `.cerberus-engine.json` and fold each finding into the matching V-layer:
+
+| Engine finding → V-layer |
+|---|
+| `PROMPT_INJECTION_*`, `ATR_2026_*` agent/prompt rules → V0 (instruction injection) |
+| `COMMAND_INJECTION_*`, `RESOURCE_ABUSE_*`, YARA `code_execution_generic` → V5 (command execution) |
+| `DATA_EXFIL_*`, `BEHAVIOR_*_EXFIL`, YARA `tool_chaining_abuse` → V4 (egress) |
+| `SECRET_*`, YARA `credential_harvesting_generic` → V6 (credentials) |
+| `OBFUSCATION_*`, YARA `embedded_*_binary`, `FILE_MAGIC_MISMATCH` → V3 / V8 (filesystem / supply chain disguise) |
+| `HOMOGLYPH_DETECTED`, `MANIFEST_*`, `SOCIAL_ENG_*` → V8 (supply chain typosquat / impersonation) |
+
+Engine findings carry severity from the rule definition. Use them to **corroborate** narrative V-layer judgements, not replace them. If the engine fires CRITICAL on a layer where the narrative analysis found nothing, re-examine that layer — the rule corpus has caught a pattern the narrative missed. If the narrative found a finding the engine doesn't have a rule for, the narrative finding still stands (the corpus isn't exhaustive).
+
+### SARIF output for CI integration
+
+For consumers that speak SARIF (GitHub Code Scanning, SonarQube, ASOC platforms):
+
+```bash
+python -m scripts.cerberus.scan "$SANDBOX_DIR" --format sarif --out "$SANDBOX_DIR/.cerberus.sarif"
+```
+
+The SARIF file declares all triggered rules under `runs[0].tool.driver.rules` and per-finding results with `physicalLocation` pointers to file + line. SARIF 2.1.0 compliant — validates against `https://docs.oasis-open.org/sarif/sarif/v2.1.0/cos02/schemas/sarif-schema-2.1.0.json`.
+
+### Engine layer is supplementary, not authoritative
+
+The narrative V0–V8 analysis remains the primary verdict driver. The rule-pack engine adds breadth (384+16+2 = 402 detection rules) but its findings have the same `validation_status: theoretical` ceiling as any static analysis. Don't elevate a rule-pack finding to `validated` without an actual PoC.
+
 ## Edge Cases
 
 - If the repo is empty (zero files after clone), report Important: "Repo is empty — nothing to vet" and halt.
