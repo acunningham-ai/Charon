@@ -121,8 +121,8 @@ Promote as your understanding deepens.
 """,
     "05-Meetings": """# 05-Meetings
 
-Meeting notes — captured (via Plaud / calendar integration if you wire one)
-and authored (live notes during a meeting).
+Meeting notes — captured (via your audio-capture / calendar integration
+if you wire one) and authored (live notes during a meeting).
 
 Common subfolders:
 

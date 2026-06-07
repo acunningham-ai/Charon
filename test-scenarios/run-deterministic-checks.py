@@ -483,6 +483,99 @@ def check_optional_scripts_launch() -> CheckResult:
     return CheckResult("Optional scripts launch", "PASS", "semantic/extract/voice scripts launch cleanly")
 
 
+def check_cerberus_engine_smoke() -> CheckResult:
+    """Run cerberus.engine.smoke_test; assert every check passes."""
+    if not (REPO_ROOT / "cerberus" / "engine" / "smoke_test.py").exists():
+        return CheckResult("Cerberus engine smoke", "FAIL",
+                           "missing: cerberus/engine/smoke_test.py")
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "cerberus.engine.smoke_test"],
+            capture_output=True, text=True, cwd=str(REPO_ROOT), timeout=60,
+        )
+    except Exception as e:
+        return CheckResult("Cerberus engine smoke", "FAIL", f"subprocess error: {e}")
+    if result.returncode != 0:
+        tail = (result.stdout + result.stderr)[-300:]
+        return CheckResult("Cerberus engine smoke", "FAIL",
+                           f"exit {result.returncode}: ...{tail}")
+    m = re.search(r"(\d+)/(\d+) passed", result.stdout)
+    if not m:
+        return CheckResult("Cerberus engine smoke", "FAIL",
+                           "summary line 'N/N passed' missing from output")
+    passed, total = int(m.group(1)), int(m.group(2))
+    if passed != total:
+        return CheckResult("Cerberus engine smoke", "FAIL", f"{passed}/{total} passed")
+    return CheckResult("Cerberus engine smoke", "PASS", f"{passed}/{total} passed")
+
+
+def check_cerberus_scan_text_format() -> CheckResult:
+    """Run scripts.cerberus.scan against the engine source itself; verify text output renders."""
+    target = REPO_ROOT / "cerberus" / "engine"
+    if not target.exists():
+        return CheckResult("Cerberus scan text format", "FAIL", f"missing: {target}")
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "scripts.cerberus.scan", str(target), "--format", "text"],
+            capture_output=True, text=True, cwd=str(REPO_ROOT), timeout=120,
+        )
+    except Exception as e:
+        return CheckResult("Cerberus scan text format", "FAIL", f"subprocess error: {e}")
+    # Exit code 0 = clean, 1 = findings present, 2 = error. 0 or 1 means the scan ran successfully.
+    if result.returncode not in (0, 1):
+        tail = (result.stdout + result.stderr)[-300:]
+        return CheckResult("Cerberus scan text format", "FAIL",
+                           f"exit {result.returncode}: ...{tail}")
+    if "Cerberus scan" not in result.stdout or "finding(s)" not in result.stdout:
+        return CheckResult("Cerberus scan text format", "FAIL",
+                           "expected 'Cerberus scan' + 'finding(s)' in output")
+    m = re.search(r"(\d+)\s+finding\(s\)", result.stdout)
+    count = m.group(1) if m else "?"
+    return CheckResult("Cerberus scan text format", "PASS", f"{count} finding(s) from scan")
+
+
+def check_cerberus_sarif_validates() -> CheckResult:
+    """Run scripts.cerberus.scan with --format sarif on a tiny fixture; verify structural shape."""
+    target = REPO_ROOT / "cerberus" / "engine" / "__init__.py"
+    if not target.exists():
+        return CheckResult("Cerberus SARIF output", "FAIL", f"missing: {target}")
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "scripts.cerberus.scan", str(target), "--format", "sarif"],
+            capture_output=True, text=True, cwd=str(REPO_ROOT), timeout=60,
+        )
+    except Exception as e:
+        return CheckResult("Cerberus SARIF output", "FAIL", f"subprocess error: {e}")
+    if result.returncode not in (0, 1):
+        tail = (result.stdout + result.stderr)[-300:]
+        return CheckResult("Cerberus SARIF output", "FAIL",
+                           f"exit {result.returncode}: ...{tail}")
+    try:
+        sarif = json.loads(result.stdout)
+    except json.JSONDecodeError as e:
+        return CheckResult("Cerberus SARIF output", "FAIL", f"invalid JSON: {e}")
+    # Use the engine's own structural validator
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-c",
+             "import json, sys; "
+             "from cerberus.engine.sarif import validate_sarif_shape; "
+             "issues = validate_sarif_shape(json.loads(sys.stdin.read())); "
+             "print('OK' if not issues else 'ISSUES: ' + '; '.join(issues))"],
+            input=result.stdout, capture_output=True, text=True, cwd=str(REPO_ROOT), timeout=10,
+        )
+        if proc.returncode != 0 or not proc.stdout.startswith("OK"):
+            return CheckResult("Cerberus SARIF output", "FAIL",
+                               proc.stdout.strip() or proc.stderr.strip())
+    except Exception as e:
+        return CheckResult("Cerberus SARIF output", "FAIL", f"validation error: {e}")
+    # Schema sanity
+    if sarif.get("version") != "2.1.0":
+        return CheckResult("Cerberus SARIF output", "FAIL", "version != 2.1.0")
+    return CheckResult("Cerberus SARIF output", "PASS",
+                       f"v{sarif['version']}, {len(sarif['runs'][0]['results'])} results")
+
+
 def check_closed_vocabularies() -> CheckResult:
     """Verify the closed-vocabulary sets in graph.py exist and are non-empty
     (per C-3.1 value-layer constraint)."""
@@ -520,6 +613,9 @@ CHECKS = [
     ("D9", check_optional_libs_importable),
     ("D10", check_optional_scripts_launch),
     ("D11", check_closed_vocabularies),
+    ("D12", check_cerberus_engine_smoke),
+    ("D13", check_cerberus_scan_text_format),
+    ("D14", check_cerberus_sarif_validates),
 ]
 
 
