@@ -1,0 +1,23 @@
+# Multimodal corpus extraction — PDF text + audio/video transcription.
+#
+# Install:    pip install -r requirements-multimodal.txt
+# Or via first-run wizard ("Enable multimodal corpus extraction?").
+#
+# What ships when this is installed:
+#   - PDF text extraction (scripts/extract_pdf.py)
+#   - Audio / video transcription (scripts/extract_audio.py)
+#
+# Without this installed, both scripts print a clear "missing dep" message
+# and exit non-zero; the rest of the harness is unaffected.
+#
+# Extracted text feeds into the vault graph at extraction time — e.g. a PDF
+# vendor questionnaire goes from opaque file to graph-searchable content,
+# and audio meeting captures get transcribed into searchable nodes.
+
+# pypdf — pure-Python PDF text extractor. Modest install.
+pypdf>=4.0
+
+# faster-whisper — local Whisper-family speech-to-text via CT2 quantised
+# models. Heavy install (~300MB-1.5GB depending on model size). Requires
+# Python 3.11+ (CT2 wheels are 3.11+).
+faster-whisper>=1.0; python_version >= "3.11"

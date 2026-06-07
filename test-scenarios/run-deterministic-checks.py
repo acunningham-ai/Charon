@@ -576,6 +576,50 @@ def check_cerberus_sarif_validates() -> CheckResult:
                        f"v{sarif['version']}, {len(sarif['runs'][0]['results'])} results")
 
 
+def check_multimodal_extractors_present() -> CheckResult:
+    """Verify multimodal extraction scripts launch + report missing-dep cleanly."""
+    pdf_script = REPO_ROOT / "scripts" / "extract_pdf.py"
+    audio_script = REPO_ROOT / "scripts" / "extract_audio.py"
+    if not pdf_script.exists():
+        return CheckResult("Multimodal extractors", "FAIL", f"missing: {pdf_script}")
+    if not audio_script.exists():
+        return CheckResult("Multimodal extractors", "FAIL", f"missing: {audio_script}")
+    # Both should at least show --help cleanly
+    for script in (pdf_script, audio_script):
+        try:
+            result = subprocess.run(
+                [sys.executable, str(script), "--help"],
+                capture_output=True, text=True, timeout=10,
+            )
+        except Exception as e:
+            return CheckResult("Multimodal extractors", "FAIL", f"{script.name} exec error: {e}")
+        if result.returncode != 0:
+            return CheckResult("Multimodal extractors", "FAIL",
+                               f"{script.name} --help exit {result.returncode}: {result.stderr[:150]}")
+        if "usage:" not in result.stdout.lower():
+            return CheckResult("Multimodal extractors", "FAIL",
+                               f"{script.name} --help missing usage")
+    # Also verify the availability guards return False+reason when deps missing
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c",
+             "import sys; sys.path.insert(0, r'" + str(REPO_ROOT / 'scripts') + "'); "
+             "from extract_pdf import pypdf_available; "
+             "from extract_audio import faster_whisper_available; "
+             "p_ok, p_msg = pypdf_available(); "
+             "a_ok, a_msg = faster_whisper_available(); "
+             "print(f'pypdf={p_ok}, faster_whisper={a_ok}')"],
+            capture_output=True, text=True, timeout=10,
+        )
+    except Exception as e:
+        return CheckResult("Multimodal extractors", "FAIL", f"availability check: {e}")
+    if result.returncode != 0:
+        return CheckResult("Multimodal extractors", "FAIL",
+                           result.stderr.strip()[-200:] or "availability check returned non-zero")
+    return CheckResult("Multimodal extractors", "PASS",
+                       f"pdf + audio scripts launch + report availability cleanly ({result.stdout.strip()})")
+
+
 def check_vault_wiki_generation() -> CheckResult:
     """Test wiki doc generation with mock communities + no-LLM placeholder mode."""
     import tempfile
@@ -738,6 +782,7 @@ CHECKS = [
     ("D16", check_vault_graph_html),
     ("D17", check_vault_query_traversal),
     ("D18", check_vault_wiki_generation),
+    ("D19", check_multimodal_extractors_present),
 ]
 
 
