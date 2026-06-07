@@ -8,7 +8,8 @@ This directory is the home of the **Cerberus declarative rule engine**, which ex
 > - ✅ Chunk 3 — YAML signature matcher engine. **Loads 384 signature rules** from the vendored corpus (ATR 313 + core 45 + promptguard 26), 1 rule gracefully skipped due to an uncompilable backreference. Runs via `python -m cerberus.engine.smoke_test`.
 > - ✅ Chunk 4 — **YARA-lite interpreter** in pure Python (no `yara-x` dep). Loads 16 YARA rules from 14 files (1 file gracefully skipped — uses hex alternation outside our subset). ELF/PE/Mach-O binary detection works. **Cumulative coverage: 400 detection rules.**
 > - ✅ Chunk 4b — **`/charon-update` command** — one entry point for updating both the Charon harness itself AND any vendored content (currently the Cisco rule corpus). Manifest-driven at `scripts/update/sources.yaml`. Adding a new source = a YAML entry, not a code change. Designed for future Charon users who shouldn't have to think about per-source maintenance.
-> - ⏳ Chunks 5-10 — Magika file-type detection, homoglyph V8 sub-check, SARIF output, wire-up into `vet-external-skill`, tests, release.
+> - ✅ Chunk 5 — **Magic-byte file-type detection** in pure Python (no `magika` dep per dep-aversion). `cerberus/engine/file_type.py` covers ~30 common file types via signature matching (ELF/PE/Mach-O, ZIP/GZIP/XZ/7z/RAR, PDF/OLE, PNG/JPEG/GIF/BMP/TIFF, shebang scripts, XML/HTML/YAML markers). New `FILE_MAGIC_MISMATCH` finding (Charon-authored, in the `charon` pack) fires when a file's content magic disagrees with its extension — catches disguised executables.
+> - ⏳ Chunks 6-10 — Homoglyph V8 sub-check, SARIF output, wire-up into `vet-external-skill`, tests, release.
 >
 > Note: only the `signature` layer is wired into the engine right now. The vendored `python/*.py` rules under each pack (which depend on Cisco's analyzer framework) remain dormant per the Option 1 scope lock — they stay vendored as future work.
 
@@ -22,6 +23,7 @@ cerberus/
 │   ├── models.py                # Severity, FileType, SignatureRule, Finding dataclasses
 │   ├── signatures.py            # YAML signature matcher (chunk 3 — landed)
 │   ├── yara_lite.py             # pure-Python YARA-subset interpreter (chunk 4 — landed)
+│   ├── file_type.py             # magic-byte file-type detection + FILE_MAGIC_MISMATCH (chunk 5 — landed)
 │   └── smoke_test.py            # `python -m cerberus.engine.smoke_test`
 └── rules/                       # vendored Apache-2.0 corpus
     ├── packs/                   # rule packs (loaded by the engine, run against scan targets)

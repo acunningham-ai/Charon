@@ -29,6 +29,10 @@ from cerberus.engine.yara_lite import (
     load_all_yara_rules,
     scan_file_yara,
 )
+from cerberus.engine.file_type import (
+    detect_file_type_by_content,
+    scan_file_for_magic_mismatch,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -156,6 +160,63 @@ def test_exclude_suppresses_false_positive() -> bool:
         path.unlink(missing_ok=True)
 
 
+def test_magic_byte_detection() -> bool:
+    """Content-based file-type detection should identify ELF / ZIP / PDF correctly."""
+    import os
+    cases = [
+        (b"\x7fELF\x02\x01\x01\x00" + b"\x00" * 40, ".bin", "ELF magic"),
+        (b"PK\x03\x04" + b"\x00" * 40, ".zip", "ZIP magic"),
+        (b"%PDF-1.4\n%..." + b"\x00" * 40, ".pdf", "PDF magic"),
+    ]
+    all_ok = True
+    for content, suffix, label in cases:
+        fd, path_str = tempfile.mkstemp(suffix=suffix)
+        path = Path(path_str)
+        try:
+            with open(fd, "wb") as f:
+                f.write(content)
+            ftype = detect_file_type_by_content(path)
+            ok = ftype.value == "binary"
+            all_ok = all_ok and ok
+        finally:
+            path.unlink(missing_ok=True)
+    return _check("magic-byte detection (ELF / ZIP / PDF -> binary)", all_ok)
+
+
+def test_magic_mismatch_catches_disguised_binary() -> bool:
+    """A .py file with ELF magic bytes should fire FILE_MAGIC_MISMATCH."""
+    fd, path_str = tempfile.mkstemp(suffix=".py")
+    path = Path(path_str)
+    try:
+        with open(fd, "wb") as f:
+            f.write(b"\x7fELF\x02\x01\x01\x00" + b"\x00" * 40)
+        findings = scan_file_for_magic_mismatch(path)
+        return _check(
+            "FILE_MAGIC_MISMATCH fires on ELF bytes hidden in .py file",
+            any(f.rule_id == "FILE_MAGIC_MISMATCH" for f in findings),
+            f"{len(findings)} findings; rules: {[f.rule_id for f in findings]}",
+        )
+    finally:
+        path.unlink(missing_ok=True)
+
+
+def test_magic_mismatch_silent_on_legitimate_text() -> bool:
+    """A genuine Python file should NOT fire FILE_MAGIC_MISMATCH."""
+    fd, path_str = tempfile.mkstemp(suffix=".py")
+    path = Path(path_str)
+    try:
+        with open(fd, "wb") as f:
+            f.write(b"def hello():\n    return 'world'\n")
+        findings = scan_file_for_magic_mismatch(path)
+        return _check(
+            "FILE_MAGIC_MISMATCH silent on legitimate Python content",
+            not findings,
+            f"{len(findings)} findings (expected 0)",
+        )
+    finally:
+        path.unlink(missing_ok=True)
+
+
 # ----------------- Runner -----------------
 
 def main() -> int:
@@ -169,6 +230,9 @@ def main() -> int:
         test_exclude_suppresses_false_positive(),
         test_yara_corpus_loads(),
         test_yara_elf_binary_detection(),
+        test_magic_byte_detection(),
+        test_magic_mismatch_catches_disguised_binary(),
+        test_magic_mismatch_silent_on_legitimate_text(),
     ]
     print()
     passed = sum(results)
