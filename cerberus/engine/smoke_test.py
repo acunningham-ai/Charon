@@ -37,6 +37,11 @@ from cerberus.engine.homoglyph import (
     find_mixed_script_words,
     scan_text_for_homoglyphs,
 )
+from cerberus.engine.sarif import (
+    findings_to_sarif,
+    validate_sarif_shape,
+)
+from cerberus.engine.models import Finding, Severity
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -256,6 +261,56 @@ def test_homoglyph_silent_on_pure_cyrillic() -> bool:
     )
 
 
+def test_sarif_output_structurally_valid() -> bool:
+    """Build SARIF from a handful of fake findings and verify the shape."""
+    sample = [
+        Finding(
+            rule_id="COMMAND_INJECTION_EVAL",
+            pack="core",
+            category="command_injection",
+            severity=Severity.CRITICAL,
+            path="/repo/skill.py",
+            line=42,
+            matched_text="eval(user_input)",
+            description="Dangerous eval() with user input",
+            remediation="Use ast.literal_eval()",
+        ),
+        Finding(
+            rule_id="HOMOGLYPH_DETECTED",
+            pack="charon",
+            category="hardcoded_secrets",
+            severity=Severity.HIGH,
+            path="/repo/manifest.json",
+            line=7,
+            matched_text="pаypal",
+            description="Cyrillic а in 'paypal'",
+            remediation="Use Latin 'a' (U+0061)",
+        ),
+        Finding(
+            rule_id="FILE_MAGIC_MISMATCH",
+            pack="charon",
+            category="obfuscation",
+            severity=Severity.HIGH,
+            path="/repo/data.py",
+            line=1,
+            matched_text="ext=python vs content=binary",
+            description="ELF binary disguised as .py",
+            remediation=None,
+        ),
+    ]
+    sarif = findings_to_sarif(sample, base_uri="file:///repo/")
+    issues = validate_sarif_shape(sarif)
+    if issues:
+        return _check("SARIF output structurally valid", False, "; ".join(issues))
+    # Spot checks
+    run = sarif["runs"][0]
+    rules = run["tool"]["driver"]["rules"]
+    rule_ids = {r["id"] for r in rules}
+    if {"COMMAND_INJECTION_EVAL", "HOMOGLYPH_DETECTED", "FILE_MAGIC_MISMATCH"} != rule_ids:
+        return _check("SARIF rule dedupe + capture", False, f"rule_ids = {rule_ids}")
+    return _check("SARIF output structurally valid + rules deduped", True, f"{len(rules)} rules, {len(run['results'])} results")
+
+
 def test_homoglyph_detects_greek_typosquat() -> bool:
     """Greek omicron in 'requests' (the popular Python lib) should fire."""
     text = "from requ ο sts import get"   # Greek omicron at position
@@ -289,6 +344,7 @@ def main() -> int:
         test_homoglyph_silent_on_pure_latin(),
         test_homoglyph_silent_on_pure_cyrillic(),
         test_homoglyph_detects_greek_typosquat(),
+        test_sarif_output_structurally_valid(),
     ]
     print()
     passed = sum(results)
