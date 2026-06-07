@@ -576,6 +576,33 @@ def check_cerberus_sarif_validates() -> CheckResult:
                        f"v{sarif['version']}, {len(sarif['runs'][0]['results'])} results")
 
 
+def check_community_detection() -> CheckResult:
+    """Louvain community detection over a synthetic graph (no Kuzu required)."""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c",
+             "import sys; sys.path.insert(0, r'" + str(REPO_ROOT / 'scripts') + "'); "
+             "import networkx as nx; "
+             "from lib.communities import detect_communities_in_graph, community_summary; "
+             "g = nx.karate_club_graph(); "
+             "g = nx.relabel_nodes(g, {i: f'person-{i}' for i in g.nodes()}); "
+             "communities = detect_communities_in_graph(g); "
+             "summary = community_summary(communities); "
+             "assert summary['community_count'] >= 2, f\"expected >= 2 communities, got {summary['community_count']}\"; "
+             "print(f\"karate-club: {summary['community_count']} communities, sizes {summary['sizes']}\")"],
+            capture_output=True, text=True, timeout=15,
+        )
+    except Exception as e:
+        return CheckResult("Community detection (Louvain)", "FAIL", f"subprocess error: {e}")
+    if result.returncode != 0:
+        if "No module named 'networkx'" in result.stderr:
+            return CheckResult("Community detection (Louvain)", "WARN",
+                               "networkx not installed — opt-in via requirements-graph.txt")
+        return CheckResult("Community detection (Louvain)", "FAIL",
+                           result.stderr.strip()[-200:])
+    return CheckResult("Community detection (Louvain)", "PASS", result.stdout.strip())
+
+
 def check_closed_vocabularies() -> CheckResult:
     """Verify the closed-vocabulary sets in graph.py exist and are non-empty
     (per C-3.1 value-layer constraint)."""
@@ -616,6 +643,7 @@ CHECKS = [
     ("D12", check_cerberus_engine_smoke),
     ("D13", check_cerberus_scan_text_format),
     ("D14", check_cerberus_sarif_validates),
+    ("D15", check_community_detection),
 ]
 
 

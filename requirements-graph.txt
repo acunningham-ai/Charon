@@ -14,3 +14,11 @@
 
 # kuzu — embedded graph database with Cypher-like queries. Production-ready.
 kuzu>=0.6.0
+
+# networkx — pure-Python graph algorithms (Louvain community detection,
+# BFS/DFS traversal, centrality measures). Used by:
+#   - scripts/lib/communities.py     — vault-graph community detection
+#   - scripts/vault_graph_html.py    — interactive HTML graph viewer
+#   - scripts/vault_query.py         — natural-language BFS/DFS over the graph
+# Pure Python, MIT, no compiled extensions for these operations.
+networkx>=3.0
