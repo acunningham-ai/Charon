@@ -8,6 +8,54 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.8.0] - 2026-06-07
+
+### Added — Vault graph improvements (the graphify-derived borrows)
+
+`/cerberus-vet` shipped in v0.7.0 made Cerberus query-rule-driven. v0.8.0 does the same kind of step-up for the **vault knowledge graph** — five operations borrowed from the [safishamsi/graphify](https://github.com/safishamsi/graphify) evaluation (`reference_graphify.md`, cerberus-vet MEDIUM/78). Don't vendor the package per `feedback_charon_dep_aversion`; the patterns get re-implemented natively against Charon's existing Kuzu-backed graph.
+
+**Five new capabilities, all stacked on the existing graph layer:**
+
+1. **Louvain community detection** — `scripts/lib/communities.py` + `scripts/cluster_vault.py`. Reads the Kuzu graph, builds an in-memory networkx graph, runs Louvain, writes node→community labels to `<vault>/.charon/graph-communities.json`. Surfaces non-obvious clusters across people / projects / domains / BUs — themes that no manual tag captures.
+2. **Interactive HTML graph viewer** — `scripts/vault_graph_html.py`. Single self-contained `<vault>/.charon/graph.html` you open in any browser. Nodes coloured by community, sized for visibility, filterable by entity type / community / name search. Click a node → side panel with its connections + click-through navigation. Vis-network loaded from CDN at view time (first open needs internet; offline-vendor noted as future work).
+3. **`/vault-query` — natural-language graph queries** — `scripts/vault_query.py` + `.claude/skills/vault-query/SKILL.md` + `.claude/commands/vault-query.md`. Four subcommands: `search`, `explain`, `neighbours` (BFS/DFS), `path` (shortest path). The skill parses plain-English questions into the right subcommand + entity-name arguments. Read-only — never modifies the graph.
+4. **Community-based wiki generation** — `scripts/vault_wiki.py`. For each detected community, writes a summary markdown doc to `07-References/communities/community-NN.md`. Anthropic Haiku writes the theme paragraph; a structural placeholder is used when the key isn't configured. Idempotent — each doc carries a `community_signature` hash so re-runs skip unchanged communities. Cost: ~$0.01–0.05 per community.
+5. **Multimodal corpus extraction** — `scripts/extract_pdf.py` (pypdf) + `scripts/extract_audio.py` (faster-whisper, Python 3.11+). Each writes a sibling `.txt` so PDFs / audio recordings join the searchable + graph-extractable corpus instead of sitting as opaque files. Gated behind the new `requirements-multimodal.txt` opt-in.
+
+**Architecture: dep-averse where the engineering was tractable, network-x where it wasn't.**
+
+| Capability | Approach | Why |
+|---|---|---|
+| Louvain detection | `networkx` (added to `requirements-graph.txt`) | Hand-rolled Louvain is ~100 LOC of math + edge cases. networkx ships well-tested Louvain in pure Python. Pairs with kuzu at the same opt-in tier. |
+| HTML viewer | Pure Python HTML generation, vis-network via CDN | No Jinja, no templating dep. Vis-network is a JS browser dep, not a Python dep — different layer. |
+| Natural-language query | Pure Python (networkx for traversal) | BFS/DFS via networkx; NL parsing happens in the SKILL.md, not in Python. |
+| Wiki generation | Anthropic (already a base dep) | LLM call already in the harness. New behaviour, no new dep. |
+| PDF / audio extraction | `pypdf` + `faster-whisper` via opt-in `requirements-multimodal.txt` | Heavy domain-specific libraries. Hand-rolling PDF parsing or local speech-to-text is firmly out of dep-aversion scope. |
+
+**New deterministic checks D15–D19** verify each chunk against synthetic inputs (no kuzu / no LLM / no real fixtures needed): community detection on networkx's Karate Club graph, HTML rendering structure, query traversal, wiki doc rendering + signature hashing, multimodal-extractor availability + help-text. Suite is now **19 PASS / 0 WARN / 0 FAIL**.
+
+**New behavioural scenario `test-scenarios/16-vault-graph-pipeline.md`** chains cluster → HTML viewer → `/vault-query` for an end-to-end test of the user-facing flow.
+
+**`CONFIGURATION.md`** gains a "Vault graph operations (v0.8.0+)" section documenting all five operations with their CLI, output paths, and recommended cadence.
+
+### Why this is a MINOR and not a PATCH
+
+Five new operations the harness can perform that it could not before v0.8.0:
+
+- *"now I can run community detection over my vault graph and see the clusters"*
+- *"now I can browse the graph visually in a browser"*
+- *"now I can ask my vault natural-language graph questions"*
+- *"now my vault auto-generates per-community summary docs"*
+- *"now PDFs and audio recordings can join my searchable corpus"*
+
+Each is a new capability surface. The collective lifts the vault graph from a passive store (queryable but not browsable, not summarised, not auto-clustered) into an active synthesis layer. **MINOR → v0.8.0.**
+
+### Roadmap reset
+
+The v0.8.0 roadmap mentioned in the v0.7.0 entry is now shipped. Future releases land in `[Unreleased]` until the next tag.
+
+---
+
 ## [0.7.1] - 2026-06-07
 
 ### Changed — Smarter `/charon-update` + user-facing maintenance docs
@@ -582,7 +630,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.8.0
 [0.7.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.7.1
 [0.7.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.7.0
 [0.6.2]: https://github.com/acunningham-ai/Charon/releases/tag/v0.6.2
