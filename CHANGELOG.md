@@ -8,6 +8,22 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.8.1] - 2026-06-09
+
+### Security — Cerberus hardening (ported from the vault security-update 2026-06-08)
+
+A PATCH-level security update: no new user-facing capability, sharper detection and two new audit checks against threats seen in the wild in June 2026.
+
+- **`scripts/hooks/cerberus/secret-pattern-scan.py`** — scope-aware scanning. Path-patterns no longer scan Write *content*, so documentation that merely *describes* a secret path is no longer false-blocked; value-patterns (keys / tokens / PEM / JWT) are still flagged wherever they appear. Adds an override hatch and self-exemption. Now wired directly as a PreToolUse hook.
+- **`.claude/skills/audit-claude-setup/SKILL.md`** — two new threat checks:
+  - *Step 3 — lifecycle-hook injection:* enumerate ALL hook events (incl. `SessionStart` / `UserPromptSubmit` / `SessionEnd` / `PreCompact`) and flag any project-level hook running an interpreter against a project-local script — a self-propagating-worm persistence vector that survives `npm uninstall`. Also checks `.vscode/tasks.json` `folderOpen` and `.cursor/`.
+  - *Step 5 — client-redirection / MitM:* flag a non-default `ANTHROPIC_BASE_URL` (can leak the `Authorization: Bearer` key), MCP server endpoints rewritten to `localhost`/`127.0.0.1` (token-harvest MitM), and `~/.claude.json` (plaintext OAuth tokens at rest) living inside a git tree or cloud-synced folder.
+- **`.claude/agents/cerberus.md`** — matching threat-model additions.
+- **`07-References/dependency-pinning-discipline.md`** — June Miasma / Red Hat supply-chain wave + successor waves (CVE-2026-45321).
+- Deterministic suite **19/19 PASS**.
+
+---
+
 ## [0.8.0] - 2026-06-07
 
 ### Added — Vault graph improvements (the graphify-derived borrows)
