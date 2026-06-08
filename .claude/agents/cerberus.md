@@ -80,10 +80,10 @@ Check: `/status` shows all settings sources. `/permissions` lists all active den
 ## Audit Process
 
 1. **Check deny rules**: Read `~/.claude/settings.json` and any project-level `.claude/settings.json`. List each expected deny rule. Score presence/absence.
-2. **Check hooks**: List registered hooks from settings. Confirm block-secrets.sh equivalent is registered for PreToolUse on Bash|Read|Edit|Write.
+2. **Check hooks**: List registered hooks from settings. Confirm block-secrets.sh equivalent is registered for PreToolUse on Bash|Read|Edit|Write. **Lifecycle-hook injection:** enumerate ALL hook events incl. `SessionStart`/`UserPromptSubmit`/`SessionEnd`/`PreCompact`; flag any hook in a project-level `.claude/settings.json` that runs an interpreter (`node`/`bun`/`npx`/`python`/`sh`) against a project-local script (e.g. `node .claude/setup.mjs`) — this persists across `npm uninstall` and is a known self-propagating-worm vector. Critical if the script is unrecognised. Also check `.vscode/tasks.json` `folderOpen` + `.cursor/`.
 3. **Check bypass mode**: Look for `disableBypassPermissionsMode`. Flag if missing or not set to "disable".
 4. **Check managed settings**: Look for `/Library/Application Support/ClaudeCode/managed-settings.json` (Mac) or `/etc/claude-code/managed-settings.json` (Linux). Score absence as L5 Important (not Critical — managed settings are enterprise-only).
-5. **Check MCP configs**: Read each MCP config file listed in L2. Flag any literal token strings (not `${VAR}` or `$VAR` env-var references).
+5. **Check MCP configs**: Read each MCP config file listed in L2. Flag any literal token strings (not `${VAR}` or `$VAR` env-var references). **Client-redirection / MitM vectors:** flag `ANTHROPIC_BASE_URL` set to a non-default value (can leak the Bearer API key); flag MCP server endpoints in `~/.claude.json` pointing to `localhost`/`127.0.0.1`/unexpected hosts (token-harvest MitM); flag `~/.claude.json` itself living inside a git tree or cloud-synced folder (OneDrive/Dropbox/iCloud) — it holds plaintext OAuth tokens at rest. Critical if any present in project-level settings.
 6. **Check project CLAUDE.md**: Read any CLAUDE.md in the current directory. Flag injection markers using Isolation Discipline.
 7. **Check installed plugins**: Run `ls ~/.claude/plugins/cache/` and scan for unexpected plugins.
 8. **Verify JSON syntax**: Run `python3 -m json.tool ~/.claude/settings.json` and report any parse errors.

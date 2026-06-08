@@ -1,77 +1,93 @@
 #!/usr/bin/env python3
 """
 Cerberus secret-pattern-scan.py
-Shared regex engine used by block-secrets.sh.
-Run as: echo '<json>' | python3 hooks/secret-pattern-scan.py
+Shared regex engine used by block-secrets.sh (and wired directly as a PreToolUse hook).
+Run as: echo '<json>' | python secret-pattern-scan.py
 Exits 2 with stderr message on a match. Exits 0 if clean.
+
+Scope model:
+  Each pattern carries a scope:
+    "path"  -> matched ONLY against pathlike targets (Read file_path, Bash command).
+               File/dir/command patterns. NOT matched against Write/Edit content,
+               so documentation that merely *describes* a secret path is not blocked.
+    "value" -> matched against ALL targets incl. Write/Edit content. Real credential
+               VALUES (keys/tokens/PEM/JWT) are a leak wherever they appear.
+
+Override: set ENABLE_CERBERUS=0 in the hook environment to disable.
+Self-exemption: edits to this scanner's own source are not scanned (it necessarily
+                contains pattern literals that would otherwise self-block).
 """
 
 import json
 import os
 import re
 import sys
-from datetime import datetime
 
 # ---------------------------------------------------------------------------
-# Pattern registry — (category_name, regex_string)
+# Pattern registry — (category_name, regex_string, scope)
+# scope: "path" = pathlike targets only; "value" = all targets incl. content.
 # Order: most specific first to reduce false-positive overlap.
 # ---------------------------------------------------------------------------
 SECRET_PATTERNS = [
-    # File paths that should never be touched
-    ("env-file", r"\.env($|\.)"),
-    ("pem-cert", r"\.pem$"),
-    ("key-file", r"\.key$"),
-    ("id-rsa", r"id_rsa"),
-    ("id-ed25519", r"id_ed25519"),
-    ("p12-cert", r"\.p12$"),
-    ("pfx-cert", r"\.pfx$"),
-    ("jks-keystore", r"\.jks$"),
+    # File paths / extensions that should never be touched — scope "path"
+    ("env-file", r"\.env($|\.)", "path"),
+    ("pem-cert", r"\.pem$", "path"),
+    ("key-file", r"\.key$", "path"),
+    ("id-rsa", r"id_rsa", "path"),
+    ("id-ed25519", r"id_ed25519", "path"),
+    ("p12-cert", r"\.p12$", "path"),
+    ("pfx-cert", r"\.pfx$", "path"),
+    ("jks-keystore", r"\.jks$", "path"),
 
-    # Credential directories
-    ("aws-credentials-dir", r"\.aws/credentials"),
-    ("ssh-dir", r"\.ssh/"),
-    ("gcloud-dir", r"\.gcloud/"),
-    ("kube-config", r"\.kube/config"),
-    ("gnupg-dir", r"\.gnupg/"),
+    # Credential directories — scope "path"
+    ("aws-credentials-dir", r"\.aws/credentials", "path"),
+    ("ssh-dir", r"\.ssh/", "path"),
+    ("gcloud-dir", r"\.gcloud/", "path"),
+    ("kube-config", r"\.kube/config", "path"),
+    ("gnupg-dir", r"\.gnupg/", "path"),
+    ("secrets-store", r"\.secrets[\\/]", "path"),  # conventional secrets dir (e.g. ~/.secrets/)
 
-    # AWS access keys
-    ("aws-akia-key", r"AKIA[0-9A-Z]{16}"),
-    ("aws-asia-key", r"ASIA[0-9A-Z]{16}"),
-    ("aws-aroa-key", r"AROA[0-9A-Z]{16}"),
+    # Commands that read .env files — scope "path" (match against the command)
+    ("bash-cat-env", r"cat.*\.env", "path"),
+    ("bash-head-env", r"head.*\.env", "path"),
+    ("bash-tail-env", r"tail.*\.env", "path"),
+    ("bash-less-env", r"less.*\.env", "path"),
+    ("bash-grep-env", r"grep.*\.env", "path"),
 
-    # GitHub tokens
-    ("github-pat", r"github_pat_[a-zA-Z0-9]{82}"),
-    ("github-ghp", r"ghp_[a-zA-Z0-9]{36}"),
-    ("github-gho", r"gho_[a-zA-Z0-9]{36}"),
-    ("github-ghs", r"ghs_[a-zA-Z0-9]{36}"),
+    # AWS access keys — scope "value"
+    ("aws-akia-key", r"AKIA[0-9A-Z]{16}", "value"),
+    ("aws-asia-key", r"ASIA[0-9A-Z]{16}", "value"),
+    ("aws-aroa-key", r"AROA[0-9A-Z]{16}", "value"),
 
-    # Anthropic / Claude keys — check before generic sk- pattern
-    ("anthropic-key-api", r"sk-ant-api[0-9]{2}"),
-    ("anthropic-key", r"sk-ant-[a-zA-Z0-9\-]{90,}"),
+    # GitHub tokens — scope "value"
+    ("github-pat", r"github_pat_[a-zA-Z0-9]{82}", "value"),
+    ("github-ghp", r"ghp_[a-zA-Z0-9]{36}", "value"),
+    ("github-gho", r"gho_[a-zA-Z0-9]{36}", "value"),
+    ("github-ghs", r"ghs_[a-zA-Z0-9]{36}", "value"),
 
-    # OpenAI keys
-    ("openai-proj-key", r"sk-proj-[a-zA-Z0-9\-]{80,}"),
-    ("openai-key", r"sk-[a-zA-Z0-9]{48}"),
+    # Anthropic / Claude keys — check before generic sk- pattern — scope "value"
+    ("anthropic-key-api", r"sk-ant-api[0-9]{2}", "value"),
+    ("anthropic-key", r"sk-ant-[a-zA-Z0-9\-]{90,}", "value"),
 
-    # Slack tokens
-    ("slack-bot-token", r"xoxb-[0-9]{11}-[0-9]{11}-[a-zA-Z0-9]{24}"),
-    ("slack-user-token", r"xoxp-"),
+    # OpenAI keys — scope "value"
+    ("openai-proj-key", r"sk-proj-[a-zA-Z0-9\-]{80,}", "value"),
+    ("openai-key", r"sk-[a-zA-Z0-9]{48}", "value"),
 
-    # Private keys (PEM headers)
-    ("private-key-header", r"-----BEGIN (RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY"),
+    # Slack tokens — scope "value"
+    ("slack-bot-token", r"xoxb-[0-9]{11}-[0-9]{11}-[a-zA-Z0-9]{24}", "value"),
+    ("slack-user-token", r"xoxp-", "value"),
 
-    # JWT
-    ("jwt-token", r"eyJ[A-Za-z0-9_-]{20,}\.eyJ[A-Za-z0-9_-]{20,}"),
+    # Private keys (PEM headers) — scope "value"
+    ("private-key-header", r"-----BEGIN (RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY", "value"),
 
-    # Bash commands that read .env files
-    ("bash-cat-env", r"cat.*\.env"),
-    ("bash-head-env", r"head.*\.env"),
-    ("bash-tail-env", r"tail.*\.env"),
-    ("bash-less-env", r"less.*\.env"),
-    ("bash-grep-env", r"grep.*\.env"),
+    # JWT — scope "value"
+    ("jwt-token", r"eyJ[A-Za-z0-9_-]{20,}\.eyJ[A-Za-z0-9_-]{20,}", "value"),
 ]
 
-_COMPILED = [(name, re.compile(pattern)) for name, pattern in SECRET_PATTERNS]
+_COMPILED = [(name, re.compile(pattern), scope) for name, pattern, scope in SECRET_PATTERNS]
+
+# This file's own basename — edits to it are exempt (it contains pattern literals).
+_SELF_BASENAME = os.path.basename(__file__)
 
 # ---------------------------------------------------------------------------
 # Per-session dedup state
@@ -108,7 +124,7 @@ def _save_state(session_id: str, state: dict) -> None:
 # ---------------------------------------------------------------------------
 # Content extraction per tool type
 # ---------------------------------------------------------------------------
-def _collect_strings(obj, depth: int = 0) -> list[str]:
+def _collect_strings(obj, depth: int = 0) -> list:
     """Recursively collect all string values from a JSON object."""
     if depth > 10:
         return []
@@ -127,42 +143,44 @@ def _collect_strings(obj, depth: int = 0) -> list[str]:
     return []
 
 
-def _extract_targets(tool_name: str, tool_input: dict) -> list[tuple[str, str]]:
-    """Return list of (description, text) pairs to scan.
+def _extract_targets(tool_name: str, tool_input: dict) -> list:
+    """Return list of (description, text, kind) tuples to scan.
 
-    Primary extraction is tool-specific (for clean labeling). A secondary
-    sweep of all string values in tool_input catches any field the tool
-    exposes (e.g. a 'content' field on a Read call in tests, or future
-    tool schema changes).
+    kind is "path" (pathlike: file_path / Bash command) or "content"
+    (Write/Edit body). path-scope patterns only scan "path" targets.
     """
-    targets: list[tuple[str, str]] = []
-    seen: set[str] = set()
+    targets = []
+    seen = set()
 
-    def add(desc: str, text: str) -> None:
-        if text and text not in seen:
-            seen.add(text)
-            targets.append((desc, text))
+    def add(desc: str, text: str, kind: str) -> None:
+        if text and (text, kind) not in seen:
+            seen.add((text, kind))
+            targets.append((desc, text, kind))
 
     if tool_name == "Bash":
-        add("command", tool_input.get("command", ""))
+        add("command", tool_input.get("command", ""), "path")
 
     elif tool_name == "Read":
-        add("file_path", tool_input.get("file_path", ""))
+        add("file_path", tool_input.get("file_path", ""), "path")
 
     elif tool_name in ("Write", "Edit"):
-        add("file_path", tool_input.get("file_path", ""))
-        add("content", tool_input.get("content", ""))
-        add("content", tool_input.get("new_string", ""))
+        add("file_path", tool_input.get("file_path", ""), "path")
+        add("content", tool_input.get("content", ""), "content")
+        add("content", tool_input.get("new_string", ""), "content")
 
     elif tool_name == "MultiEdit":
-        add("file_path", tool_input.get("file_path", ""))
+        add("file_path", tool_input.get("file_path", ""), "path")
         edits = tool_input.get("edits", [])
         combined = " ".join(e.get("new_string", "") for e in edits)
-        add("content", combined)
+        add("content", combined, "content")
 
-    # Secondary sweep: catch any remaining string fields not covered above
+    # Secondary sweep: any remaining string fields -> classify "content"
+    # (conservative: path-patterns won't scan these; value-patterns will).
+    file_path = tool_input.get("file_path", "")
     for text in _collect_strings(tool_input):
-        add("tool_input", text)
+        if text == file_path:
+            continue  # already added as a pathlike target
+        add("tool_input", text, "content")
 
     return targets
 
@@ -171,6 +189,10 @@ def _extract_targets(tool_name: str, tool_input: dict) -> list[tuple[str, str]]:
 # Main
 # ---------------------------------------------------------------------------
 def main() -> None:
+    # Override hatch.
+    if os.environ.get("ENABLE_CERBERUS") == "0":
+        sys.exit(0)
+
     try:
         raw = sys.stdin.read()
         data = json.loads(raw)
@@ -181,26 +203,30 @@ def main() -> None:
     tool_input = data.get("tool_input", {})
     session_id = data.get("session_id", "default")
 
+    # Self-exemption: don't scan edits to this scanner's own source — it
+    # necessarily contains pattern literals that would otherwise self-block.
+    if tool_name in ("Write", "Edit", "MultiEdit"):
+        fp = tool_input.get("file_path", "")
+        if fp and os.path.basename(fp) == _SELF_BASENAME:
+            sys.exit(0)
+
     targets = _extract_targets(tool_name, tool_input)
     if not targets:
         sys.exit(0)
 
-    # Check every target against every pattern
-    for desc, text in targets:
-        for cat_name, pattern in _COMPILED:
+    for desc, text, kind in targets:
+        for cat_name, pattern, scope in _COMPILED:
+            if scope == "path" and kind != "path":
+                continue  # path-patterns never scan Write/Edit content
             m = pattern.search(text)
             if m:
-                # Load dedup state
                 state = _load_state(session_id)
                 seen = set(state.get(STATE_KEY, []))
                 first_hit = cat_name not in seen
-
-                # Always update state
                 seen.add(cat_name)
                 state[STATE_KEY] = list(seen)
                 _save_state(session_id, state)
 
-                # Verbose on first hit, terse on subsequent — but ALWAYS exit 2
                 if first_hit:
                     print(
                         f"\U0001f6a8 Cerberus blocked: {cat_name} pattern matched in {desc}\n"

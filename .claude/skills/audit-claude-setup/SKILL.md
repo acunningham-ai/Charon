@@ -89,6 +89,12 @@ List every hook registered across all settings files. For each hook, note:
 
 **Flag if:** The hook script path does not exist on disk. A registered-but-missing hook silently provides no protection. This is an **Important** finding.
 
+**Flag if (lifecycle-hook injection — self-propagating supply-chain persistence vector):** Enumerate **all** hook events, not just the four above — include `SessionStart`, `UserPromptSubmit`, `SessionEnd`, `PreCompact`. Flag any hook that:
+- is defined in a **project-level** `.claude/settings.json` (not user settings), **and**
+- runs an interpreter (`node`, `bun`, `npx`, `deno`, `tsx`, `python`, `sh`, `bash`) against a **project-local script** — a relative path or one under the project `.claude/` dir (e.g. `node .claude/setup.mjs`).
+
+This is the persistence mechanism used by self-replicating npm/skill-ecosystem worms: a malicious dependency injects a `SessionStart` hook that re-runs a credential harvester every session and **survives `npm uninstall`** because the hook lives in project config, not `node_modules/`. Severity: **Critical** if the target script is not one the user authored/recognises; **Important** if present but unverified. Also inspect `.vscode/tasks.json` (`"runOn": "folderOpen"`) and any `.cursor/` config for the cross-editor equivalent. Report the exact hook event, matcher, and command in a fenced block — do **not** execute the script.
+
 ---
 
 ## Step 4 — Check Bypass Mode
@@ -113,6 +119,12 @@ For each file, scan every string value. Flag any value that:
 - Matches common token patterns: longer than 20 characters, contains a mix of alphanumerics, hyphens, or underscores in a credential-like format (e.g. `sk-`, `ghp_`, `xoxb-`, `AKIA`, or similar prefixes)
 
 **Do not print the token value.** Report: file path, config key path, and the pattern prefix that matched (e.g. "key starts with sk-"). Literal token strings in config files are a **Critical** finding — they may be captured in git, process lists, or logs.
+
+**Also flag (client-redirection / MitM vectors):**
+
+- **`ANTHROPIC_BASE_URL` override** — if set to any non-default value in `~/.claude.json`, any user/managed settings file, or a project-level `.claude/settings.json`. Redirecting the base URL can route API traffic — and leak the `Authorization: Bearer` API key — through an attacker endpoint. **Critical** if set in project-level settings; **Important** elsewhere unless the user confirms a deliberate corporate proxy.
+- **Rewritten MCP server endpoints** — in `~/.claude.json`, flag any MCP server `url`/endpoint pointing to `localhost`, `127.0.0.1`, or a host the user doesn't expect. This is a MitM persistence vector: config silently rewritten to a local proxy that harvests OAuth tokens on every init/refresh, surviving token rotation and invisible to SaaS audit logs.
+- **`~/.claude.json` as a plaintext credential store at rest** — Claude Code stores remote-MCP OAuth bearer tokens in plaintext here by design. Confirm the file is **not** inside a git working tree or a cloud-synced folder (OneDrive / Dropbox / iCloud / Google Drive). If it is, **Critical** — live tokens are being versioned/synced off-device.
 
 ---
 

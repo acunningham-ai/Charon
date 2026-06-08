@@ -23,6 +23,8 @@ This document defines (a) the **compromise registry** — known-bad package vers
 | **tiledesk-server** | npm | `2.18.6` through `2.18.12` | safedep/pmg README — npm package compromised via Mini Shai-Hulud cascade | Pin `<2.18.6 || >2.18.12`; replace if active |
 | **pino-sdk-v2** | npm | ALL versions | safedep/pmg README — **typosquat** disguised as `pino` logger; always malicious | **Never install.** If found, treat as incident: rotate every secret reachable to the install context, audit logs, re-image if production |
 | **Mini Shai-Hulud cascade** | npm | 300+ packages compromised in single campaign (May 2026) | safedep/pmg README | If a package was published during the cascade window, vet it before install |
+| **Shai-Hulud "Miasma" / Red Hat npm wave** | npm | `@redhat-cloud-services/*` — ~32 packages (June 2026); GitHub OIDC-token abuse | TLDR InfoSec / Help Net Security, June 2026 | Rotate secrets on machines that installed affected `@redhat-cloud-services` versions; vet before reinstall |
+| **Shai-Hulud successor waves (antv / TanStack / "Megalodon" / "3.0")** | npm + PyPI | Specific package/version lists vendor-reported and varying — **verify against OSV / GitHub Advisory DB before relying**; assoc. CVE-2026-45321 | Unit 42 / ReversingLabs / Snyk / CSA, May–June 2026 | Cross-check any npm/PyPI dep published May–Jun 2026 against OSV; vet anything implicated |
 
 **Registry maintenance:**
 - New compromise → add a row in the same change that introduces the pin
