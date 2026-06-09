@@ -29,15 +29,19 @@ Where Charon is going. Status, rationale, and what isn't on the list.
 
 ---
 
-## Near-term — before public flip
+## Near-term
+
+> The repo is already **public** — items below are no longer gated on a "public flip" (that's happened). They remain the next tranche of work.
 
 ### 🚧 R6: Internal-cohort validation
 
-Run the LLM-behaviour scenarios (`test-scenarios/01..10-*.md`) in a **fresh Claude Code session** on a populated install. Open question: who counts as "internals"? Currently undefined — likely some mix of trusted peer CISOs + a clean parallel install of Charon by the author. Target: 9/10 scenarios PASS minimum before public flip.
+Run the LLM-behaviour scenarios (`test-scenarios/01..10-*.md`) in a **fresh Claude Code session** on a populated install. Open question: who counts as "internals"? Currently undefined — likely some mix of trusted peer CISOs + a clean parallel install of Charon by the author. Target: 9/10 scenarios PASS minimum.
 
-### 📅 R7: Gate 2 git-history credential scrub
+### ✅ R7: Gate 2 git-history credential scrub — DONE (2026-06-09)
 
-Run gitleaks / trufflehog over the entire git history before flipping the repo from private to public. File-level Gate 1 (in-place file scan) is clean ✅; history-level Gate 2 is the irreversible step. Required because once public, force-pushing to remove leaked content is unreliable and observable.
+gitleaks 8.30.1 scanned all 43 commits of git history: **no real credentials, ever.** The 5 raw hits were all verified false positives — Stripe's official public docs test keys living inside Cerberus's own `known_test_values` suppression list, plus truncated fake placeholders (`sk-proj-abc123xyz789...`) in the threat-analysis prompt and one synthetic test fixture. A scanner's own corpus necessarily contains secret-shaped strings.
+
+Suppression is now handled by `.gitleaks.toml` `[allowlist]`, matched by **literal value** (not by path) so a genuine secret in those same files would still trip. A plain `gitleaks git .` run (no flags) auto-loads the config and returns **no leaks found / exit 0** — the repo is audit-clean for anyone who scans it. (The earlier `.gitleaksignore` glob `cerberus/rules/**` was silently invalid — gitleaks `.gitleaksignore` accepts fingerprints only — and suppressed nothing; replaced.)
 
 ### 📅 Plugin-marketplace packaging
 

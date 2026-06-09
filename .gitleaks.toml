@@ -1,0 +1,29 @@
+# Charon gitleaks configuration
+#
+# Extends the stock gitleaks ruleset and adds a tightly-scoped allowlist for
+# benign example / known-test credential values that live INSIDE the Cerberus
+# detection corpus — its rule policies, threat-analysis prompts, and engine
+# test fixtures. A secret scanner's own corpus necessarily contains
+# secret-shaped strings; these are NOT real credentials.
+#
+# Verified non-secret by a full git-history scan (Gate 2) on 2026-06-09:
+#   - Stripe's official public documentation test keys (sk_test_… / pk_test_…),
+#     which sit in Cerberus's own `known_test_values` suppression allow-list.
+#   - Truncated fake placeholders ("sk-proj-abc123xyz789...", "sk_live_51abc...")
+#     in the code-alignment threat-analysis PROMPT, illustrating what a malicious
+#     skill's hardcoded keys look like.
+#
+# IMPORTANT: the allowlist matches by LITERAL VALUE, not by path. A genuine
+# secret committed to these same files would still be flagged.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Benign example / known-test credential values in the Cerberus corpus (Gate 2 verified non-secret, 2026-06-09)"
+regexes = [
+  '''sk_test_4eC39HqLyjWDarjtT1zdp7dc''',   # Stripe official public docs TEST secret key
+  '''pk_test_TYooMQauvdEDq54NiTphI7jx''',   # Stripe official public docs TEST publishable key
+  '''sk-proj-abc123xyz789\.\.\.''',         # truncated fake placeholder (threat-analysis prompt)
+  '''sk_live_51abc\.\.\.''',                # truncated fake placeholder (threat-analysis prompt)
+]

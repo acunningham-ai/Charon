@@ -1,11 +1,18 @@
-# Cerberus rule corpus — detection patterns by definition.
+# Cerberus rule corpus + example credential values — detection patterns by definition.
 #
-# Files under cerberus/rules/ contain secret-shaped strings used as
-# detection examples (the YARA rules and YAML signatures look for these
-# patterns in scanned skills). They are NOT real credentials.
+# Files under cerberus/rules/ (and a few engine test fixtures) contain
+# secret-shaped strings used as detection examples — the YARA-lite rules and
+# YAML signatures look for these patterns in scanned skills, and the
+# threat-analysis prompts illustrate what a malicious skill's hardcoded keys
+# look like. They are NOT real credentials (Gate 2 git-history scan, 2026-06-09).
 #
-# This mirrors the .gitleaksignore exclusion pattern Cisco uses upstream
-# in cisco-ai-defense/skill-scanner at SHA ff708ea (2026-06-05). See
-# cerberus/README.md and NOTICE for attribution.
-
-cerberus/rules/**
+# NOTE: gitleaks `.gitleaksignore` accepts COMMIT FINGERPRINTS only — a path
+# glob like `cerberus/rules/**` is silently rejected (it logged an "Invalid
+# .gitleaksignore entry" warning and suppressed nothing). The actual
+# suppression now lives in `.gitleaks.toml` `[allowlist]`, matched by literal
+# value (not by path) so a genuine secret in these same files would still be
+# flagged. See `.gitleaks.toml` for the allowlisted values and rationale.
+#
+# Cisco's upstream cisco-ai-defense/skill-scanner (SHA ff708ea, 2026-06-05)
+# uses a path-based exclusion for its rule corpus; Charon uses value-based
+# allowlisting instead — safer for a public repo. See cerberus/README.md + NOTICE.

@@ -30,6 +30,17 @@ Security baseline references (`.claude/rules/secure-code.md`):
   C-2 — tool minimisation: this server registers ONLY read tools.
   C-7 — captured-content discipline: 00-Inbox/_captured/** is never
         searched or returned by any tool.
+
+Path-safety invariant (V3 / path-traversal):
+  This server has NO _safe_resolve()-style containment check by design —
+  it is safe BY CONSTRUCTION because no user-supplied argument is ever
+  joined into a filesystem path. `scope` is a startswith name-filter over
+  MEMORY_ROOT.glob('*.md'); `unit_name` is a string-equality cell match
+  against a fixed register file; semantic-search reads only file_paths
+  produced by the internal index, never by the caller. If you add a tool
+  that joins a caller-supplied value into a path, this invariant breaks —
+  add a vault-ops-style _safe_resolve() (resolve() + relative_to(ROOT))
+  before doing so.
 """
 import argparse
 import asyncio
