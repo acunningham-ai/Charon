@@ -789,7 +789,7 @@ def main():
     parser.add_argument(
         "--full",
         action="store_true",
-        help="Full install: all 24 questions across 4 phases. ~20 minutes. (Default if --quick not set and not interactive.)",
+        help="Full install: all 27 questions across 5 phases. ~20 minutes. (Default if --quick not set and not interactive.)",
     )
     args = parser.parse_args()
 
@@ -840,7 +840,7 @@ def main():
         print("  1. Quick — 3 questions, ~60 seconds. Sensible defaults for everything else.")
         print("            Get productive immediately; refine any phase later with --phase.")
         print()
-        print("  2. Full  — 24 questions across 4 phases, ~20 minutes. Voice, org structure,")
+        print("  2. Full  — 27 questions across 5 phases, ~20 minutes. Voice, org structure,")
         print("            framework, integrations all captured up front.")
         print()
         while True:
@@ -906,6 +906,7 @@ def main():
         print("  python scripts/first-run.py --phase org_framework    # org-units, audience tiers, framework")
         print("  python scripts/first-run.py --phase voice            # your writing voice (6 short questions)")
         print("  python scripts/first-run.py --phase workflow         # standing rules + optional integrations")
+        print("  python scripts/first-run.py --phase engines          # research beats / newsletter senders / forums")
         print()
         print("Or run `python scripts/first-run.py` again to walk every phase in --full mode.")
 

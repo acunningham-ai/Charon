@@ -81,6 +81,16 @@ Built into the harness, not bolted on. Each is enforced by a specific mechanism,
 - **`/owasp-agentic-review`** — OWASP Agentic AI Security 2026 (ASI01-ASI10): goal hijack, tool misuse, identity/privilege abuse, supply chain, code execution, memory poisoning, inter-agent comms, cascading failures, human-agent trust, rogue agents
 - **`/fp-check`** — false-positive verification gate that re-reads cited file:line, reproduces or withdraws each 🔴 finding. Forces evidence before any block-merge claim.
 
+### Research → compose pipeline (standing-seat agents)
+
+Beyond the parallel *review* subagents, Charon ships two **standing seats** — named functional roles that carry work across sessions and hand off to each other. They take no outward action on their own; every send stays human-gated.
+
+- **Prometheus — the research seat (`/prometheus`).** A standing analyst with a persistent ledger of your research beats. It also reads an allowlist of your newsletter/digest emails as an input beat, researches the top threads each run, and writes a prioritised daily digest with framed content angles. *Why it matters:* research that isn't captured and prioritised gets re-done or missed — a seat with cross-day memory turns scattered reading into a daily "so what" you can act on. It triages and surfaces; you steer; it never acts on its own.
+- **Calliope — the writing seat (`/calliope`).** Composes in *your* voice across modes — post, stakeholder bulletin, tweet, email — taking a Prometheus angle or a raw topic to a draft. *Why it matters:* drafting is the bottleneck, and an AI that can *send* is a liability. **Calliope drafts only — never sends, posts, or emails;** bulletins are draft-to-approval. You get the speed without the blast-radius risk.
+- **Forum feed (`/forum-agenda`).** Scans a month of your captured email / chat / meetings / sessions for items relevant to a recurring forum's remit and surfaces candidate agenda items. *Why it matters:* the agenda items most worth raising are the ones that slipped your mind — mining your own signal catches them while the decision still has time to land.
+
+First-run seeds all three (your beats, your newsletter senders, your forums) so they produce value on first run, not after weeks of manual setup.
+
 ### Cerberus — the defensive AI-installation security capability the field has been missing
 
 The reviews above protect the *code you're working on*. Cerberus protects the *AI installation* it runs in — the configuration, the plugins, the MCP servers, the dependencies you pull. To our knowledge, it is the first defensive security capability for AI installations that combines **secure-by-design construction** with **published-standards grounding** in a single open-source surface.
@@ -167,15 +177,15 @@ Full walkthrough: [`INSTALL.md`](INSTALL.md).
 |---|---|
 | **Always-fire rules** | 4 rules — no-assumptions, save-on-mention, session-start-ritual, confidence-tags |
 | **Path-conditioned rules** | 7 rules — auto-injected on path/keyword match: board-reporting, ai-governance, secure-code, captures, quarterly-report, voice-content, skill-authoring |
-| **Slash commands** | 21 skills — quarterly-report-prep, control-translate, secure-code-review, owasp-llm-review, owasp-agentic-review, fp-check, score-vault, weekly-checkin, eod-reflect, knowledge-consolidate, refresh-todo, triage-inbox, draft-linkedin, linkedin-metrics, capture-screenshot, curate-skills, promote-rule, save-feedback, push-fact, check-service, telemetry-summary |
+| **Slash commands** | 34 commands across reporting + governance, security review, the research→compose pipeline (`/prometheus`, `/calliope`, `/forum-agenda`), workflow, hygiene, and the 5-command Cerberus suite — full catalogue with fire conditions in [`CAPABILITIES.md`](CAPABILITIES.md) |
 | **Hooks** | 9 hooks — load-rules (rule injection), save-on-mention (two-stage Haiku-classified), deny-destructive, validate-write-path, validate-memory-frontmatter, skill-usage-log, ssh-recovery, notification-toast, on-error |
 | **MCP servers** | 3 local stdio servers — `vault-readonly` (keyword + semantic search, unit context, initiatives), `vault-ops` (patch_note, frontmatter_query, manage_tags), and `vault-graph` (entity / relationship queries, optional kuzu-backed) |
-| **Subagents** | 4 specs in `.claude/agents/` — secure-code-reviewer, owasp-llm-reviewer, owasp-agentic-reviewer, knowledge-synthesizer — dispatched in parallel by parent skills for context isolation + bounded permissions |
+| **Agents** | 7 in `.claude/agents/` — **4 review/synthesis subagents** (secure-code-reviewer, owasp-llm-reviewer, owasp-agentic-reviewer, knowledge-synthesizer) dispatched in parallel for context isolation + bounded permissions; the **cerberus** security specialist; and **2 standing seats** of the research→compose pipeline — **prometheus** (research) and **calliope** (writing, drafts-only) — invoked via their own slash commands |
 | **Semantic search** | Local embeddings via `sentence-transformers` + `bge-micro-v2` (~80MB) → `sqlite-vec` vector store. Indexer at `scripts/semantic_index.py`. Optional install via `requirements-semantic.txt`. |
 | **Knowledge graph** | Kuzu-backed entity + relationship graph extracted via Haiku at `scripts/extract_entities.py`. Optional install via `requirements-graph.txt`. |
 | **Voice capture** | Local Whisper transcription via `scripts/voice-capture.py` + `/voice-note` slash command. Audio never leaves the machine. Optional install via `requirements-voice.txt`. |
 | **Capture pipeline** | Runnable Node.js reference impl — inbox + sent items via M365 (fully implemented), Gmail + IMAP (skeletons). `direction: inbound\|outbound` frontmatter, user-configurable schedule, prompt-injection wrapper on every capture, dedup by provider ID. See `EMAIL-PROVIDER-SETUP.md`. |
-| **First-run wizard** | YAML-defined questions (4 phases / 24 questions), state file resume on Ctrl+C, atomic write at the end, ANSI banner with optional ASCII trademark logo |
+| **First-run wizard** | YAML-defined questions (5 phases / 27 questions), state file resume on Ctrl+C, atomic write at the end, ANSI banner with optional ASCII trademark logo. The `engines` phase seeds the research ledger + forums so the pipeline isn't empty on day one |
 | **Test suite** | 10 LLM-behaviour scenarios + 7 deterministic checks (YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render) |
 | **Utility scripts** | score-vault, skill-curator, scheduled-audit, archive-captures, audit-unattended-run, recover-ssh-creds, check-capture-state, telemetry-summary |
 

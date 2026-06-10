@@ -62,7 +62,7 @@ The bootstrap installer:
 2. Detects **Obsidian**; same auto / manual / skip choice. Optional — Charon works with any markdown editor.
 3. Installs Python deps from `requirements.txt` (PyYAML, anthropic, mcp).
 4. Creates your **secrets directory** with restricted permissions (`~/.secrets/` by default).
-5. Hands off to `scripts/first-run.py` — the interactive wizard, which now offers a **Quick path (3 questions, ~60 seconds) or Full path (24 questions, ~20 minutes)** at the top. Pick Quick to get productive immediately and refine any phase later; pick Full if you already know how you want the harness configured. See [`FIRST-RUN.md`](FIRST-RUN.md) for details.
+5. Hands off to `scripts/first-run.py` — the interactive wizard, which now offers a **Quick path (3 questions, ~60 seconds) or Full path (27 questions, ~20 minutes)** at the top. Pick Quick to get productive immediately and refine any phase later; pick Full if you already know how you want the harness configured. See [`FIRST-RUN.md`](FIRST-RUN.md) for details.
 
 ## What the bootstrap script asks you
 

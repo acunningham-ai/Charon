@@ -27,6 +27,29 @@ Three reasons:
 | `knowledge-synthesizer` | Synthesise a framework doc on a topic | Read, Grep, Glob, Write | sonnet |
 | `cerberus` | Security specialist for Claude Code installations — audit, harden, recover | Read, Grep, Glob, Bash | inherit |
 
+## Two kinds of agent
+
+Charon ships **two** categories of agent under `.claude/agents/`, and they're used differently:
+
+1. **Review / synthesis subagents** (the table above) — scoped operating modes dispatched *by a parent skill* via the `Agent` tool for parallel, context-isolated work. You don't usually invoke them directly.
+2. **Standing seats** (below) — named functional roles in the "research → compose → deliver" pipeline, each invoked via its *own slash command* and steered across sessions by a persistent artefact. They are functional seats (a research analyst, a writer) — **not** roleplay of *your* identity, which remains an anti-pattern (see below).
+
+## Standing seats — the research → compose pipeline
+
+These are the always-available roles that carry work across sessions. They are intent-scoped (one job each), take no consequential action on their own, and hand off to each other.
+
+### Prometheus — the research seat (`/prometheus`)
+
+**Capability.** A standing research analyst. It keeps a persistent **ledger** (`00-Inbox/_research/_ledger.md`) of your standing research beats, reads an allowlist of newsletter/digest senders from your captured email as an input beat (matched on the `sender:` frontmatter only; treated as untrusted data), researches the top-K active threads each run, and writes a prioritised daily **digest** with framed content angles. Read + write-note only — it writes solely to `00-Inbox/_research/`, never to captured content or authoritative files.
+
+**Intent.** Stop you sifting raw research, and stop threads slipping between days. It triages and surfaces; *you* steer (by editing the ledger's steer column) and *you* decide what's promoted or acted on. The K-budget and the no-self-promote rule are what keep it out of rabbit holes. It is the **research** stage — it frames angles and hands content-worthy ones to Calliope.
+
+### Calliope — the writing seat (`/calliope`)
+
+**Capability.** Composes your outbound writing **in your voice** across modes — `post` (delegates to the tuned `/draft-linkedin`), `bulletin` (stakeholder/org-unit advisory + a co-located responses tracker), `tweet`, and `email`. Loads the `voice-content` rule + your `user_voice.md` profile + voice anchors before drafting. Stakeholder-facing artefacts are capability-led (no tool-class mandates beyond your configured exceptions).
+
+**Intent.** Turn a researched angle or a raw topic into a draft that sounds like you, not a generic LLM. **It drafts only — it never sends, posts, or emails.** Bulletins are draft-to-approval with a human-gated send (broad blast radius). It is the **compose** stage: Prometheus researches → Calliope writes → a delivery seat (when present) delivers.
+
 ## Dispatch pattern
 
 From the parent session or a skill, dispatch via the `Agent` tool:

@@ -8,16 +8,39 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.9.1] - 2026-06-10
+
+### Changed — Documentation freshness + a patch-notes standard
+
+A documentation-hygiene patch: brings every doc current with the v0.9.0 pipeline, and encodes a standard so the docs (including this changelog) stay fresh on every future change.
+
+- **New-agent capability + intent docs.** `.claude/agents/README.md`, `CAPABILITIES.md`, and `README.md` now document the two standing seats (Prometheus, Calliope) with capability *and* intent, as a category distinct from the review subagents; the persona anti-pattern is clarified (functional seats are fine — roleplaying *your* identity is not). *Why it matters:* a reader couldn't tell what the new agents were for, or how they differ from the parallel review subagents — now the docs say so plainly.
+- **Counts reconciled to ground truth.** Command (→34), agent (→7), and wizard (→5 phases / 27 questions) figures were stale across README / CAPABILITIES / ROADMAP / INSTALL / FIRST-RUN / the wizard's own help text. All corrected. *Why it matters:* stale counts erode trust in the docs and hide capabilities a user would otherwise discover and adopt.
+- **Patch-notes content standard** (`.claude/rules/versioning.md`). Every CHANGELOG entry must now cover **capability + intent + why-it-matters**, and docs update in the *same change* as the capability they describe. *Why it matters:* a terse "added X" tells a reader nothing about value or purpose — this keeps the changelog a real part of the documentation surface, not an afterthought. (This entry follows the standard it introduces.)
+- **FIRST-RUN `engines` phase documented.** The new research-beats / newsletter-senders / forums seeding questions now appear in the wizard walkthrough + the `--phase engines` refinement path.
+
+---
+
 ## [0.9.0] - 2026-06-10
 
 ### Added — Research → compose pipeline (Prometheus, Calliope) + forum feed
 
-A new capability tier: a standing research analyst, a writing seat, and a recurring-forum agenda feed — the "research → compose → deliver" pipeline. First-run seeds them so they're not empty on day one.
+A new capability tier: a **research → compose → deliver** pipeline of standing agent "seats". Until now the harness remembered and reviewed, but you still drove research and drafting by hand. These seats carry that work across sessions — surfacing what matters, then drafting it in your voice — while keeping every outward action human-gated.
 
-- **Prometheus** (`.claude/agents/prometheus.md` + `/prometheus`) — standing research analyst. Reads a persistent ledger of standing beats, scans an allowlist of newsletter/digest senders from captured email as an input beat (matched on the `sender:` frontmatter only; untrusted-data discipline), researches the top-K active threads, and writes a prioritised daily digest with content angles. Read + write-note only; no consequential action; writes only to `00-Inbox/_research/`.
-- **Calliope** (`.claude/agents/calliope.md` + `/calliope`) — the writing seat. Composes outbound writing in the user's voice across modes (post / bulletin / tweet / email). Drafts only, never sends; bulletins are draft-to-approval with a co-located responses tracker. Voice spine via the existing `voice-content` rule; `/draft-linkedin` continues as the `post` mode.
-- **Forum feed** (`/forum-agenda`) — scans captured email / chat / meetings / sessions over a window for items relevant to a user-defined forum remit and surfaces candidate agenda items for triage. Read-and-surface only; never writes the live agenda.
-- **First-run `engines` phase** — three new questions (standing research beats, newsletter sender allowlist, recurring forums) seed the research ledger (`00-Inbox/_research/_ledger.md`) and `reference_forums.md`, so the engines have context on day one.
+- **Prometheus — the research seat** (`.claude/agents/prometheus.md` + `/prometheus`).
+  - *Capability:* a standing research analyst. Keeps a persistent ledger (`00-Inbox/_research/_ledger.md`) of your standing beats, scans an allowlist of newsletter/digest senders from captured email as an input beat (matched on `sender:` frontmatter only; untrusted-data discipline), researches the top-K active threads, and writes a prioritised daily digest with framed content angles. Read + write-note only — writes solely to `00-Inbox/_research/`.
+  - *Intent:* triage and surface so you stop sifting raw research and stop losing threads between days. You steer (ledger steer column); it never self-promotes or acts.
+  - *Why it matters:* research that isn't captured and prioritised gets re-done or missed. A standing analyst with cross-day memory turns scattered reading into a daily "so what" you can act on.
+- **Calliope — the writing seat** (`.claude/agents/calliope.md` + `/calliope`).
+  - *Capability:* composes outbound writing **in your voice** across modes — `post` (delegates to the tuned `/draft-linkedin`), `bulletin` (stakeholder advisory + a co-located responses tracker), `tweet`, `email`. Loads the `voice-content` rule + your voice profile first. **Drafts only — never sends, posts, or emails;** bulletins are draft-to-approval.
+  - *Intent:* turn a researched angle or raw topic into a draft that sounds like you, not a generic LLM, without ever taking the outward action for you.
+  - *Why it matters:* drafting is the bottleneck, and an AI that can *send* is a liability. A voice-faithful writer with a hard human-gated send gives you the speed without the blast-radius risk.
+- **Forum feed** (`/forum-agenda`).
+  - *Capability:* scans captured email / chat / meetings / sessions over a window for signal relevant to a user-defined forum remit (`reference_forums.md`) and surfaces candidate agenda items. Read-and-surface only — never writes the live agenda.
+  - *Intent:* let a recurring forum be driven by what actually happened since it last met, not just what you remember on the day.
+  - *Why it matters:* the most consequential agenda items are the ones that slipped your mind. Mining a month of your own signal catches them while the decision still has time to land.
+- **First-run `engines` phase** — three new questions (standing research beats, newsletter sender allowlist, recurring forums) seed the research ledger and `reference_forums.md`.
+  - *Why it matters:* an empty engine is useless on day one. Seeding beats + senders + forums at setup means a new user's Prometheus and forum feed produce value on first run, not after weeks of manual configuration.
 
 ---
 
@@ -659,7 +682,10 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.9.1
+[0.9.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.9.0
+[0.8.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.8.1
 [0.8.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.8.0
 [0.7.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.7.1
 [0.7.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.7.0

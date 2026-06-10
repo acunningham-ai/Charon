@@ -13,16 +13,17 @@ Where Charon is going. Status, rationale, and what isn't on the list.
 - ✅ 4 always-fire rules + 7 path-conditioned rules
 - ✅ 9 hooks (load-rules, save-on-mention with Haiku Stage 2, deny-destructive, validate-write-path, validate-memory-frontmatter, skill-usage-log, ssh-recovery, notification-toast, on-error)
 - ✅ 3 MCP servers (vault-readonly, vault-ops, vault-graph)
-- ✅ 22 slash commands across reporting / security / workflow / hygiene (incl. `/voice-note`)
+- ✅ 34 slash commands across reporting / security / the research→compose pipeline / workflow / hygiene + the Cerberus suite
 - ✅ Security baseline framework (C-1..C-8)
 - ✅ OWASP LLM01-LLM10 + ASI01-ASI10 review skills + `/fp-check` false-positive verification gate
-- ✅ First-run wizard (`scripts/first-run.py`) — YAML-defined questions, 4 phases, 24 questions, state-file resume, atomic write
+- ✅ First-run wizard (`scripts/first-run.py`) — YAML-defined questions, 5 phases, 27 questions, state-file resume, atomic write
 - ✅ Bootstrap installers (`install.ps1` / `install.sh`) with auto/manual/skip per prereq
 - ✅ Test suite — 10 LLM-behaviour scenarios + 7 automated deterministic checks
 - ✅ ASCII trademark logo banner with auto-detect by terminal width
 - ✅ **Local semantic search** — sentence-transformers + bge-micro-v2 (~80MB) + sqlite-vec; `semantic_search` MCP tool in `vault-readonly`; on-demand indexer at `scripts/semantic_index.py`
 - ✅ **Knowledge graph** — kuzu-backed `vault-graph` MCP server with `get_entity` / `query_graph` / `stats` tools; Haiku-driven extraction at `scripts/extract_entities.py`; closed entity-type + relationship-type vocabulary (C-3.1)
-- ✅ **Multi-agent / subagents** — 5 subagent specs in `.claude/agents/` (secure-code-reviewer, owasp-llm-reviewer, owasp-agentic-reviewer, knowledge-synthesizer, cerberus); dispatch pattern documented; least-privilege tool grants per subagent
+- ✅ **Multi-agent / subagents** — 7 agents in `.claude/agents/`: 5 review/synthesis subagents (secure-code-reviewer, owasp-llm-reviewer, owasp-agentic-reviewer, knowledge-synthesizer, cerberus) + 2 standing seats (prometheus research, calliope writing); dispatch pattern documented; least-privilege tool grants per agent
+- ✅ **Research → compose pipeline** — `/prometheus` (research seat + ledger + newsletter email beat), `/calliope` (writing seat, drafts-only), `/forum-agenda` (recurring-forum feed); first-run `engines` phase seeds beats / senders / forums
 - ✅ **Voice input** — local Whisper transcription via `scripts/voice-capture.py` + `/voice-note` slash command; audio never leaves the machine; transcripts land in `00-Inbox/_captured/voice/` as untrusted content per the captures rule
 - ✅ **Cerberus — protects the harness itself** (`v0.3.0-preview`, 2026-05-25). 4 slash commands (`/cerberus-{setup,audit,vet,recover}`), 4 model-triggered skills in `.claude/skills/`, 1 subagent, OWASP LLM crosswalk + remediation library under `07-References/cerberus/`, 3 hook scripts (opt-in, not auto-wired). Original by [Joh Leonhardt](https://github.com/JohL29/claude-security-auditor) (MIT); Charon build extends with V0–V8 third-party-artifact threat model, MCP-specific coverage, and remediation library. Closes the install-side surface that the existing review skills (`/secure-code-review`, `/owasp-{llm,agentic}-review`) don't cover
 - ✅ **`/cerberus-deps` + supply-chain pinning discipline** (`v0.4.0-preview`, 2026-05-25). New slash command + `audit-dependencies` skill that walks the target project's manifests and cross-references each declared dep against a maintained compromise registry (`07-References/dependency-pinning-discipline.md` — LiteLLM 1.82.7/8, telnyx 4.87.2, tiledesk-server 2.18.6–12, pino-sdk-v2 typosquat, Mini Shai-Hulud cascade). Sibling of `/cerberus-vet` — same registry, recurring own-project surface. V8 layer of `/cerberus-vet` also cross-references the same registry against the artifact being vetted. Borrowed from `usestrix/strix` pinning pattern

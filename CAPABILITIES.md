@@ -22,7 +22,7 @@ These rules auto-inject into the assistant's context when the user's prompt ment
 
 ## Slash commands (`.claude/commands/*.md`)
 
-26 invokable commands. Most accept arguments after the slash command.
+34 invokable commands. Most accept arguments after the slash command.
 
 ### Reporting + governance
 
@@ -54,6 +54,16 @@ These rules auto-inject into the assistant's context when the user's prompt ment
 | `/draft-linkedin` | Voice-driven content drafting with anchor-reading. *Example: when you want to write a LinkedIn post and start from a topic, anchor, or captured event — drafter reads your voice anchors first.* |
 | `/linkedin-metrics` | Capture LinkedIn analytics into published-post frontmatter. *Example: 48 hours and 7 days after a post lands, to record analytics into the post's `metrics_48h` / `metrics_7d` blocks.* |
 | `/capture-screenshot <path>` | Vision capture into `00-Inbox/_captured/screenshots/`. *Example: when a screenshot needs vision extraction into structured fields and inbox capture (e.g. a dashboard view someone shared).* |
+
+### Research → content pipeline
+
+The "research → compose → deliver" pipeline (standing-seat agents — see Subagents below).
+
+| Command | What it does |
+|---|---|
+| `/prometheus` | Run the standing research analyst — read the ledger, scan the newsletter email beat, research top-K active threads, write a prioritised daily digest with content angles. *Example: each morning, to advance your standing research beats and surface what's worth acting on or writing about — without sifting raw sources yourself.* |
+| `/calliope [mode] "<topic>"` | The writing seat — composes in your voice across modes (post / bulletin / tweet / email). Drafts only, never sends. *Example: turn a Prometheus angle or a raw topic into a draft post or a stakeholder bulletin — `/calliope bulletin "<issue>"` scaffolds the advisory + responses tracker for your sign-off.* |
+| `/forum-agenda [forum]` | Recurring-forum feed — scans captured email / chat / meetings / sessions over a window for items relevant to a forum's remit, surfaces candidate agenda items for triage. *Example: a week before a monthly governance forum, to build the agenda from what actually happened since it last met.* |
 
 ### Hygiene
 
@@ -162,9 +172,11 @@ Knowledge-graph MCP backed by [kuzu](https://kuzudb.com/). Populated by `scripts
 | `query_graph(cypher, limit)` | Read-only Cypher query. Write keywords (CREATE/MERGE/DELETE/etc.) rejected |
 | `stats()` | Node + edge counts |
 
-## Subagents (`.claude/agents/*.md`)
+## Agents (`.claude/agents/*.md`)
 
-Dispatched in parallel by parent skills for heavyweight tasks. Each has its own context window + minimum tool permissions.
+Seven agents in two categories. **Review / synthesis subagents** are dispatched in parallel by parent skills for heavyweight tasks — each gets its own context window + minimum tool permissions. **Standing seats** are named functional roles invoked via their own slash command, steered across sessions by a persistent artefact (not parallel-review subagents, and not roleplay of your identity). Full capability + intent for each in `.claude/agents/README.md`.
+
+### Review / synthesis subagents
 
 | Subagent | What it does | Tools |
 |---|---|---|
@@ -174,7 +186,14 @@ Dispatched in parallel by parent skills for heavyweight tasks. Each has its own 
 | `knowledge-synthesizer` | Synthesise a topic-scoped framework doc to `07-References/` | Read, Grep, Glob, Write |
 | `cerberus` | Security specialist for Claude Code installations — audit / harden / recover. Dispatches the Cerberus skills | Read, Grep, Glob, Bash |
 
-See `.claude/agents/README.md` for the dispatch pattern.
+### Standing seats (the research → compose pipeline)
+
+| Seat | What it does | Invoked by | Tools |
+|---|---|---|---|
+| `prometheus` | Research seat — standing analyst; ledger of beats + newsletter email beat → prioritised daily digest with content angles. Read + write-note only (writes only to `00-Inbox/_research/`). | `/prometheus` | Read, Write, WebSearch, WebFetch, Skill, Glob, Grep |
+| `calliope` | Writing seat — composes in your voice across modes (post / bulletin / tweet / email). **Drafts only, never sends.** | `/calliope` | Read, Write, Edit, Glob, Grep, Skill |
+
+See `.claude/agents/README.md` for the dispatch pattern + per-seat capability and intent.
 
 ## Capture pipeline (`capture-pipeline/`)
 

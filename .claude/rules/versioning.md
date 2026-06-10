@@ -42,6 +42,16 @@ When opening a PR / cutting a release / writing a CHANGELOG entry, ask:
 - **Yes** → MINOR
 - **No, it's** *"X works better / faster / more reliably / without bug Y"* → PATCH
 
+## Patch-notes content standard (every entry)
+
+A CHANGELOG entry is **patch notes**, not a terse "added X". The changelog is part of the documentation surface — a reader (a user deciding whether to adopt a capability, a contributor, future-you) should understand the change from the entry alone. **Every entry covers three things:**
+
+1. **Capability** — what it does (the mechanics: the new command / agent / hook / behaviour).
+2. **Intent** — what it's *for*; the job it does for the user.
+3. **Why it matters** — why it's important; the problem it removes or the value it adds.
+
+A one-line "Added: /forum-agenda" fails this — it conveys neither purpose nor value. Write enough that someone who wasn't in the room understands the capability *and why they'd care*. Keep it tight, but cover all three. (Same teaching ethic as README / CAPABILITIES — those docs update in the **same change**, never left stale.)
+
 ## Anti-patterns to call out
 
 | Anti-pattern | Why it's wrong |
@@ -51,6 +61,8 @@ When opening a PR / cutting a release / writing a CHANGELOG entry, ask:
 | Non-standard increments (`.5 / .6` instead of `.1 / .2`) | Standard semver `.1 → .2 → .3` is what every contributor and tool reads fluently |
 | Tagging without updating CHANGELOG (or vice versa) | They happen together — never tag without doc, never doc without tag |
 | Skipping the `-preview` suffix during validation | The suffix signals *"still shaping, expect change"* to readers and tools |
+| Terse entry ("added X") with no intent / why | The changelog is documentation — every entry covers capability + intent + why it matters (see the patch-notes standard above) |
+| Shipping a capability but leaving README / CAPABILITIES counts + listings stale | Docs update in the SAME change as the capability — stale counts are a freshness failure |
 
 ## Release workflow
 

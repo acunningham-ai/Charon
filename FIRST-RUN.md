@@ -24,11 +24,12 @@ python scripts/first-run.py --phase identity_paths   # vault path, secrets, Anth
 python scripts/first-run.py --phase org_framework    # org-units, audience tiers, framework
 python scripts/first-run.py --phase voice            # your writing voice (6 short questions)
 python scripts/first-run.py --phase workflow         # standing rules + optional integrations
+python scripts/first-run.py --phase engines          # research beats / newsletter senders / forums
 ```
 
-This is the path designed for **non-technical users** and anyone who wants to see the harness work *before* committing to a long setup. Tester feedback (May 2026) showed the full 24-question wizard felt clunky for users without prior tech literacy — Quick mode is the answer to that feedback.
+This is the path designed for **non-technical users** and anyone who wants to see the harness work *before* committing to a long setup. Tester feedback (May 2026) showed the full 27-question wizard felt clunky for users without prior tech literacy — Quick mode is the answer to that feedback.
 
-## Full path — 24 questions, ~20 minutes
+## Full path — 27 questions, ~20 minutes
 
 ```bash
 python scripts/first-run.py --full       # or pick option 2 at the interactive prompt
@@ -41,8 +42,9 @@ Walks every phase up front. Recommended when you already know how you want the h
 ```bash
 python scripts/first-run.py                 # interactive — asks Quick vs Full at the top
 python scripts/first-run.py --quick         # express path (3 questions)
-python scripts/first-run.py --full          # full path (24 questions across 4 phases)
+python scripts/first-run.py --full          # full path (27 questions across 5 phases)
 python scripts/first-run.py --phase voice   # re-do a single phase
+python scripts/first-run.py --phase engines # seed research beats / newsletter senders / forums
 python scripts/first-run.py --dry-run       # show planned writes; don't touch the filesystem
 python scripts/first-run.py --logo full     # force full ASCII banner (needs ~200-col terminal)
 python scripts/first-run.py --no-logo       # skip banner entirely
@@ -171,6 +173,16 @@ If you want to wire any of these in:
 - **MCP servers beyond what ships** — point at additional MCP configs.
 
 **Why sent items?** Inbox-only capture leaves a one-sided view of every conversation. Sent items close the loop: when did you respond, what did you commit to, what threads do you owe a reply on. The `/refresh-todo` and `/triage-inbox` skills surface this. Default is on; you can turn it off if your use case is privacy-constrained.
+
+### 12. Research / writing / forum engines (optional)
+
+Seeds the standing-seat pipeline (`/prometheus`, `/calliope`, `/forum-agenda`) so it isn't empty on day one:
+
+- **Standing research beats** — the themes Prometheus watches (3-6). E.g. "agentic-AI security", "your-sector regulation", "key-vendor platform changes".
+- **Newsletter / digest senders** — the email addresses Prometheus reads as its input beat (matched on the `sender:` field). Blank = no email beat.
+- **Recurring forums** — `name - cadence - remit` per forum, for the `/forum-agenda` feed.
+
+**Populates:** `00-Inbox/_research/_ledger.md` (beats + sender allowlist) and `<memory-root>/reference_forums.md`. All skippable — add later with `--phase engines`.
 
 ## How long does it take?
 
