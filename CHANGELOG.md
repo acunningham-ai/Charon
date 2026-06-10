@@ -8,6 +8,19 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.9.0] - 2026-06-10
+
+### Added — Research → compose pipeline (Prometheus, Calliope) + forum feed
+
+A new capability tier: a standing research analyst, a writing seat, and a recurring-forum agenda feed — the "research → compose → deliver" pipeline. First-run seeds them so they're not empty on day one.
+
+- **Prometheus** (`.claude/agents/prometheus.md` + `/prometheus`) — standing research analyst. Reads a persistent ledger of standing beats, scans an allowlist of newsletter/digest senders from captured email as an input beat (matched on the `sender:` frontmatter only; untrusted-data discipline), researches the top-K active threads, and writes a prioritised daily digest with content angles. Read + write-note only; no consequential action; writes only to `00-Inbox/_research/`.
+- **Calliope** (`.claude/agents/calliope.md` + `/calliope`) — the writing seat. Composes outbound writing in the user's voice across modes (post / bulletin / tweet / email). Drafts only, never sends; bulletins are draft-to-approval with a co-located responses tracker. Voice spine via the existing `voice-content` rule; `/draft-linkedin` continues as the `post` mode.
+- **Forum feed** (`/forum-agenda`) — scans captured email / chat / meetings / sessions over a window for items relevant to a user-defined forum remit and surfaces candidate agenda items for triage. Read-and-surface only; never writes the live agenda.
+- **First-run `engines` phase** — three new questions (standing research beats, newsletter sender allowlist, recurring forums) seed the research ledger (`00-Inbox/_research/_ledger.md`) and `reference_forums.md`, so the engines have context on day one.
+
+---
+
 ## [0.8.1] - 2026-06-09
 
 ### Security — Cerberus hardening (ported from the vault security-update 2026-06-08)
