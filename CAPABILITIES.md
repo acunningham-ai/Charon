@@ -247,13 +247,13 @@ You invoke these directly.
 
 ## Test suite (`test-scenarios/`)
 
-10 LLM-behaviour scenarios + 7 deterministic checks. Run before any release and after any material change to rules / hooks / wizard.
+16 LLM-behaviour scenarios + 19 deterministic checks. Run before any release and after any material change to rules / hooks / wizard.
 
 | Component | What |
 |---|---|
 | `test-scenarios/README.md` | How to run, scoring, OSS-release bar |
-| `test-scenarios/01-..10-*.md` | 10 LLM-behaviour scenarios with verbatim prompts + pass/fail criteria (manual run in a fresh Claude Code session) |
-| `test-scenarios/run-deterministic-checks.py` | 7 automated checks: YAML schema, hook wiring, rule frontmatter, always-fire rule presence, personal-content scrub, wizard launch, banner render |
+| `test-scenarios/01-..16-*.md` | 16 LLM-behaviour scenarios with verbatim prompts + pass/fail criteria (manual run in a fresh Claude Code session) |
+| `test-scenarios/run-deterministic-checks.py` | 19 automated checks: YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, closed-vocabulary, Cerberus engine + scan + SARIF, Louvain community detection, vault-graph HTML / query / wiki, multimodal extractors |
 | `test-scenarios/_results-template.md` | Per-run scoring template — copy as `_results-YYYY-MM-DD.md` |
 
 ```bash

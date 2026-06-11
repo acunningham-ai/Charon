@@ -112,7 +112,7 @@ For each failed scenario, capture:
 
 ## Recommendation
 
-- [ ] Ready for public flip (10/10 LLM + all deterministic PASS, OR 9/10 with documented exception)
+- [ ] Ready for public flip (16/16 LLM + all deterministic PASS, OR 15/16 with documented exception)
 - [ ] Ready with caveats (note known limitations)
 - [ ] Hold — see failures above
 

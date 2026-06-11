@@ -2,20 +2,20 @@
 
 The first-run wizard captures the user-specific layer that the harness can't provide — your voice, your org structure, your framework, your tool preferences. Without these, the rules can't tailor their output to you; with them, the rules become *yours*.
 
-**Two paths.** A **Quick** path gets you productive in ~60 seconds with sensible defaults for everything that isn't load-bearing on day one; refine any phase later. A **Full** path walks every phase up front — ~20 minutes. The wizard offers you the choice the first time you run it. Both lead to the same harness; the difference is when you answer the questions.
+**Two paths.** A **Quick** path gets you productive in ~2 minutes with sensible defaults for everything that isn't load-bearing on day one; refine any phase later. A **Full** path walks every phase up front — ~20 minutes. The wizard offers you the choice the first time you run it. Both lead to the same harness; the difference is when you answer the questions.
 
-## Quick path — 3 questions, ~60 seconds
+## Quick path — 4–6 questions, ~2 minutes
 
 ```bash
 python scripts/first-run.py --quick      # or pick option 1 at the interactive prompt
 ```
 
-Quick mode asks **three** questions (name, role / position, organisation) and accepts sensible defaults for everything else:
+Quick mode asks **four** questions always — name, role / position, organisation, and whether to set up email capture — plus **two more** (M365 tenant ID + client ID) if you enable capture. It accepts sensible defaults for everything else:
 
 - **Vault path** defaults to the current working directory.
 - **Secrets directory** defaults to `~/.secrets` (created with restricted permissions).
 - **Anthropic API key setup** deferred — the save-on-mention hook silently no-ops until you configure it later. Rules + memory still work.
-- **Voice / org structure / framework / integrations** skipped entirely — the rules that depend on them fall back to their universal defaults (generic audience, no per-unit context, no enforced framework).
+- **Voice / org structure / framework** skipped entirely — the rules that depend on them fall back to their universal defaults (generic audience, no per-unit context, no enforced framework). (Email capture is the one integration Quick mode does offer, since it's load-bearing for the capture pipeline on day one.)
 
 After Quick mode completes, you can refine any phase any time:
 
@@ -27,9 +27,9 @@ python scripts/first-run.py --phase workflow         # standing rules + optional
 python scripts/first-run.py --phase engines          # research beats / newsletter senders / forums
 ```
 
-This is the path designed for **non-technical users** and anyone who wants to see the harness work *before* committing to a long setup. Tester feedback (May 2026) showed the full 27-question wizard felt clunky for users without prior tech literacy — Quick mode is the answer to that feedback.
+This is the path designed for **non-technical users** and anyone who wants to see the harness work *before* committing to a long setup. Tester feedback (May 2026) showed the full multi-phase wizard felt clunky for users without prior tech literacy — Quick mode is the answer to that feedback.
 
-## Full path — 27 questions, ~20 minutes
+## Full path — 39 questions, ~20 minutes
 
 ```bash
 python scripts/first-run.py --full       # or pick option 2 at the interactive prompt
@@ -41,8 +41,8 @@ Walks every phase up front. Recommended when you already know how you want the h
 
 ```bash
 python scripts/first-run.py                 # interactive — asks Quick vs Full at the top
-python scripts/first-run.py --quick         # express path (3 questions)
-python scripts/first-run.py --full          # full path (27 questions across 5 phases)
+python scripts/first-run.py --quick         # express path (4–6 questions)
+python scripts/first-run.py --full          # full path (39 questions across 5 phases)
 python scripts/first-run.py --phase voice   # re-do a single phase
 python scripts/first-run.py --phase engines # seed research beats / newsletter senders / forums
 python scripts/first-run.py --dry-run       # show planned writes; don't touch the filesystem

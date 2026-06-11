@@ -10,15 +10,15 @@ Where Charon is going. Status, rationale, and what isn't on the list.
 
 ## Done (recently shipped)
 
-- ✅ 4 always-fire rules + 7 path-conditioned rules
-- ✅ 9 hooks (load-rules, save-on-mention with Haiku Stage 2, deny-destructive, validate-write-path, validate-memory-frontmatter, skill-usage-log, ssh-recovery, notification-toast, on-error)
+- ✅ 4 always-fire rules + 9 path-conditioned rules
+- ✅ 10 hooks (load-rules, save-on-mention with Haiku Stage 2, deny-destructive, validate-write-path, validate-memory-frontmatter, voice-anchor-ralph-loop, skill-usage-log, ssh-recovery, notification-toast, check-reauth-flag; plus on-error, invoked by scheduled runners on failure)
 - ✅ 3 MCP servers (vault-readonly, vault-ops, vault-graph)
 - ✅ 35 slash commands across reporting / security / the research→compose pipeline / workflow / hygiene + the Cerberus suite
 - ✅ Security baseline framework (C-1..C-8)
 - ✅ OWASP LLM01-LLM10 + ASI01-ASI10 review skills + `/fp-check` false-positive verification gate
-- ✅ First-run wizard (`scripts/first-run.py`) — YAML-defined questions, 5 phases, 27 questions, state-file resume, atomic write
+- ✅ First-run wizard (`scripts/first-run.py`) — YAML-defined questions, 5 phases, 39 questions (~25 always-asked + conditional), state-file resume, atomic write
 - ✅ Bootstrap installers (`install.ps1` / `install.sh`) with auto/manual/skip per prereq
-- ✅ Test suite — 10 LLM-behaviour scenarios + 7 automated deterministic checks
+- ✅ Test suite — 16 LLM-behaviour scenarios + 19 automated deterministic checks
 - ✅ ASCII trademark logo banner with auto-detect by terminal width
 - ✅ **Local semantic search** — sentence-transformers + bge-micro-v2 (~80MB) + sqlite-vec; `semantic_search` MCP tool in `vault-readonly`; on-demand indexer at `scripts/semantic_index.py`
 - ✅ **Knowledge graph** — kuzu-backed `vault-graph` MCP server with `get_entity` / `query_graph` / `stats` tools; Haiku-driven extraction at `scripts/extract_entities.py`; closed entity-type + relationship-type vocabulary (C-3.1)
@@ -128,7 +128,7 @@ Production pattern is dual-gate: 20-50ms fast classifier (Llama Prompt Guard 2 8
 
 ### 💡 Red-team automation (DeepTeam / PyRIT / Garak)
 
-Charon's test suite is 10 LLM-behaviour scenarios + 7 deterministic checks — handwritten, single-shot. SOTA is automated adversarial probing: DeepTeam / PyRIT / Garak running ATLAS techniques as continuous test cases against the harness. Heavy lift but unique value for a security-positioned harness — "this is the only second-brain harness with automated agentic red-teaming."
+Charon's test suite is 16 LLM-behaviour scenarios + 19 deterministic checks — handwritten, single-shot. SOTA is automated adversarial probing: DeepTeam / PyRIT / Garak running ATLAS techniques as continuous test cases against the harness. Heavy lift but unique value for a security-positioned harness — "this is the only second-brain harness with automated agentic red-teaming."
 
 **Source:** https://www.trydeepteam.com/docs/frameworks-introduction 🟡
 

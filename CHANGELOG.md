@@ -8,6 +8,23 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.10.2] - 2026-06-11
+
+### Fixed — Documentation accuracy sweep + scaffold the framework-reference folder
+
+An end-to-end review found the docs had drifted from ground truth on several counts, and a second dangling-folder reference (same class as the v0.10.1 baseline-doc gap). The harness itself is healthy — 19/19 deterministic checks pass, all Python compiles, all configs valid; these were documentation/scaffolding fixes, not code fixes.
+
+- **Counts corrected to verified ground truth** across README / ROADMAP / CAPABILITIES / FIRST-RUN / INSTALL / the results template:
+  - First-run wizard: **39 questions** across 5 phases (~25 always-asked + conditional), not 27. Quick path is **4–6 questions** (3 identity + email-capture y/n, +2 M365 credential questions if capture is enabled), not 3 — the 2026-06 Quick-mode capture extension was never reflected in the docs.
+  - **Path-conditioned rules: 9** (added `verdict-vocabulary`, `versioning`), not 7.
+  - **Hooks: 10** wired across lifecycle events (the list now correctly includes `voice-anchor-ralph-loop` + `check-reauth-flag` and notes `on-error` as runner-invoked), not 9 with a stale membership list.
+  - **Test suite: 16 LLM scenarios + 19 deterministic checks**, not 10 + 7.
+  - *Why it matters:* the docs are part of the product surface. Stale counts erode trust and hide capabilities a user would otherwise adopt; an undercounted wizard ("3 questions") also misleads on setup effort.
+- **`07-References/frameworks/README.md` scaffolded.** `/control-translate`'s framework mode reads `07-References/frameworks/` (described as "central, not optional"), but the folder didn't ship and wasn't seeded — a dead reference. It now ships with a README explaining what goes there (curated framework reference material — user-supplied, since framework content is licence/org-specific), consistent with "rules teach structure, the user supplies content."
+  - *Why it matters:* framework-mode `/control-translate` had nothing to read out of the box; the folder + guidance make the dependency real and tell the user how to populate it.
+
+---
+
 ## [0.10.1] - 2026-06-11
 
 ### Fixed — Ship the C-1..C-8 security-baseline reference doc (was a dangling cross-reference)
@@ -708,7 +725,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.10.1...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.10.2...HEAD
+[0.10.2]: https://github.com/acunningham-ai/Charon/releases/tag/v0.10.2
 [0.10.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.10.1
 [0.10.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.10.0
 [0.9.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.9.1
