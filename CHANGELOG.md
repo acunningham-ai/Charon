@@ -8,6 +8,18 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.10.1] - 2026-06-11
+
+### Fixed — Ship the C-1..C-8 security-baseline reference doc (was a dangling cross-reference)
+
+The security-baseline framework was advertised as shipping (README, and inline in the review skills), but its canonical reference doc — `07-References/security-baselines.md` — was never actually in the repo. 24 files pointed at it: `fp-check`, `secure-code-review`, `owasp-llm-review`, `owasp-agentic-review`, the `secure-code` + `skill-authoring` rules, the OWASP reviewer agents, and now `safe-rebuild`. A user following any of those cross-references hit a dead link.
+
+- **`07-References/security-baselines.md`** now ships — the full C-1..C-9 control set (hardened prompts, tool minimisation, write-path validation, budget caps, post-run audit, hook-side LLM hygiene, captured-content discipline, egress controls, human-in-loop approval) plus the sub-rules and a **§Exemptions register**.
+  - *Why it matters:* this is the doc every security skill treats as the authority for "what secure means". In particular, `/fp-check`'s exemption logic ("WITHDRAW citing exemption ID") had nothing to read — the register now exists, so that path works. Remediation (`/safe-rebuild`) and review (`/secure-code-review`) now rebuild/check against a real, present baseline rather than a phantom one.
+  - *Genericised:* org-specific calibrations, personnel, and a fixed compliance table were stripped; the compliance table is now a **template the user populates** (rules teach structure, the user supplies content), and the §Exemptions register ships with the universal exemptions + room for the user's own.
+
+---
+
 ## [0.10.0] - 2026-06-11
 
 ### Added — `/safe-rebuild`: finding-driven safe remediation
@@ -696,7 +708,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.10.1...HEAD
+[0.10.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.10.1
 [0.10.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.10.0
 [0.9.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.9.1
 [0.9.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.9.0
