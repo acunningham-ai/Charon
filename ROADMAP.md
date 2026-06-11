@@ -13,7 +13,7 @@ Where Charon is going. Status, rationale, and what isn't on the list.
 - ✅ 4 always-fire rules + 7 path-conditioned rules
 - ✅ 9 hooks (load-rules, save-on-mention with Haiku Stage 2, deny-destructive, validate-write-path, validate-memory-frontmatter, skill-usage-log, ssh-recovery, notification-toast, on-error)
 - ✅ 3 MCP servers (vault-readonly, vault-ops, vault-graph)
-- ✅ 34 slash commands across reporting / security / the research→compose pipeline / workflow / hygiene + the Cerberus suite
+- ✅ 35 slash commands across reporting / security / the research→compose pipeline / workflow / hygiene + the Cerberus suite
 - ✅ Security baseline framework (C-1..C-8)
 - ✅ OWASP LLM01-LLM10 + ASI01-ASI10 review skills + `/fp-check` false-positive verification gate
 - ✅ First-run wizard (`scripts/first-run.py`) — YAML-defined questions, 5 phases, 27 questions, state-file resume, atomic write

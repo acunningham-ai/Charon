@@ -8,6 +8,20 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.10.0] - 2026-06-11
+
+### Added — `/safe-rebuild`: finding-driven safe remediation
+
+A new capability that closes the loop the security reviewers leave open. Until now `/cerberus-vet` and the OWASP review skills could **detect** risk in a skill/agent/hook/command/MCP artifact and report it — but fixing it was ad-hoc, with no structure, no re-verify, and a real chance of breaking the artifact's function or losing the audit trail.
+
+- **`/safe-rebuild <artifact> [+ findings]`** (`.claude/commands/safe-rebuild.md`).
+  - *Capability:* takes a flagged artifact through a disciplined **re-spec → rebuild → re-verify** loop. Inception runs a silent analysis, gates the input findings through `/fp-check` (so you never rebuild against a false positive), writes a stored re-spec report, and blocks on your confirm. Construction rebuilds in a `.safe-rebuild/` scratch dir against the C-1..C-8 baseline + skill-authoring standard — the original is untouched until the gate passes. A **blocking verification gate** re-runs the reviewers + `/fp-check`; the artifact can't be marked done until every original finding is cleared and no new 🔴 is introduced. The swap-in happens only after the gate is green AND you confirm; the original is archived (reversible).
+  - *Intent:* turn "Cerberus found a problem" into a structured fix you can trust, without silently rewriting a skill, weakening a control to pass, or breaking what the skill was for. The agent proposes; you approve.
+  - *Why it matters:* detection without disciplined remediation is half a control. An ad-hoc fix can introduce a worse finding than the one it closed, or quietly reduce capability to make a checker happy. A gated loop with human-confirmed swap-in and a preserved audit trail makes remediation as rigorous as detection. `/fp-check` gating *both* the input and the output means effort is never spent on phantom findings, and a "clean" rebuild is actually verified. Tool surface is minimal by design — `Read/Write/Edit/Glob/Grep/Skill`, no `Bash` (all writes route through `validate-write-path.py`).
+  - *Provenance:* the phase-spine + blocking-gate pattern is borrowed from AIDLC (`awslabs/aidlc-workflows`, MIT-0) and reimplemented natively — none of AIDLC's tooling is installed. The greenfield counterpart `/build-safely` is a planned follow-on.
+
+---
+
 ## [0.9.1] - 2026-06-10
 
 ### Changed — Documentation freshness + a patch-notes standard
@@ -682,7 +696,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.10.0
 [0.9.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.9.1
 [0.9.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.9.0
 [0.8.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.8.1

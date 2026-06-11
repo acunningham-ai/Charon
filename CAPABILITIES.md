@@ -22,7 +22,7 @@ These rules auto-inject into the assistant's context when the user's prompt ment
 
 ## Slash commands (`.claude/commands/*.md`)
 
-34 invokable commands. Most accept arguments after the slash command.
+35 invokable commands. Most accept arguments after the slash command.
 
 ### Reporting + governance
 
@@ -41,6 +41,7 @@ These rules auto-inject into the assistant's context when the user's prompt ment
 | `/owasp-llm-review <path>` | OWASP LLM01-LLM10 lens on LLM-consuming code. *Example: after adding any code that calls the Claude API, constructs a system prompt, or builds a RAG retrieval surface.* |
 | `/owasp-agentic-review <path>` | OWASP ASI01-ASI10 lens on agentic code. *Example: when a new subagent, MCP server, memory-write path, or tool-dispatch surface is added.* |
 | `/fp-check <finding>` | Independent false-positive verification — re-reads cited `file:line`, downgrades or withdraws. *Example: when a 🔴 finding from a review skill is about to block a merge — verify the citation grounds in real code before treating as a blocker.* |
+| `/safe-rebuild <artifact> [+ findings]` | Finding-driven safe remediation — takes a flagged skill/agent/hook/command/MCP artifact through a re-spec → rebuild-in-scratch → blocking re-verify loop; `/fp-check` gates the input, the swap-in needs your confirm, the original is archived. *Example: after `/cerberus-vet` returns a 🔴 on a skill you want to keep — `/safe-rebuild` fixes it without silently rewriting it or weakening a control to pass.* |
 
 ### Workflow
 
