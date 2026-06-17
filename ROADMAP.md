@@ -60,6 +60,10 @@ Ship Charon as an installable Claude Code plugin bundle, not just a `git clone`-
 
 Once public, the README is the recruitment doc. Currently emphasises capability + security baseline; should also surface (a) a 60-second value pitch, (b) screenshots / animated demo, (c) install-in-one-line for the bootstrap script, (d) one or two real-feel example sessions. Visual polish.
 
+### 📅 Credential broker — sanctioned vault→process piping
+
+When the harness operates a deployed service (SSH, `sudo`, remote DB), the credential must reach the process **without ever entering the assistant's context, transcript, or memory.** A broker reads a named secret from the secrets dir and pipes it to the STDIN of a strictly-constrained sink (allowlisted host + closed verb allowlist), behind the ask-gate, with an append-only audit log — value never printed, never in argv, never returned. Proven in the author's harness; generalise the host/verb allowlist for the public release. Closes the "how does an autonomous harness run privileged ops safely" gap that the write-path allowlist (for writes) leaves open for credential-bearing actions.
+
 ---
 
 ## Medium-term (3-6 months)
@@ -69,6 +73,14 @@ Once public, the README is the recruitment doc. Currently emphasises capability 
 EU AI Act Article 19 requires 6-month log retention; Charon ships `skill-usage-log.py` (a fact, not a tamper-evident ledger linked to governance rationales) 🟡. Field has consolidated to six observability platforms in 2026 (LangSmith, Langfuse, Arize Phoenix, Helicone-now-maintenance-mode, Datadog LLM, Honeycomb LLM). Self-hosted Langfuse fits the on-device discipline. Capability adds: trace every LLM call across hooks + skills, replay a session against a new model to detect behaviour drift, surface anomaly patterns (token-burn spikes, unusual tool dispatch).
 
 **Sources:** https://www.digitalapplied.com/blog/agent-observability-platforms-langsmith-langfuse-arize-2026 🟡 · https://dev.to/arkforge-ceo/the-audit-trail-paradox-why-your-llm-logs-aren-t-proof-1c21 🟡
+
+### 📅 Self-healing harness watch (verdict-gated)
+
+The lightweight, local-first sibling of the observability item above. Charon already ships the **verdict vocabulary** (`allow`/`deny`/`ask`/`observe` + `monitor` mode) and the `harness-watch-review` skill; the forward arc completes a self-healing loop: a scheduled **watch routine** reads the harness's own health signals (token-cache age, capture freshness, TODO freshness, auth-expiry flags, audit anomalies) and surfaces drift; validated signals graduate `observe → ask` after a shadow window; later, **bounded auto-recovery** writes (re-auth prompts, safe restarts) behind the ask-gate. Phased so each signal earns trust before it can act. Distinct from the Langfuse item: that's heavyweight LLM-call tracing/replay; this is cheap local harness-health self-monitoring.
+
+### 📅 Evidence-graded findings across the review skills
+
+Cerberus already grades every finding `validation_status: theoretical | partial | validated` — nothing claims `validated` without a proof-of-concept. Extend the same discipline to `/secure-code-review` + `/owasp-{llm,agentic}-review`: a 🔴 should carry a **reproduction**, not just a `file:line` citation, before it blocks a merge. Raises the bar from "cite the line" to "show it's real" — the defensive mirror of the Artemis proof-by-exploitation principle, and a natural tightening of the existing `/fp-check` gate.
 
 ### 📅 MITRE ATLAS technique tagging in OWASP review skills
 
@@ -126,11 +138,11 @@ Production pattern is dual-gate: 20-50ms fast classifier (Llama Prompt Guard 2 8
 
 **Source:** https://github.com/NVIDIA-NeMo/Guardrails 🟡
 
-### 💡 Red-team automation (DeepTeam / PyRIT / Garak)
+### 💡 Artemis — adversarial validation seat (offensive counterpart to Cerberus)
 
-Charon's test suite is 16 LLM-behaviour scenarios + 19 deterministic checks — handwritten, single-shot. SOTA is automated adversarial probing: DeepTeam / PyRIT / Garak running ATLAS techniques as continuous test cases against the harness. Heavy lift but unique value for a security-positioned harness — "this is the only second-brain harness with automated agentic red-teaming."
+Cerberus is the defensive security seat — it inspects, scores, and reports. **Artemis** is its offensive counterpart: a standing seat that **proves** a risk is real rather than only flagging it — white-box (source-guided) adversarial validation that hunts attack paths and demonstrates them by exploitation in an ephemeral sandbox, then reports only findings backed by a working proof-of-concept. Pipeline shape: recon → parallel vuln-class probes → exploit → evidence-graded report.
 
-**Source:** https://www.trydeepteam.com/docs/frameworks-introduction 🟡
+**Load-bearing constraint — this is offensive capability, so it ships behind enforced guardrails, not docs:** every engagement runs against an explicit **Rules-of-Engagement allowlist** (authorised targets only, non-prod, written authorisation), behind the harness ask-gate, in a disposable sandbox. Artemis is a legal/authorisation artefact first — adoption routes through the user's own authorisation path, never a quiet install. Heavy lift + governance-gated; the unique-value claim is "a personal harness with a *gated, evidence-first* offensive seat, not just defensive review." Implementation is ours; no third-party offensive code vendored.
 
 ### 💡 Calendar / email native beyond M365
 
