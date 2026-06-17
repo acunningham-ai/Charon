@@ -201,7 +201,7 @@ Honest about the gaps. Charon's current bet is opinionated discipline + security
 - **No vision capture beyond opaque VLM input.** `/capture-screenshot` exists but doesn't structure-extract (no OCR / table / chart parsing yet — VLM-based extraction patterns like DeepSeek-OCR are on the roadmap).
 - **No observability + replay layer.** `skill-usage-log.py` writes events but there's no tamper-evident ledger, session trace, or replay capability (Langfuse-style self-hosted observability is on the roadmap; relevant to EU AI Act Article 19 audit-trail retention).
 - **Not in a plugin marketplace yet.** Installable via clone + bootstrap, not via a single `claude install` command. Marketplace packaging is near-term.
-- **Test suite is single-shot, not adversarial.** 16 LLM-behaviour scenarios + 19 deterministic checks; no automated red-team probing (DeepTeam / PyRIT / Garak) yet.
+- **Test suite is single-shot, not adversarial.** 16 LLM-behaviour scenarios + 19 deterministic checks; no automated adversarial validation yet — **Artemis**, the offensive/adversarial-validation seat (the counterpart to the defensive Cerberus), is on the roadmap, RoE-gated.
 - **Gmail and IMAP capture-pipeline providers are skeleton-only.** M365 ships fully working (device-code OAuth, inbox + sent, cursor-based incremental). Gmail and IMAP have the interface defined and setup docs written, but the `auth() / fetchInbox() / fetchSent()` methods throw `NOT_IMPLEMENTED` until a contributor (you, or an upstream PR) fills them in. Estimated half-day per provider.
 
 See [`ROADMAP.md`](ROADMAP.md) for what's coming next and what won't ship.
