@@ -21,7 +21,7 @@ Where Charon is going. Status, rationale, and what isn't on the list.
 - ✅ Test suite — 16 LLM-behaviour scenarios + 19 automated deterministic checks
 - ✅ ASCII trademark logo banner with auto-detect by terminal width
 - ✅ **Local semantic search** — sentence-transformers + bge-micro-v2 (~80MB) + sqlite-vec; `semantic_search` MCP tool in `vault-readonly`; on-demand indexer at `scripts/semantic_index.py`
-- ✅ **Knowledge graph** — kuzu-backed `vault-graph` MCP server with `get_entity` / `query_graph` / `stats` tools; Haiku-driven extraction at `scripts/extract_entities.py`; closed entity-type + relationship-type vocabulary (C-3.1)
+- ✅ **Knowledge graph** — networkx-backed `vault-graph` MCP server (read-only) with `get_entity` / `stats` tools; Haiku-driven extraction at `scripts/extract_entities.py`; closed entity-type + relationship-type vocabulary (C-3.1)
 - ✅ **Multi-agent / subagents** — 7 agents in `.claude/agents/`: 5 review/synthesis subagents (secure-code-reviewer, owasp-llm-reviewer, owasp-agentic-reviewer, knowledge-synthesizer, cerberus) + 2 standing seats (prometheus research, calliope writing); dispatch pattern documented; least-privilege tool grants per agent
 - ✅ **Research → compose pipeline** — `/prometheus` (research seat + ledger + newsletter email beat), `/calliope` (writing seat, drafts-only), `/forum-agenda` (recurring-forum feed); first-run `engines` phase seeds beats / senders / forums
 - ✅ **Voice input** — local Whisper transcription via `scripts/voice-capture.py` + `/voice-note` slash command; audio never leaves the machine; transcripts land in `00-Inbox/_captured/voice/` as untrusted content per the captures rule
@@ -64,6 +64,8 @@ Once public, the README is the recruitment doc. Currently emphasises capability 
 
 When the harness operates a deployed service (SSH, `sudo`, remote DB), the credential must reach the process **without ever entering the assistant's context, transcript, or memory.** A broker reads a named secret from the secrets dir and pipes it to the STDIN of a strictly-constrained sink (allowlisted host + closed verb allowlist), behind the ask-gate, with an append-only audit log — value never printed, never in argv, never returned. Proven in the author's harness; generalise the host/verb allowlist for the public release. Closes the "how does an autonomous harness run privileged ops safely" gap that the write-path allowlist (for writes) leaves open for credential-bearing actions.
 
+**Reinforced (2026-06) with a secret-substitution pattern** for the broader case where the harness *acts* on your behalf (mail/calendar/API): a `${keys.NAME}` reference resolves **after** the model emits its action, so the raw secret is never in the model's context, gated by a mandatory per-key destination allowlist. Pattern reimplemented clean from a security evaluation of an agent-UI framework — no third-party code vendored.
+
 ---
 
 ## Medium-term (3-6 months)
@@ -74,11 +76,17 @@ EU AI Act Article 19 requires 6-month log retention; Charon ships `skill-usage-l
 
 **Sources:** https://www.digitalapplied.com/blog/agent-observability-platforms-langsmith-langfuse-arize-2026 🟡 · https://dev.to/arkforge-ceo/the-audit-trail-paradox-why-your-llm-logs-aren-t-proof-1c21 🟡
 
-### 📅 Self-healing harness watch (verdict-gated)
+### 🚧 Self-healing harness watch (verdict-gated)
 
 The lightweight, local-first sibling of the observability item above. Charon already ships the **verdict vocabulary** (`allow`/`deny`/`ask`/`observe` + `monitor` mode) and the `harness-watch-review` skill; the forward arc completes a self-healing loop: a scheduled **watch routine** reads the harness's own health signals (token-cache age, capture freshness, TODO freshness, auth-expiry flags, audit anomalies) and surfaces drift; validated signals graduate `observe → ask` after a shadow window; later, **bounded auto-recovery** writes (re-auth prompts, safe restarts) behind the ask-gate. Phased so each signal earns trust before it can act. Distinct from the Langfuse item: that's heavyweight LLM-call tracing/replay; this is cheap local harness-health self-monitoring.
 
-### 📅 Evidence-graded findings across the review skills
+**Now in progress 🟡** — the watch routine is running a **shadow trial** on the author's harness (observe-only; surfaces what it *would* flag without acting). Auto-recovery stays deferred to two idempotent, post-checkable modes only (re-run a missed capture; re-fire a missed daily refresh) — never credential re-auth, service restarts, or content edits.
+
+### 🚧 Safe self-improvement (verified-signal-only learning)
+
+The counterpart to self-healing: where healing *restores* a known-good state, this *raises the baseline* — the harness learns to keep itself sharp over time. The load-bearing constraint is a **clean-signal gate**: a learning loop may only train on a signal it can **independently verify**, never on its own output (which collapses into self-reinforcing error). First prototype is live on the author's harness — it watches a fully deterministic signal (the harness's own hygiene audit, which can't lie because it's checked against the filesystem), learns which problems *recur*, and proposes a structural fix; whether the fix worked is confirmed by the same deterministic signal, not by the model's say-so. Proves the loop on an unimpeachable signal before it's pointed at anything softer. 🟡
+
+**Source / rationale:** 2026 research that LLMs can't reliably self-correct without external verification, and that training on unverified/own output drives model collapse — so "no clean signal, no learning loop."
 
 Cerberus already grades every finding `validation_status: theoretical | partial | validated` — nothing claims `validated` without a proof-of-concept. Extend the same discipline to `/secure-code-review` + `/owasp-{llm,agentic}-review`: a 🔴 should carry a **reproduction**, not just a `file:line` citation, before it blocks a merge. Raises the bar from "cite the line" to "show it's real" — the defensive mirror of the Artemis proof-by-exploitation principle, and a natural tightening of the existing `/fp-check` gate.
 
