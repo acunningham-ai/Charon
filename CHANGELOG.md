@@ -4,6 +4,12 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+*Nothing pending — next change lands here.*
+
+---
+
+## [0.11.0] - 2026-06-26
+
 ### Added — Graph link-backfill (`/graph-backfill`): write the derived graph back into your notes
 
 Charon builds a rich derived knowledge graph (`extract_entities.py`) and can browse it (`vault-graph` MCP, the HTML viewer, `/vault-query`) — but Obsidian's own graph view only ever drew the `[[wikilinks]]` physically present in note bodies, which authored notes rarely have. The two graphs never converged: the web existed, but you couldn't see it in Obsidian.
@@ -22,6 +28,14 @@ The knowledge graph previously stored data in an embedded graph database (kuzu).
 - **All consumers migrated off raw Cypher** to the shared graph API: `extract_entities.py` (writes, now persists via `conn.save()`), `vault_query.py`, `lib/communities.py`, `vault_graph_html.py`, `graph_link_backfill.py`, and the `vault-graph` MCP server.
 - **The MCP server is now read-only by construction.** The free-form `query_graph` Cypher passthrough is removed (no query engine under networkx); `get_entity` + `stats` now open the graph through a frozen, `.save()`-raising read-only connection, so no mutation surface is exposed via MCP at all.
 - *Why it matters:* the graph stack was non-functional on Python 3.14 and carried a native dependency that had to be sourced per platform. It is now verified working end-to-end (build → cluster → HTML → query → backfill) on Python 3.14 with a single pure-Python dependency, and the 19/19 deterministic checks still pass.
+
+### Security — Hardened the no-personal-content scrub (D5)
+
+A pre-release sweep found the D5 personal-content scrub had two blind spots that let author/organisation references slip into shipped files: it matched the author's *full* name but not the bare first name in prose, and several patterns were case-sensitive (so "Vela" slipped past a lowercase `vela` rule).
+
+- **Added a bare author-first-name pattern**, allowlisted to the copyright/attribution files and the immutable CHANGELOG.
+- **Matching is now case-insensitive**, with the genuinely ambiguous common-word patterns (portfolio names, EDR-vendor name) pinned case-sensitive via `(?-i:…)` so they don't false-positive on legitimate security signatures or English prose.
+- Caught and removed real prose leaks across six files in the process. *Why it matters:* the scrub is the automated gate that keeps author/organisation specifics out of a public repo; the blind spots meant it could pass while leaks shipped.
 
 ---
 
@@ -742,7 +756,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.10.2...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.11.0
 [0.10.2]: https://github.com/acunningham-ai/Charon/releases/tag/v0.10.2
 [0.10.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.10.1
 [0.10.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.10.0

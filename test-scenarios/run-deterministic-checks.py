@@ -74,7 +74,9 @@ PERSONAL_PATTERNS = [
     (r"\bvelaapx\b", "Vela company name", "FAIL", []),
     (r"\bMagentus\b", "Magentus reference", "FAIL", []),
     (r"\bAccredo\b", "Accredo BU name", "FAIL", []),
-    (r"\b(Argo|Atlas|Centaurus)\b(?!\s+Pipeline)", "Vela portfolio name", "FAIL", []),
+    # Case-sensitive (?-i:) — these are also common English / product words
+    # ("atlas", "argo CD"); matching them case-insensitively would false-positive.
+    (r"(?-i:\b(Argo|Atlas|Centaurus)\b)(?!\s+Pipeline)", "Vela portfolio name", "FAIL", []),
     (r"\bSchmutter\b", "personnel name", "FAIL", []),
     (r"\bKaren Chung\b", "personnel name", "FAIL", []),
     (r"\bRaj Gurusinghe\b", "personnel name", "FAIL", []),
@@ -101,7 +103,9 @@ PERSONAL_PATTERNS = [
     # tree alongside the rest of the harness.
     (r"\bWardgate\b", "Wardgate reference", "FAIL", []),
     (r"\bPlaud\b", "Plaud reference", "FAIL", []),
-    (r"\bCrowdStrike\b", "CrowdStrike reference", "FAIL", []),
+    # Case-sensitive (?-i:) — "crowdstrike" appears lowercase in Cerberus's own
+    # EDR-vendor detection signatures (legit security content, not a Vela ref).
+    (r"(?-i:\bCrowdStrike\b)", "CrowdStrike reference", "FAIL", []),
     (r"\bConnX\b", "ConnX reference", "FAIL", []),
     (r"\bTurso\b", "Turso reference", "FAIL", []),
     (r"\bQSR\b", "QSR shorthand", "FAIL", []),
@@ -122,6 +126,7 @@ SCRUB_SKIP_GLOBS = [
     ".git/**",
     "test-scenarios/run-deterministic-checks.py",  # contains the patterns themselves
     "scripts/lib/charon-logo.txt",                  # ASCII art may match arbitrary chars
+    "CHANGELOG.md",                                 # immutable published release history
 ]
 
 
@@ -330,7 +335,7 @@ def check_personal_content_scrub() -> CheckResult:
             for pattern, label, _severity, allowlist in PERSONAL_PATTERNS:
                 if rel in allowlist:
                     continue
-                m = re.search(pattern, content)
+                m = re.search(pattern, content, re.IGNORECASE)
                 if m:
                     # Find line number
                     line_no = content[:m.start()].count("\n") + 1
