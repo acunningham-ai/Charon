@@ -1,6 +1,6 @@
 """vault_query.py — natural-language graph queries over the Charon vault graph.
 
-Three operations, all over the kuzu vault graph (loaded into networkx
+Three operations, all over the vault graph (networkx-backed, loaded
 for traversal):
 
 - ``neighbours``  — BFS/DFS around a starting entity to a given depth
@@ -19,7 +19,7 @@ base — instead of constructing queries, you ask questions. Charon's
 existing MCP server exposes raw entity lookups; this layer adds the
 traversal primitive on top.
 
-Optional deps (same as community detection): kuzu + networkx via
+Optional deps (same as community detection): networkx via
 ``requirements-graph.txt``. Graceful degradation when missing.
 """
 
@@ -36,7 +36,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lib.communities import (  # noqa: E402
     networkx_is_available,
 )
-from lib.graph import graph_path, is_available as kuzu_is_available, normalise_name  # noqa: E402
+from lib.graph import graph_path, is_available as graph_backend_available, normalise_name  # noqa: E402
 
 
 # ---------- Data shapes ----------
@@ -56,7 +56,7 @@ class EntityHit:
 # ---------- Availability ----------
 
 def query_available() -> Tuple[bool, str]:
-    ok, reason = kuzu_is_available()
+    ok, reason = graph_backend_available()
     if not ok:
         return False, reason
     ok, reason = networkx_is_available()
@@ -67,7 +67,7 @@ def query_available() -> Tuple[bool, str]:
     return True, ""
 
 
-# ---------- Kuzu → networkx (directed, for path semantics) ----------
+# ---------- Load into networkx (directed, for path semantics) ----------
 
 def load_graph():
     """Load the vault graph as a directed networkx graph (preserves edge direction)."""
@@ -75,29 +75,21 @@ def load_graph():
     if not ok:
         raise RuntimeError(f"vault-query unavailable: {reason}")
 
-    import kuzu
     import networkx as nx
+    from lib.graph import load_nx
 
-    g = nx.DiGraph()
-    db = kuzu.Database(str(graph_path()))
-    conn = kuzu.Connection(db)
-
-    res = conn.execute("MATCH (e:Entity) RETURN e.name, e.entity_type, e.display_name")
-    while res.has_next():
-        row = res.get_next()
-        g.add_node(row[0], entity_type=row[1], display_name=row[2] or row[0])
-
-    res = conn.execute(
-        "MATCH (a:Entity)-[r:Mentions]->(b:Entity) "
-        "RETURN a.name, b.name, r.relationship, r.confidence, r.source_file"
-    )
-    while res.has_next():
-        row = res.get_next()
+    multi = load_nx()  # MultiDiGraph
+    g = nx.DiGraph()   # collapse to DiGraph (last edge per pair wins) — matches
+                       # the original load contract this function had
+    for n, data in multi.nodes(data=True):
+        g.add_node(n, entity_type=data.get("entity_type"),
+                   display_name=data.get("display_name") or n)
+    for u, v, d in multi.edges(data=True):
         g.add_edge(
-            row[0], row[1],
-            relationship=row[2],
-            confidence=float(row[3] or 1.0),
-            source_file=row[4] or "",
+            u, v,
+            relationship=d.get("relationship"),
+            confidence=float(d.get("confidence", 1.0) or 1.0),
+            source_file=d.get("source_file", ""),
         )
     return g
 

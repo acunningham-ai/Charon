@@ -42,11 +42,10 @@ Before running anything, verify the graph is available:
 python scripts/vault_query.py search _check_ 2>&1 | head -3
 ```
 
-If output starts with `vault-query unavailable:`, surface the reason to Adam and stop. Common reasons:
+If output starts with `vault-query unavailable:`, surface the reason to the user and stop. Common reasons:
 
-- `kuzu not installed` → tell Adam to run `pip install -r requirements-graph.txt`
-- `networkx not installed` → same
-- `vault graph not found` → tell Adam to run `python scripts/extract_entities.py` first
+- `networkx not installed` → tell the user to run `pip install -r requirements-graph.txt`
+- `vault graph not found` → tell the user to run `python scripts/extract_entities.py` first
 
 ### 2. Parse the user's question into entity names
 
@@ -55,7 +54,7 @@ The user will say things like *"how is &lt;person&gt; connected to the &lt;proje
 Strategy:
 - Pull the proper nouns / project names / titles out of the user's message
 - If you're unsure of the exact match, run `vault_query.py search <fragment>` first
-- Confirm the match with Adam before proceeding if it's ambiguous
+- Confirm the match with the user before proceeding if it's ambiguous
 
 ### 3. Run the right subcommand
 
@@ -77,11 +76,11 @@ Don't just dump the JSON. Synthesise it into a paragraph + supporting list. For 
 >
 > At depth 2 the graph reaches: *(... summarise the secondary cluster ...)*
 
-Include file:line provenance from the `edge.source_file` field whenever you mention a relationship — that's how Adam audits the answer.
+Include file:line provenance from the `edge.source_file` field whenever you mention a relationship — that's how the user audits the answer.
 
 ### 5. If the answer is "no path / no neighbours / nothing found"
 
-Be honest about it. Don't invent connections. Tell Adam:
+Be honest about it. Don't invent connections. Tell the user:
 
 > The graph has no path between *X* and *Y*. They live in different communities according to the current extraction. If you expect them to be connected, the extractor may have missed a relationship — run `python scripts/extract_entities.py --paths <relevant-files.md>` to re-extract those files.
 

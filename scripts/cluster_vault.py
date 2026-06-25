@@ -7,8 +7,8 @@ Usage::
     python scripts/cluster_vault.py --resolution 1.5   # smaller communities
     python scripts/cluster_vault.py --resolution 0.7   # larger communities
 
-Requires the optional kuzu + networkx deps (``pip install -r requirements-graph.txt``).
-If either is missing or the vault graph file doesn't exist, prints a clear error
+Requires the optional networkx dep (``pip install -r requirements-graph.txt``).
+If it is missing or the vault graph file doesn't exist, prints a clear error
 and exits non-zero.
 """
 
@@ -76,7 +76,7 @@ def main() -> int:
         sys.stderr.write(f"communities unavailable: {reason}\n")
         return 1
 
-    print(f"Running Louvain over {communities_path().parent / 'knowledge-graph.kuzu'}...")
+    print(f"Running Louvain over {communities_path().parent / 'knowledge-graph.json'}...")
     communities = detect_communities(seed=args.seed, resolution=args.resolution)
     if not communities:
         print("No nodes in the graph — run `python scripts/extract_entities.py` first.")

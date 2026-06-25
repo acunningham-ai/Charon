@@ -295,7 +295,7 @@ No code changes needed — the manifest is the user-extension point.
 
 ## Vault graph operations (v0.8.0+)
 
-The vault knowledge graph (Kuzu-backed, populated by `scripts/extract_entities.py`) now supports four user-facing operations beyond the original MCP query layer. All four are opt-in — they require the `kuzu` + `networkx` deps from `requirements-graph.txt`.
+The vault knowledge graph (networkx-backed, populated by `scripts/extract_entities.py`) now supports four user-facing operations beyond the original MCP query layer. All four are opt-in — they require the `networkx` dep from `requirements-graph.txt`.
 
 ### Community detection
 

@@ -4,7 +4,24 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
-*Nothing pending — next change lands here.*
+### Added — Graph link-backfill (`/graph-backfill`): write the derived graph back into your notes
+
+Charon builds a rich derived knowledge graph (`extract_entities.py`) and can browse it (`vault-graph` MCP, the HTML viewer, `/vault-query`) — but Obsidian's own graph view only ever drew the `[[wikilinks]]` physically present in note bodies, which authored notes rarely have. The two graphs never converged: the web existed, but you couldn't see it in Obsidian.
+
+- **New capability `scripts/graph_link_backfill.py` + `/graph-backfill` command.** For each note, it appends a marker-delimited `## Related` footer of `[[wikilinks]]` to the entities that note connects to in the derived graph. Now the final stage of the graph-build sequence: `extract_entities → cluster_vault → vault_graph_html → graph_link_backfill`, so a freshly built/refreshed graph leaves the notes link-rich out of the box.
+- **Footer-only and idempotent.** Prose is never touched — only the block between `<!-- graph-backfill:start/end -->`. Re-runs replace the block (verified idempotent); a note whose edges are gone has its stale block removed.
+- **Generic scope, no folder taxonomy assumed.** Every note with edges is in scope, except untrusted captured content (frontmatter `trust: untrusted`), templates, dotfile dirs, and any `CLAUDE.md`. Capture exclusion keys off the `trust` marker (content, not path) so it works on any vault shape.
+- **Two quality guards baked in:** drops file-artifact targets (`*.py`, `*.json`, path-like names) that pollute the graph as faded nodes (`--keep-fileish` to override), and merges duplicate `source_file` keys that resolve to the same physical note (case variants on case-insensitive filesystems, stale paths from a note moving folder) so the richer link set wins instead of being clobbered.
+- **Dry-run by default;** `--apply` writes. *Why it matters:* the graph's value was locked inside an MCP/HTML surface most users won't open daily — backfilling into the notes surfaces it in the tool they already live in, and "from install" means it's wired into the standard graph build rather than a thing you have to discover.
+
+### Changed — Knowledge-graph backend: embedded graph DB → networkx (pure-Python)
+
+The knowledge graph previously stored data in an embedded graph database (kuzu). That package ships **no wheel for newer Python versions** — on Python 3.14 it can't install at all, which silently disabled the *entire* graph capability (extraction, MCP, HTML viewer, `/vault-query`, and the new backfill) for any user on a current interpreter.
+
+- **`scripts/lib/graph.py` is now networkx-backed**, persisting the graph as plain JSON at `.charon/knowledge-graph.json`. networkx is pure-Python (MIT) with no compiled extensions, so the graph installs and runs on any platform / Python version. networkx was already a dependency (it powered clustering + traversal), so this *removes* a dependency rather than adding one.
+- **All consumers migrated off raw Cypher** to the shared graph API: `extract_entities.py` (writes, now persists via `conn.save()`), `vault_query.py`, `lib/communities.py`, `vault_graph_html.py`, `graph_link_backfill.py`, and the `vault-graph` MCP server.
+- **The MCP server is now read-only by construction.** The free-form `query_graph` Cypher passthrough is removed (no query engine under networkx); `get_entity` + `stats` now open the graph through a frozen, `.save()`-raising read-only connection, so no mutation surface is exposed via MCP at all.
+- *Why it matters:* the graph stack was non-functional on Python 3.14 and carried a native dependency that had to be sourced per platform. It is now verified working end-to-end (build → cluster → HTML → query → backfill) on Python 3.14 with a single pure-Python dependency, and the 19/19 deterministic checks still pass.
 
 ---
 

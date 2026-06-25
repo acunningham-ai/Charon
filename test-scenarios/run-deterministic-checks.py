@@ -96,8 +96,8 @@ PERSONAL_PATTERNS = [
     (r"\bMark Clearwater\b", "personnel name", "FAIL", []),
     (r"Payroll\s+Bot", "Payroll Bot reference", "FAIL", []),
     # Cerberus — now a shipping capability in Charon (v0.3.0-preview, 2026-05-25)
-    # Previously excluded; the proprietary fork concern was resolved when Adam released
-    # the engine under MIT with Vela approval. The capability ships from the .claude/
+    # Previously excluded; the proprietary fork concern was resolved when the author
+    # released the engine under MIT. The capability ships from the .claude/
     # tree alongside the rest of the harness.
     (r"\bWardgate\b", "Wardgate reference", "FAIL", []),
     (r"\bPlaud\b", "Plaud reference", "FAIL", []),
@@ -107,6 +107,11 @@ PERSONAL_PATTERNS = [
     (r"\bQSR\b", "QSR shorthand", "FAIL", []),
     # Adam-personal — name allowed only in LICENSE
     (r"Adam Cunningham", "author name outside LICENSE", "FAIL", ["LICENSE"]),
+    # Author first name in prose ("Adam wants…", "Adam's vault") — the class of
+    # leak that slipped past the full-name check. Allowed only in the copyright /
+    # attribution files and the immutable CHANGELOG history.
+    (r"\bAdam\b", "author first-name leak (prose)", "FAIL",
+     ["LICENSE", "NOTICE", "scripts/lib/banner.py", "CHANGELOG.md"]),
     # Adam-personal paths
     (r"AdamCunningham", "user-path leak", "FAIL", []),
     (r"OneDrive - Vela", "OneDrive path leak", "FAIL", []),
@@ -650,7 +655,7 @@ def check_vault_wiki_generation() -> CheckResult:
 
 
 def check_vault_query_traversal() -> CheckResult:
-    """Test BFS / shortest-path / explain over a synthetic graph (no Kuzu)."""
+    """Test BFS / shortest-path / explain over a synthetic graph (no backend needed)."""
     try:
         result = subprocess.run(
             [sys.executable, "-c",
@@ -712,7 +717,7 @@ def check_vault_graph_html() -> CheckResult:
 
 
 def check_community_detection() -> CheckResult:
-    """Louvain community detection over a synthetic graph (no Kuzu required)."""
+    """Louvain community detection over a synthetic graph (no backend required)."""
     try:
         result = subprocess.run(
             [sys.executable, "-c",

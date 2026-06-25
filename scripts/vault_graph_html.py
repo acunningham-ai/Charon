@@ -1,6 +1,6 @@
 """vault_graph_html.py — interactive HTML graph viewer over the vault graph.
 
-Reads the kuzu vault graph + the optional ``graph-communities.json``
+Reads the networkx vault graph + the optional ``graph-communities.json``
 written by ``scripts/cluster_vault.py``, emits a single self-contained
 ``graph.html`` you can open in any browser. Nodes are coloured by
 community, sized by degree centrality, filterable by entity type,
@@ -38,7 +38,7 @@ from lib.communities import (  # noqa: E402
     networkx_is_available,
     read_communities,
 )
-from lib.graph import graph_path, is_available as kuzu_is_available  # noqa: E402
+from lib.graph import graph_path, is_available as graph_backend_available, load_nx  # noqa: E402
 from lib.harness_paths import vault_root  # noqa: E402
 
 
@@ -102,18 +102,18 @@ def generate_html_from_data(
     return _html_template(payload)
 
 
-def generate_html_from_kuzu(output_path: Optional[Path] = None) -> Tuple[bool, str]:
-    """Read kuzu graph + communities, emit HTML. Returns (ok, message)."""
+def generate_html_from_graph(output_path: Optional[Path] = None) -> Tuple[bool, str]:
+    """Read the graph + communities, emit HTML. Returns (ok, message)."""
     if output_path is None:
         output_path = html_output_path()
 
-    ok, reason = kuzu_is_available()
+    ok, reason = graph_backend_available()
     if not ok:
         return False, reason
     if not graph_path().exists():
         return False, f"vault graph not found at {graph_path()} — run `python scripts/extract_entities.py` first"
 
-    nodes, edges = _load_kuzu_graph()
+    nodes, edges = _load_graph()
     if not nodes:
         return False, "vault graph has no entities — nothing to render"
 
@@ -126,31 +126,24 @@ def generate_html_from_kuzu(output_path: Optional[Path] = None) -> Tuple[bool, s
     return True, f"wrote {output_path} ({len(nodes)} nodes, {len(edges)} edges, {len(set(node_to_community.values()))} communities)"
 
 
-# ---------- Kuzu → in-memory ----------
+# ---------- networkx graph → in-memory ----------
 
-def _load_kuzu_graph() -> Tuple[List[dict], List[dict]]:
-    import kuzu
-    db = kuzu.Database(str(graph_path()))
-    conn = kuzu.Connection(db)
-
-    nodes: List[dict] = []
-    res = conn.execute("MATCH (e:Entity) RETURN e.name, e.entity_type, e.display_name")
-    while res.has_next():
-        row = res.get_next()
-        nodes.append({
-            "id": row[0],
-            "label": row[2] or row[0],
-            "entity_type": row[1],
-        })
-
-    edges: List[dict] = []
-    res = conn.execute(
-        "MATCH (a:Entity)-[r:Mentions]->(b:Entity) RETURN a.name, b.name, r.relationship"
-    )
-    while res.has_next():
-        row = res.get_next()
-        edges.append({"from": row[0], "to": row[1], "label": row[2] or ""})
-
+def _load_graph() -> Tuple[List[dict], List[dict]]:
+    """Load nodes + edges from the networkx-backed graph. Emits the node / edge
+    shape generate_html_from_data() expects."""
+    g = load_nx()
+    nodes: List[dict] = [
+        {
+            "id": n,
+            "label": d.get("display_name", n),
+            "entity_type": d.get("entity_type", "concept"),
+        }
+        for n, d in g.nodes(data=True)
+    ]
+    edges: List[dict] = [
+        {"from": u, "to": v, "label": d.get("relationship", "")}
+        for u, v, d in g.edges(data=True)
+    ]
     return nodes, edges
 
 
@@ -349,7 +342,7 @@ def main() -> int:
     args = parser.parse_args()
 
     output_path = args.out if args.out else html_output_path()
-    ok, msg = generate_html_from_kuzu(output_path)
+    ok, msg = generate_html_from_graph(output_path)
     if not ok:
         sys.stderr.write(f"graph HTML generation failed: {msg}\n")
         return 1

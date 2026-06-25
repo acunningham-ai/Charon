@@ -17,7 +17,7 @@ A canned set of prompts and deterministic checks where the right answer is **kno
 - Refuses to fabricate scores
 - Applies doc-layering and audience-tailoring doctrine from path-rules
 
-Distinct from the Adam-Cunningham vault test suite (which was content-coupled to the Vela vault). These scenarios are **content-agnostic** — each scenario provides its own self-contained setup so a fresh validator can run the suite without any pre-existing user content.
+Unlike a vault-coupled test suite (one whose scenarios depend on specific pre-existing notes), these scenarios are **content-agnostic** — each scenario provides its own self-contained setup so a fresh validator can run the suite without any pre-existing user content.
 
 ## Two kinds of test
 
@@ -75,7 +75,7 @@ Per scenario: **PASS / PARTIAL / FAIL**.
 
 ## Release bar
 
-The same bar as the original suite (per Adam's vault `project_oss_release_bar.md`):
+The release bar for the suite:
 
 | Pass rate | Action |
 |---|---|
@@ -115,7 +115,7 @@ When a new failure surfaces in real Charon use, add a scenario for it the same w
 - Test a specific rule or doctrine (cite which in frontmatter).
 - Be evaluable without the author present — the right answer is documented somewhere in the scenario.
 - Stay focused on a single failure mode (don't bundle multiple).
-- Be content-agnostic — no Vela / no Adam-personal references. If the scenario needs setup files, they should describe what kind of file to place, not reference any real organisation.
+- Be content-agnostic — no organisation-specific or author-personal references. If the scenario needs setup files, they should describe what kind of file to place, not reference any real organisation.
 
 When a scenario passes reliably ≥3 consecutive runs, consider whether the failure mode is genuinely closed or whether the scenario has become too easy. If the latter, sharpen the scenario.
 

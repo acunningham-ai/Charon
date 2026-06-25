@@ -4,7 +4,6 @@
 # Or via first-run wizard ("Enable knowledge graph?").
 #
 # What ships when this is installed:
-#   - kuzu embedded graph database (single binary, no server)
 #   - The vault-graph MCP server becomes available
 #   - The scripts/extract_entities.py extraction pipeline runs on memory writes
 #   - Entities + relationships are extracted from new memory / captured files
@@ -12,13 +11,15 @@
 # Without this installed, vault-graph MCP tools return "knowledge graph not
 # enabled" and the extraction hook silently skips.
 
-# kuzu — embedded graph database with Cypher-like queries. Production-ready.
-kuzu>=0.6.0
-
-# networkx — pure-Python graph algorithms (Louvain community detection,
-# BFS/DFS traversal, centrality measures). Used by:
-#   - scripts/lib/communities.py     — vault-graph community detection
-#   - scripts/vault_graph_html.py    — interactive HTML graph viewer
-#   - scripts/vault_query.py         — natural-language BFS/DFS over the graph
-# Pure Python, MIT, no compiled extensions for these operations.
+# networkx — pure-Python graph backend + algorithms. Stores the graph (as JSON),
+# and powers Louvain community detection, BFS/DFS traversal, and centrality.
+# Used by:
+#   - scripts/lib/graph.py            — the graph store + read/write core
+#   - scripts/lib/communities.py      — vault-graph community detection
+#   - scripts/vault_graph_html.py     — interactive HTML graph viewer
+#   - scripts/vault_query.py          — natural-language BFS/DFS over the graph
+#   - scripts/graph_link_backfill.py  — write graph edges back into notes
+# Pure Python, MIT, no compiled extensions — installs on any platform / Python
+# version with no native wheel to source. (Replaced the previous embedded
+# graph DB, which had no wheel for newer Python versions.)
 networkx>=3.0

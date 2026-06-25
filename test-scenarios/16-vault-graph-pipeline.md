@@ -8,23 +8,23 @@ setup_required: yes
 
 # 16 — v0.8.0 vault graph pipeline end-to-end
 
-Tests that the v0.8.0 vault-graph improvements compose correctly: cluster the existing vault graph, generate an interactive HTML viewer, run a natural-language query, and (optionally) write per-community wiki docs. Skipped on installs without the optional `kuzu + networkx` deps; gracefully reports the prereq when absent.
+Tests that the v0.8.0 vault-graph improvements compose correctly: cluster the existing vault graph, generate an interactive HTML viewer, run a natural-language query, and (optionally) write per-community wiki docs. Skipped on installs without the optional `networkx` dep; gracefully reports the prereq when absent.
 
 ## Setup
 
-Confirm the optional deps are installed:
+Confirm the optional dep is installed:
 
 ```bash
-python -c "import kuzu; import networkx; print('kuzu', kuzu.__version__, '/ networkx', networkx.__version__)"
+python -c "import networkx; print('networkx', networkx.__version__)"
 ```
 
-If either is missing, install:
+If it is missing, install:
 
 ```bash
 pip install -r requirements-graph.txt
 ```
 
-The vault graph must already have content. If `<vault>/.charon/knowledge-graph.kuzu` doesn't exist yet, populate via:
+The vault graph must already have content. If `<vault>/.charon/knowledge-graph.json` doesn't exist yet, populate via:
 
 ```bash
 python scripts/extract_entities.py
@@ -42,17 +42,17 @@ python scripts/extract_entities.py
    - Output mentions Louvain, the community count, the size distribution, and the file written (`<vault>/.charon/graph-communities.json`).
 2. The assistant invokes `python scripts/vault_graph_html.py` next.
    - Output reports the number of nodes / edges / communities written and the path: `<vault>/.charon/graph.html`.
-   - The assistant offers Adam the `file://` URL to open in a browser.
+   - The assistant offers the user the `file://` URL to open in a browser.
 3. The assistant runs `python scripts/vault_query.py explain "<entity-name>"`.
    - Output shows the entity's neighbours with `→` (outgoing) / `←` (incoming) arrows and relationship labels.
-4. Optionally — if Adam asks for the wiki summary too — the assistant runs `python scripts/vault_wiki.py plan` first to show what would be written, then `vault_wiki.py generate` if confirmed.
+4. Optionally — if the user asks for the wiki summary too — the assistant runs `python scripts/vault_wiki.py plan` first to show what would be written, then `vault_wiki.py generate` if confirmed.
 
 ## Anti-patterns to flag
 
 - Running `vault_query.py explain` BEFORE the graph has been populated → should fail with "vault graph not found" message and a clear pointer to `extract_entities.py`.
 - Skipping `cluster_vault.py` and trying to open `graph.html` straight away — viewer works but communities won't be coloured.
 - Invoking an LLM to "guess" connections instead of using the actual graph traversal.
-- Modifying the graph from any of these scripts. All four are read-only on the kuzu file (only `cluster_vault.py` writes to `.charon/graph-communities.json`; only `vault_wiki.py generate` writes to `07-References/communities/`).
+- Modifying the graph from any of these scripts. All four are read-only on the graph file (only `cluster_vault.py` writes to `.charon/graph-communities.json`; only `vault_wiki.py generate` writes to `07-References/communities/`).
 
 ## What's checked
 

@@ -165,7 +165,9 @@ Local stdio MCP servers exposed to Claude Code.
 
 ### `vault-graph` — read-only (optional)
 
-Knowledge-graph MCP backed by [kuzu](https://kuzudb.com/). Populated by `scripts/extract_entities.py`. Requires `requirements-graph.txt`. Fails gracefully if the dep or graph file is missing.
+Knowledge-graph MCP, networkx-backed (graph stored as JSON; no native deps). Populated by `scripts/extract_entities.py`. Read-only by construction — `get_entity` + `stats`, no free-form query passthrough. Requires `requirements-graph.txt`. Fails gracefully if the dep or graph file is missing.
+
+The graph also feeds the notes themselves: `/graph-backfill` (final stage of the graph build) writes the derived edges back into each note as a delimited `## Related` [[wikilink]] footer, so Obsidian's native graph view reflects the real entity web — not just the few links authored by hand. Footer-only and idempotent.
 
 | Tool | What |
 |---|---|
@@ -233,6 +235,7 @@ You invoke these directly.
 | **load-rules.py** | The UserPromptSubmit rule loader |
 | **semantic_index.py** | Build / refresh the local semantic-search index. Incremental by default; `--rebuild` wipes and re-embeds; `--stats` prints index health. Requires `requirements-semantic.txt`. |
 | **extract_entities.py** | Extract entities + relationships into the knowledge graph via Haiku. Incremental by default; `--rebuild`, `--stats`, `--paths` flags. Requires `requirements-graph.txt` + Anthropic API key. |
+| **graph_link_backfill.py** | Materialise graph edges as `## Related` [[wikilink]] footers in notes so Obsidian's graph view reflects the real web. Final stage of the graph build. Footer-only, idempotent; dry-run by default, `--apply` to write. Exposed as `/graph-backfill`. Requires `requirements-graph.txt` + a populated graph. |
 | **voice-capture.py** | Record from microphone, transcribe locally via Whisper, land transcript in `00-Inbox/_captured/voice/`. Invoked by `/voice-note`. Requires `requirements-voice.txt`. |
 
 ## Settings + config

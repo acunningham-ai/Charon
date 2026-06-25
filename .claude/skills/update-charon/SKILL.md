@@ -122,6 +122,6 @@ No code changes needed unless the source needs a brand-new type (e.g. `gitlab-ve
 ## What this skill does NOT do
 
 - **Doesn't auto-commit.** Ever.
-- **Doesn't push.** Adam pushes manually after review.
+- **Doesn't push.** The user pushes manually after review.
 - **Doesn't update the manifest itself.** Adding sources is a deliberate human action.
-- **Doesn't run Cerberus-vet on updated corpora.** That's a separate /cerberus-vet invocation if Adam wants to re-vet after pulling a new SHA.
+- **Doesn't run Cerberus-vet on updated corpora.** That's a separate /cerberus-vet invocation if the user wants to re-vet after pulling a new SHA.

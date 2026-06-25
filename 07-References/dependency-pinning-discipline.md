@@ -55,7 +55,7 @@ Three pinning patterns, in order of preference:
 |---|---|---|
 | **Compatibility-release pin** | Default for stable libraries | `pydantic>=2.11.3,<3` (semver-compatible upgrades, breaks excluded) |
 | **Upper-bound exclusion** | Known compromise window | `litellm>=1.81.1,<1.82.0` (Strix pattern — explicitly excludes 1.82.7/1.82.8) |
-| **Exact pin** | Single-binary tools, reproducibility-critical | `kuzu==0.6.0` (graph DB single-binary; bump deliberately) |
+| **Exact pin** | Single-binary tools, reproducibility-critical | a compiled single-binary extension or embedded DB; bump deliberately |
 
 Avoid:
 - `package>=X` with no upper bound on packages with active maintainers — leaves the door open to the next compromise window
@@ -84,7 +84,7 @@ A manual audit of all manifests was run on 2026-05-25 as part of this document's
 | Manifest | Packages | Compromise hits |
 |---|---|---|
 | `requirements.txt` | PyYAML, anthropic, mcp | None |
-| `requirements-graph.txt` | kuzu | None |
+| `requirements-graph.txt` | networkx | None |
 | `requirements-semantic.txt` | sentence-transformers, sqlite-vec, numpy | None |
 | `requirements-voice.txt` | openai-whisper, sounddevice, scipy | None |
 | `capture-pipeline/package.json` | @azure/msal-node, googleapis, imapflow | None |

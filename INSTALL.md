@@ -109,7 +109,7 @@ The base install stays lean. Features below are opt-in — install only what you
 | Feature | Install | What it gives you |
 |---|---|---|
 | **Semantic search** | `pip install -r requirements-semantic.txt` (sentence-transformers + sqlite-vec + numpy; ~500MB) | The `semantic_search` MCP tool + `scripts/semantic_index.py` |
-| **Knowledge graph** | `pip install -r requirements-graph.txt` (kuzu; ~50MB) + Anthropic API key | The `vault-graph` MCP server + `scripts/extract_entities.py` |
+| **Knowledge graph** | `pip install -r requirements-graph.txt` (networkx; pure-Python, no native deps) + Anthropic API key | The `vault-graph` MCP server + `scripts/extract_entities.py` |
 | **Voice capture** | `pip install -r requirements-voice.txt` (openai-whisper + sounddevice + scipy; ~600MB with Whisper small model) | The `/voice-note` slash command + `scripts/voice-capture.py` |
 
 After installing an optional feature, you may need to build its index (e.g. `python scripts/semantic_index.py` or `python scripts/extract_entities.py`).

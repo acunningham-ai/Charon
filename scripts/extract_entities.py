@@ -2,7 +2,7 @@
 """extract_entities.py — extract entities + relationships from vault files.
 
 Reads vault markdown, calls Haiku to extract structured entities + relationships,
-writes them into the kuzu knowledge graph at `.charon/knowledge-graph.kuzu`.
+writes them into the networkx knowledge graph at `.charon/knowledge-graph.json`.
 
 Usage:
     python scripts/extract_entities.py                # incremental (only changed files)
@@ -11,7 +11,7 @@ Usage:
     python scripts/extract_entities.py --paths a.md b.md
 
 Dependencies (optional — installed via requirements-graph.txt):
-    kuzu
+    networkx
 
 Anthropic API key required (read from <HARNESS_SECRETS_DIR>/anthropic.json).
 Without it, the extractor errors with a clear pointer to FIRST-RUN.md.
@@ -294,6 +294,8 @@ def cmd_extract(rebuild: bool, specific_paths: list[str] | None) -> int:
         extracted_n += n_ent + n_rel
         if n_ent + n_rel:
             print(f"  [{i}/{len(files)}] {rel_path} — {n_ent} entities, {n_rel} relationships")
+
+    conn.save()  # networkx store is in-memory until persisted; write once after the batch
 
     elapsed = time.time() - start
     print()

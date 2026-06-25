@@ -1,11 +1,11 @@
 """communities.py — vault-graph community detection.
 
-Reads the kuzu vault graph, builds an in-memory networkx undirected graph,
+Reads the vault graph, builds an in-memory networkx undirected graph,
 runs Louvain community detection, and writes the resulting node→community
 labels to ``<vault>/.charon/graph-communities.json``.
 
 Why this exists (v0.8.0):
-- Adam's vault accumulates entities (people, projects, captures, decisions)
+- The vault accumulates entities (people, projects, captures, decisions)
   faster than any individual can curate themes from manually.
 - Louvain clustering surfaces **natural communities** in the graph — groups
   of nodes more densely connected to each other than to the rest of the
@@ -15,8 +15,7 @@ Why this exists (v0.8.0):
   and the community-based wiki generator (one summary doc per cluster).
 
 Optional dep stack:
-- ``kuzu`` (requirements-graph.txt) — vault graph storage
-- ``networkx`` (requirements-graph.txt) — Louvain algorithm + graph ops
+- ``networkx`` (requirements-graph.txt) — graph storage + Louvain + graph ops
 
 Graceful degradation when either is missing: returns a clear error tuple
 ``(ok=False, reason=...)`` instead of raising. Callers surface the reason
@@ -30,7 +29,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from .graph import graph_path, is_available as kuzu_is_available
+from .graph import graph_path, is_available as graph_backend_available, load_nx
 from .harness_paths import vault_root
 
 
@@ -53,8 +52,8 @@ def networkx_is_available() -> Tuple[bool, str]:
 
 
 def communities_available() -> Tuple[bool, str]:
-    """Full availability check: kuzu + networkx + a graph file on disk."""
-    ok, reason = kuzu_is_available()
+    """Full availability check: networkx + a graph file on disk."""
+    ok, reason = graph_backend_available()
     if not ok:
         return False, reason
     ok, reason = networkx_is_available()
@@ -65,10 +64,10 @@ def communities_available() -> Tuple[bool, str]:
     return True, ""
 
 
-# ---------- Graph extraction (kuzu → networkx) ----------
+# ---------- Load into networkx (undirected, for clustering) ----------
 
 def load_graph_to_networkx():
-    """Read the kuzu vault graph into an undirected ``networkx.Graph``.
+    """Read the vault graph into an undirected ``networkx.Graph``.
 
     Returns the graph. Raises RuntimeError if the optional deps are missing
     or the graph file isn't on disk — callers should check
@@ -78,33 +77,20 @@ def load_graph_to_networkx():
     if not ok:
         raise RuntimeError(f"communities unavailable: {reason}")
 
-    import kuzu
     import networkx as nx
 
-    g = nx.Graph()
-    db = kuzu.Database(str(graph_path()))
-    conn = kuzu.Connection(db)
-
-    # Pull every entity → node
-    entity_result = conn.execute("MATCH (e:Entity) RETURN e.name, e.entity_type, e.display_name")
-    while entity_result.has_next():
-        row = entity_result.get_next()
-        name, etype, display = row[0], row[1], row[2]
-        g.add_node(name, entity_type=etype, display_name=display)
-
-    # Pull every relationship → edge (undirected for clustering)
-    rel_result = conn.execute(
-        "MATCH (a:Entity)-[r:Mentions]->(b:Entity) "
-        "RETURN a.name, b.name, r.relationship, r.confidence"
-    )
-    while rel_result.has_next():
-        row = rel_result.get_next()
-        a, b, rel, conf = row[0], row[1], row[2], row[3]
+    src = load_nx()  # MultiDiGraph (entities + directed Mentions edges)
+    g = nx.Graph()   # undirected, weighted — for Louvain
+    for name, data in src.nodes(data=True):
+        g.add_node(name, entity_type=data.get("entity_type"),
+                   display_name=data.get("display_name", name))
+    for a, b, d in src.edges(data=True):
+        conf = float(d.get("confidence", 1.0) or 1.0)
         # Aggregate parallel edges: bump weight rather than overwrite
         if g.has_edge(a, b):
-            g[a][b]["weight"] += float(conf or 1.0)
+            g[a][b]["weight"] += conf
         else:
-            g.add_edge(a, b, weight=float(conf or 1.0), relationship=rel)
+            g.add_edge(a, b, weight=conf, relationship=d.get("relationship"))
 
     return g
 

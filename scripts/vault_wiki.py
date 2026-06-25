@@ -9,9 +9,9 @@ the community appears to represent.
 Why "borrow from graphify": graphify's wiki mode auto-generates one
 article per detected community. That's the moment a vault stops being a
 passive store and starts surfacing themes you'd otherwise have to
-manually curate. For Adam's setup — 47 BUs, 100+ people, hundreds of
-captures — auto-summary of community clusters is the single biggest
-synthesis-time-saver on the borrows list.
+manually curate. For a large vault — many org units, hundreds of people,
+hundreds of captures — auto-summary of community clusters is the single
+biggest synthesis-time-saver on the borrows list.
 
 Modes:
 

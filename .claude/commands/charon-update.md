@@ -3,7 +3,7 @@ name: charon-update
 description: Check every Charon update source (Charon harness itself + vendored rule corpora) for upstream changes and apply them. One command, all sources. Manifest-driven via scripts/update/sources.yaml.
 ---
 
-Adam wants to check and apply updates across all Charon update sources. Run the `update-charon` skill.
+The user wants to check and apply updates across all Charon update sources. Run the `update-charon` skill.
 
 The skill orchestrates `python -m scripts.update.charon_update`, which:
 

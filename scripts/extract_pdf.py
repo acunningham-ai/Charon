@@ -15,7 +15,7 @@ Optional dep: ``pypdf`` via ``requirements-multimodal.txt``.
 Without it, the script exits non-zero with a clear install pointer.
 
 Why "borrow from graphify": graphify ingests PDFs as part of its
-multimodal corpus build. For Adam's vault, captured vendor
+multimodal corpus build. In a working vault, captured vendor
 questionnaires / SOWs / talk-PDFs sit in ``00-Inbox/_captured/`` or
 ``~/Downloads/`` as opaque files. Extracted text gives the graph + the
 LLM something to work with.

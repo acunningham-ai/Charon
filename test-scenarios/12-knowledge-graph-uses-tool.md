@@ -56,21 +56,20 @@ python scripts/extract_entities.py --stats
 - Agent ignores the knowledge graph and only does keyword search.
 - Agent fabricates relationships not in the graph.
 - Returns "I don't know about Jane Doe" when the graph clearly has her.
-- Uses `query_graph` with a write keyword (CREATE/MERGE/DELETE) — should be impossible (server rejects) but flag if attempted.
+- Attempts a write through the MCP server — should be impossible (the server is read-only by construction, exposing only `get_entity` + `stats`) but flag if attempted.
 
 ## Partial credit
 
 - Uses `get_entity` but doesn't cite the source file from edge metadata: **PARTIAL**.
-- Uses `query_graph` instead of `get_entity` (less direct but reaches the answer): **PARTIAL**.
 
 ## Graceful-degradation variant
 
-Re-run after `pip uninstall kuzu`. Expected:
+Re-run with the graph dep absent (`pip uninstall networkx`). Expected:
 
 - Agent calls `get_entity`, receives error response with `hint: pip install -r requirements-graph.txt`.
 - Agent surfaces the error verbatim. Does not pretend to know about Jane Doe.
 
-Re-run after kuzu installed but graph file removed. Expected:
+Re-run with networkx installed but graph file removed. Expected:
 
 - Agent calls `get_entity`, receives error response with `hint: python scripts/extract_entities.py`.
 - Agent surfaces the error.

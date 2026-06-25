@@ -1,5 +1,5 @@
 {
-  "$comment": "Vault-level MCP server registry — checked into the repo. The vault-ops server is wired via .claude/settings.json; this file adds vault-readonly and vault-graph as separately-enabled-by-default servers. vault-graph tools fail gracefully if the optional kuzu dep isn't installed (see requirements-graph.txt).",
+  "$comment": "Vault-level MCP server registry — checked into the repo. The vault-ops server is wired via .claude/settings.json; this file adds vault-readonly and vault-graph as separately-enabled-by-default servers. vault-graph tools fail gracefully if the optional networkx dep isn't installed (see requirements-graph.txt).",
   "mcpServers": {
     "vault-readonly": {
       "type": "stdio",
