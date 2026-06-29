@@ -22,7 +22,7 @@ Three threat surfaces matter:
 
 The harness has multiple LLM call sites — slash commands, the save-on-mention hook, optional capture-pipeline classifiers. Each is subject to:
 
-- **LLM01 Prompt injection** — captured content can carry attacker payloads. Mitigated by `trust: untrusted` frontmatter, "UNTRUSTED CAPTURED CONTENT" wrappers, hook-side redaction of known secret patterns before sending to the LLM, and the `captures.md` rule forbidding action on captured directives.
+- **LLM01 Prompt injection** — captured content can carry attacker payloads. Mitigated by `trust: untrusted` frontmatter, "UNTRUSTED CAPTURED CONTENT" wrappers, hook-side redaction of known secret patterns before sending to the LLM, and the `captures.md` rule forbidding action on captured directives. **Plus a runtime detector** (`poisoning-scan.py` on `UserPromptSubmit`, observe-only) that flags *instruction-shaped* payloads — override, role-switch, exfiltration, tool-coax, secret-solicit, hidden/encoded, model special-tokens — at the choke point where untrusted text enters, hardened against confusable-homoglyph and base64/hex-encoded evasion. Detection-only: it logs a verdict, never blocks or rewrites the prompt.
 - **LLM02 Sensitive info disclosure** — credentials never go in prompts. The save-on-mention hook redacts known secret patterns (Anthropic, GitHub, AWS, Slack, generic bearer/password) before sending to Haiku.
 - **LLM03 Supply chain** — third-party MCP servers must pass an evaluation rubric; local MCPs (`scripts/mcp/`) are reviewed via `/secure-code-review`.
 - **LLM05 Improper output handling** — structured-output writers (frontmatter tags, classifications) are constrained to closed enums.

@@ -40,6 +40,7 @@ All hooks wired in by default. Disable a hook by removing its entry from the `ho
 
 - **Notification-toast** — no-op on Linux/macOS. Replace with `notify-send` / `osascript` (edit `scripts/hooks/notification-toast.py`).
 - **Save-on-mention** — requires `~/.secrets/anthropic.json`. Without it the hook silently skips. Remove from `UserPromptSubmit` block if you don't want it.
+- **Poisoning-scan** — shadow-mode prompt-injection detector on `UserPromptSubmit`; observe-only (logs a verdict to `state/verdict/`, never blocks). No external dependency, no API key. Remove from the `UserPromptSubmit` block to disable.
 
 ### Permissions
 
