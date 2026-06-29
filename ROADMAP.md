@@ -11,7 +11,8 @@ Where Charon is going. Status, rationale, and what isn't on the list.
 ## Done (recently shipped)
 
 - ✅ 4 always-fire rules + 9 path-conditioned rules
-- ✅ 10 hooks (load-rules, save-on-mention with Haiku Stage 2, deny-destructive, validate-write-path, validate-memory-frontmatter, voice-anchor-ralph-loop, skill-usage-log, ssh-recovery, notification-toast, check-reauth-flag; plus on-error, invoked by scheduled runners on failure)
+- ✅ 11 hooks (load-rules, save-on-mention with Haiku Stage 2, poisoning-scan, deny-destructive, validate-write-path, validate-memory-frontmatter, voice-anchor-ralph-loop, skill-usage-log, ssh-recovery, notification-toast, check-reauth-flag; plus on-error, invoked by scheduled runners on failure)
+- ✅ **Runtime prompt-injection / poisoning detector** (`v0.12.0`, 2026-06-29). `UserPromptSubmit` hook (`poisoning-scan.py` + `_poisoning.py`) flags instruction-shaped attacks — override / role-switch / exfiltration / tool-coax / secret-solicit / encoded / special-token — at the choke point where untrusted pasted/fetched content enters. Hardened against confusable-homoglyph + base64/hex-encoded evasion. Observe-only (logs a verdict, never blocks). Closes the *runtime input* surface that the C-1..C-8 baseline (unattended runs) and the on-demand review skills don't cover. Patterns borrowed from microsoft/agent-governance-toolkit + sharma-open-source/opensentry (MIT)
 - ✅ 3 MCP servers (vault-readonly, vault-ops, vault-graph)
 - ✅ 35 slash commands across reporting / security / the research→compose pipeline / workflow / hygiene + the Cerberus suite
 - ✅ Security baseline framework (C-1..C-8)
