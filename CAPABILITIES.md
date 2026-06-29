@@ -132,6 +132,7 @@ Event-driven scripts wired into `.claude/settings.json`. Most are silent until s
 |---|---|---|
 | **load-rules.py** | UserPromptSubmit | Loads matching path-conditioned rules into context |
 | **save-on-mention.py** | UserPromptSubmit | Two-stage detector for operational facts → nudge to save to memory |
+| **poisoning-scan.py** | UserPromptSubmit | Shadow-mode prompt-injection detector — flags instruction-shaped attacks (override / role-switch / exfiltration / tool-coax / secret-solicit / encoded / special-token) with confusable-fold + decode-rescan; logs a verdict, never blocks. Engine: `_poisoning.py` |
 | **deny-destructive.py** | PreToolUse (write) | Blocks writes to protected zones (archive, voice-examples, session journals, published posts) |
 | **validate-write-path.py** | PreToolUse (write) | Enforces a per-automation write-path allowlist for unattended runs |
 | **validate-memory-frontmatter.py** | PostToolUse (write) | Warns when a memory file is missing required frontmatter fields |

@@ -8,6 +8,13 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.12.0] - 2026-06-29
+
+### Added
+- **Prompt-injection / poisoning detection** — `scripts/hooks/_poisoning.py` (dependency-free detector) + `poisoning-scan.py` (UserPromptSubmit wiring). Flags instruction-shaped attacks the secret scanners miss: instruction-override, role-switch, exfiltration, tool-coax, secret-solicitation, hidden/encoded payloads, model **special-token injection**, and **confusable-evasion**. Three evasion-hardening passes baked in — Unicode confusable + invisible folding on a detection-only copy (a Cyrillic-homoglyph "ignore previous instructions" can't slip past ASCII patterns), chat-template special-token detection (ChatML / Llama / Mistral / Gemma), and base64/hex **decode-then-rescan** (catches payloads hidden below the long-blob heuristic). **Ships in shadow (observe-only): logs a verdict to `state/verdict/`, never blocks or alters the prompt.** Privacy: logs categories + score only, never the matched text. Patterns borrowed from microsoft/agent-governance-toolkit and sharma-open-source/opensentry (both MIT), reimplemented native. `python scripts/hooks/_poisoning.py --selftest` covers 13 cases.
+
+---
+
 ## [0.11.0] - 2026-06-26
 
 ### Added — Graph link-backfill (`/graph-backfill`): write the derived graph back into your notes
