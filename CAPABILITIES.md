@@ -233,6 +233,7 @@ You invoke these directly.
 | **recover-ssh-creds.py** | Recover SSH credentials from secrets dir, fall back to history grep |
 | **check-capture-state.py** | Diagnose capture-pipeline state files when stuck |
 | **telemetry-summary.py** | Roll up hook telemetry over N days |
+| **kev-fetch.py** | CISA KEV triage — fetch the Known-Exploited-Vulnerabilities catalogue, score recent additions (recency × ransomware × due-date × broadly-deployed lens), write a prioritised shortlist to `00-Inbox/_research/`. Optional Prometheus pre-step; vendor lens tunable via `--vendors`. No CVSS (KEV-only) |
 | **load-rules.py** | The UserPromptSubmit rule loader |
 | **semantic_index.py** | Build / refresh the local semantic-search index. Incremental by default; `--rebuild` wipes and re-embeds; `--stats` prints index health. Requires `requirements-semantic.txt`. |
 | **extract_entities.py** | Extract entities + relationships into the knowledge graph via Haiku. Incremental by default; `--rebuild`, `--stats`, `--paths` flags. Requires `requirements-graph.txt` + Anthropic API key. |

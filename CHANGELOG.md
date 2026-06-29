@@ -8,6 +8,13 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.13.0] - 2026-06-30
+
+### Added
+- **KEV/CVE triage beat** — `scripts/kev-fetch.py`, an optional Prometheus pre-step. Fetches the CISA Known-Exploited-Vulnerabilities catalogue and writes a prioritised shortlist to `00-Inbox/_research/` for the digest's bulletin-worthy line. *Why:* actively-exploited vulnerabilities in widely-run software are the ones worth a heads-up, and trawling feeds by hand doesn't scale — this surfaces them ranked, so a research seat can flag "worth a bulletin?" without the manual sift. Scores on KEV-available signals only — **recency × ransomware-campaign flag × due-date urgency × a broadly-deployed-vendor lens** (no CVSS; KEV carries none — CVSS enrichment would need NVD, deferred by design). The vendor lens ships with a sensible default and is tunable with `--vendors <file>` to match the software you or your customers run. Dependency-free stdlib; one documented outbound GET to cisa.gov; writes only to `_research/`; sanitises external fields before embedding them. Pattern borrowed from hoodinformatik/OpenThreat (AGPL **not** vendored — reimplemented native). Layer 1 = digest-only; bulletin drafting (Layer 2) stays human-gated. Unattended/scheduled runs gated behind `/owasp-agentic-review` + `/secure-code-review` + a shadow window.
+
+---
+
 ## [0.12.0] - 2026-06-29
 
 ### Added
