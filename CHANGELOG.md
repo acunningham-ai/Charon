@@ -8,6 +8,13 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.15.3] - 2026-07-02
+
+### Fixed
+- **Capture concurrency lock in `fetch-mail.mjs`** — capture can be triggered from more than one place (a scheduled task, a login-catchup run, a manual invocation), and two runs writing the shared state file at the same time could race: one reads it mid-write by the other → a fatal JSON parse error (`Unterminated string in JSON` / `Expected double-quoted property name`) that aborts the loser. Added an exclusive lockfile (`state/fetch-mail.lock`, atomic `wx` create): a second concurrent run now yields gracefully (exit 0) instead of corrupting the shared capture state. A lock older than 30 min (a crashed/hung holder) is stolen; the lock is released on any exit path; `auth` and `--dry-run` take no lock. *Why:* observed intermittent capture crashes traced to overlapping runs writing the same state file.
+
+---
+
 ## [0.15.2] - 2026-07-01
 
 ### Added

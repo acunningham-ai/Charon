@@ -14,7 +14,7 @@
 //   --page-size N         Override provider page size
 //   --dry-run             Connect + count, do not write captures
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, unlinkSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, unlinkSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadProvider, KNOWN_PROVIDERS } from "./lib/providers/index.mjs";
@@ -63,6 +63,41 @@ function resolveSince(cursor, sourceType) {
   if (fullMode) return config.captureWindow?.start ?? "1970-01-01";
   return effectiveSince(cursor, sourceType, config.captureWindow?.start ?? "1970-01-01");
 }
+
+// --- Concurrency lock ---------------------------------------------------------
+// Capture can be triggered from more than one place (a scheduled task, a login-catchup
+// run, a manual invocation). Two runs writing the shared state file at the same time can
+// race — one reads it mid-write by the other → a fatal JSON parse error, and the loser
+// aborts. This exclusive lockfile serialises runs: a second concurrent run yields
+// gracefully (exit 0) instead of corrupting the shared capture state. `wx` = atomic
+// exclusive create; a lock older than LOCK_STALE_MS is treated as a crashed/hung holder
+// and stolen.
+const LOCK_FILE = join(HERE, "state", "fetch-mail.lock");
+const LOCK_STALE_MS = 30 * 60 * 1000; // a normal run is short; an older lock = a dead holder, safe to steal
+let haveLock = false;
+
+function acquireLock() {
+  const payload = JSON.stringify({ pid: process.pid, started: new Date().toISOString(), command });
+  try {
+    mkdirSync(dirname(LOCK_FILE), { recursive: true });
+    writeFileSync(LOCK_FILE, payload, { flag: "wx" }); // exclusive create — throws EEXIST if already held
+    return true;
+  } catch (e) {
+    if (e.code !== "EEXIST") throw e;
+    let stale = false;
+    try { stale = (Date.now() - statSync(LOCK_FILE).mtimeMs) > LOCK_STALE_MS; }
+    catch { stale = true; } // can't stat the lock → treat as stale
+    if (stale) {
+      try { unlinkSync(LOCK_FILE); writeFileSync(LOCK_FILE, payload, { flag: "wx" }); return true; }
+      catch { /* lost the steal race with another instance — fall through to "not acquired" */ }
+    }
+    return false;
+  }
+}
+
+// Release on ANY exit path (normal end, exit(1), exit(2)). process.on('exit') runs
+// synchronously, so unlinkSync is safe. Only ever release a lock WE actually hold.
+process.on("exit", () => { if (haveLock) { try { unlinkSync(LOCK_FILE); } catch { /* non-fatal */ } } });
 
 const provider = loadProvider(config, HERE);
 
@@ -146,6 +181,16 @@ async function main() {
     } else {
       await fetchPath("sent", (opts) => provider.fetchSent(opts));
     }
+  }
+}
+
+// Serialise concurrent capture runs so they can't corrupt the shared state file.
+// `auth` writes no capture state and `--dry-run` writes nothing, so neither takes the lock.
+if (command !== "auth" && !dryRun) {
+  haveLock = acquireLock();
+  if (!haveLock) {
+    console.log("Another fetch-mail run holds state/fetch-mail.lock — skipping this run to avoid a concurrent write to the capture state (the other run covers this window).");
+    process.exit(0);
   }
 }
 
