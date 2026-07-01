@@ -1,6 +1,6 @@
 # Capabilities
 
-Full catalogue of what ships in this harness — rules (auto-injected), commands (you invoke), hooks (event-driven), MCP servers (model-callable tools), utility scripts (you run).
+Full catalogue of what ships in this harness — rules (auto-injected), commands (you invoke), workflows (multi-agent orchestrations), hooks (event-driven), MCP servers (model-callable tools), utility scripts (you run).
 
 ## Path-conditioned rules (`.claude/rules/*.md`)
 
@@ -202,6 +202,17 @@ Seven agents in two categories. **Review / synthesis subagents** are dispatched 
 
 See `.claude/agents/README.md` for the dispatch pattern + per-seat capability and intent.
 
+## Workflows (`.claude/workflows/*.js`)
+
+Multi-agent **workflows** — deterministic orchestration scripts run by the Claude Code `Workflow` tool. Where a subagent is one worker and a command is one prompted routine, a workflow is a *harness*: it fans work out across many subagents and converges, with control flow (loops, fan-out, verify gates) in code, not model discretion. Both shipped workflows share an **adversarial self-verification** shape — a finding survives only if independent skeptics can't refute it. Discovered by the runtime at session start and invoked by name (`Workflow({name})` / the slash command); run a just-added workflow by `scriptPath` until the next session start registers it. Full class notes in `.claude/workflows/README.md`.
+
+| Workflow | What it does |
+|---|---|
+| `/deep-research "<question>"` | Self-verifying deep research — decompose into search angles → parallel web search → fetch + extract falsifiable claims → 3-vote adversarial verify with a re-queue-until-zero loop (evidence-handling rejects re-researched against a live source) → cited synthesis. *Example: a multi-source factual question where you want claims fact-checked and sourced, not a single-pass summary.* |
+| `/devils-advocate "<decision>"` | Adversarial pre-mortem for a hard-to-reverse **non-code** decision. Hostile lenses (Key Assumptions Check · Pre-Mortem · adapted-adversary · disappointed-counterparty · conditional Analysis of Competing Hypotheses) → consolidate → 3-vote adversarial verify → **grounding gate** (each surviving risk tagged grounded / plausible / invented, checked against memory + the authored vault) → kill / proceed-with-fixes / proceed verdict. Draft-only. *Example: before committing to a hire, a launch, a policy line, or a big bet you can't easily walk back.* |
+
+Both are **read + reason only** — no writes, sends, or posts; caller input and any fetched/vault content is treated as data, not instructions (ASI01/ASI06). Workflows spawn many subagents — intended for hard questions / high-stakes calls, not quick asks.
+
 ## Capture pipeline (`capture-pipeline/`)
 
 Reference implementation that pulls **inbox + sent items** from your email provider into your vault as markdown captures. Sent-items capture is on by default — provides time-management visibility (what you've responded to, what threads you owe replies on) that inbox-only pipelines can't.
@@ -257,13 +268,13 @@ You invoke these directly.
 
 ## Test suite (`test-scenarios/`)
 
-16 LLM-behaviour scenarios + 21 deterministic checks. Run before any release and after any material change to rules / hooks / wizard.
+16 LLM-behaviour scenarios + 22 deterministic checks. Run before any release and after any material change to rules / hooks / wizard.
 
 | Component | What |
 |---|---|
 | `test-scenarios/README.md` | How to run, scoring, OSS-release bar |
 | `test-scenarios/01-..16-*.md` | 16 LLM-behaviour scenarios with verbatim prompts + pass/fail criteria (manual run in a fresh Claude Code session) |
-| `test-scenarios/run-deterministic-checks.py` | 21 automated checks: YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, closed-vocabulary, Cerberus engine + scan + SARIF, Louvain community detection, vault-graph HTML / query / wiki, multimodal extractors, vault-lint + tag-migrator, base-folder scaffold |
+| `test-scenarios/run-deterministic-checks.py` | 22 automated checks: YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, closed-vocabulary, Cerberus engine + scan + SARIF, Louvain community detection, vault-graph HTML / query / wiki, multimodal extractors, vault-lint + tag-migrator, base-folder scaffold, workflows present + valid |
 | `test-scenarios/_results-template.md` | Per-run scoring template — copy as `_results-YYYY-MM-DD.md` |
 
 ```bash

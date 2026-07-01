@@ -10,6 +10,7 @@ Where Charon is going. Status, rationale, and what isn't on the list.
 
 ## Done (recently shipped)
 
+- ✅ **Workflows — new capability class + first two workflows** (`v0.15.0`, 2026-07-01). `.claude/workflows/*.js` — multi-agent orchestrations run by the `Workflow` tool (control flow in code; adversarial self-verification). `/deep-research` (self-verifying cited research: decompose → parallel search → extract → 3-vote verify + re-queue-until-zero loop → synthesis) and `/devils-advocate` (adversarial pre-mortem for hard-to-reverse non-code decisions: hostile lenses → consolidate → 3-vote verify → grounding gate → kill/proceed-with-fixes/proceed verdict, draft-only). Both read + reason only; caller/fetched/vault content treated as data (ASI01/ASI06). D22 guards the class; D5 personal-content scrub extended to `.js`. *Closed a parity blind spot:* `deep-research` had existed in the author's harness since ~2026-06-20 but was invisible to the vault↔Charon parity check, which enumerated commands/skills/agents/MCPs/hooks/scripts and had no `workflows` row — a whole class fell outside the comparison frame. Parity checks now include workflows.
 - ✅ 4 always-fire rules + 9 path-conditioned rules
 - ✅ 11 hooks (load-rules, save-on-mention with Haiku Stage 2, poisoning-scan, deny-destructive, validate-write-path, validate-memory-frontmatter, voice-anchor-ralph-loop, skill-usage-log, ssh-recovery, notification-toast, check-reauth-flag; plus on-error, invoked by scheduled runners on failure)
 - ✅ **Full base-folder scaffold + one-touch updates** (`v0.14.1`, 2026-07-01). first-run scaffolds the complete 00-09 base skeleton in every mode (empty `02-BUs`/`03-Domains` included, each with an explainer README); new `first-run.py --scaffold-only`; `/charon-update` runs it post-self-update so existing users get new base folders one-touch. D21 guards it. New pip deps remain the only non-auto edge on update.
@@ -22,7 +23,7 @@ Where Charon is going. Status, rationale, and what isn't on the list.
 - ✅ OWASP LLM01-LLM10 + ASI01-ASI10 review skills + `/fp-check` false-positive verification gate
 - ✅ First-run wizard (`scripts/first-run.py`) — YAML-defined questions, 5 phases, 39 questions (~25 always-asked + conditional), state-file resume, atomic write
 - ✅ Bootstrap installers (`install.ps1` / `install.sh`) with auto/manual/skip per prereq
-- ✅ Test suite — 16 LLM-behaviour scenarios + 19 automated deterministic checks
+- ✅ Test suite — 16 LLM-behaviour scenarios + 22 automated deterministic checks
 - ✅ ASCII trademark logo banner with auto-detect by terminal width
 - ✅ **Local semantic search** — sentence-transformers + bge-micro-v2 (~80MB) + sqlite-vec; `semantic_search` MCP tool in `vault-readonly`; on-demand indexer at `scripts/semantic_index.py`
 - ✅ **Knowledge graph** — networkx-backed `vault-graph` MCP server (read-only) with `get_entity` / `stats` tools; Haiku-driven extraction at `scripts/extract_entities.py`; closed entity-type + relationship-type vocabulary (C-3.1)

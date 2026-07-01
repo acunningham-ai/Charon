@@ -31,6 +31,7 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RULES_DIR = REPO_ROOT / ".claude" / "rules"
 AGENTS_DIR = REPO_ROOT / ".claude" / "agents"
+WORKFLOWS_DIR = REPO_ROOT / ".claude" / "workflows"
 HOOKS_DIR = REPO_ROOT / "scripts" / "hooks"
 SETTINGS_FILE = REPO_ROOT / ".claude" / "settings.json"
 MCP_FILE = REPO_ROOT / ".mcp.json"
@@ -48,6 +49,11 @@ EXPECTED_SUBAGENTS = {
     "owasp-llm-reviewer",
     "owasp-agentic-reviewer",
     "knowledge-synthesizer",
+}
+
+EXPECTED_WORKFLOWS = {
+    "devils-advocate",
+    "deep-research",
 }
 
 ALWAYS_FIRE_RULES = [
@@ -318,7 +324,7 @@ def check_personal_content_scrub() -> CheckResult:
     """No personal / Vela-specific content leaks into shipped files."""
     findings = []
     # Walk the repo, skip .git and binary files
-    text_extensions = {".md", ".py", ".ps1", ".sh", ".yaml", ".yml", ".json", ".txt", ".bat"}
+    text_extensions = {".md", ".py", ".ps1", ".sh", ".yaml", ".yml", ".json", ".txt", ".bat", ".js"}
     for root, dirs, files in os.walk(REPO_ROOT):
         if ".git" in dirs:
             dirs.remove(".git")
@@ -845,6 +851,38 @@ def check_closed_vocabularies() -> CheckResult:
         return CheckResult("Closed-vocabulary check", "FAIL", f"subprocess error: {e}")
 
 
+def check_workflows_present() -> CheckResult:
+    """Every .claude/workflows/*.js declares `export const meta` with a name
+    matching its filename; the expected workflows are present. Guards the
+    multi-agent workflow capability class (Workflow-tool orchestration)."""
+    if not WORKFLOWS_DIR.is_dir():
+        return CheckResult("Workflows present + valid", "FAIL", f"missing: {WORKFLOWS_DIR}")
+    findings: list[str] = []
+    found: set[str] = set()
+    wf_files = sorted(WORKFLOWS_DIR.glob("*.js"))
+    if not wf_files:
+        return CheckResult("Workflows present + valid", "FAIL", "no workflow files found")
+    for wf in wf_files:
+        content = wf.read_text(encoding="utf-8")
+        if not re.search(r"export\s+const\s+meta\s*=\s*\{", content):
+            findings.append(f"{wf.name}: no `export const meta = {{`")
+            continue
+        nm = re.search(r"name:\s*'([^']+)'", content)
+        if not nm:
+            findings.append(f"{wf.name}: meta has no `name:`")
+            continue
+        if nm.group(1) != wf.stem:
+            findings.append(f"{wf.name}: meta name '{nm.group(1)}' != filename stem '{wf.stem}'")
+        found.add(nm.group(1))
+    missing = EXPECTED_WORKFLOWS - found
+    if missing:
+        findings.append(f"expected workflows missing: {sorted(missing)}")
+    if findings:
+        return CheckResult("Workflows present + valid", "FAIL", f"{len(findings)} issue(s)", findings)
+    return CheckResult("Workflows present + valid", "PASS",
+                       f"{len(found)} workflows, meta names match filenames")
+
+
 # ---------- Output ----------
 
 CHECKS = [
@@ -869,6 +907,7 @@ CHECKS = [
     ("D19", check_multimodal_extractors_present),
     ("D20", check_vault_lint_and_migrator),
     ("D21", check_scaffold_only),
+    ("D22", check_workflows_present),
 ]
 
 

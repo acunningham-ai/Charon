@@ -8,6 +8,19 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.15.0] - 2026-07-01
+
+### Added
+- **Workflows — a new capability class (`.claude/workflows/*.js`)** — multi-agent orchestration scripts run by the Claude Code `Workflow` tool: they fan work out across many subagents, then converge, with control flow (loops, fan-out, verify gates) in code rather than model discretion. Discovered by the runtime at session start and invoked by name; `.claude/workflows/README.md` documents the class, discovery/invocation, and safety posture. *Why:* review skills and standing seats cover single-worker routines; genuinely hard questions and high-stakes decisions want a *harness* that decomposes, runs independent verifiers, and only keeps findings that survive challenge.
+- **`/deep-research`** — self-verifying deep research: decompose → parallel web search → fetch + extract falsifiable claims → 3-vote adversarial verify with a re-queue-until-zero loop (evidence-handling rejects are re-researched against a live source) → cited synthesis. Borrows the loop-not-line self-verification pattern (independent refuters; majority-refute kills a claim).
+- **`/devils-advocate`** — adversarial pre-mortem for hard-to-reverse **non-code** decisions. Fans out hostile lenses (Key Assumptions Check · Pre-Mortem · adapted-adversary · disappointed-counterparty · conditional Analysis of Competing Hypotheses), consolidates, 3-vote adversarially verifies every surfaced risk, and runs a **grounding gate** that tags each survivor grounded / plausible / invented (checking memory + the authored vault) — so an invented premise can't ride into the verdict dressed as a finding. Ends on a kill / proceed-with-fixes / proceed verdict. Draft-only; writes nothing. *Origin:* the Tradecraft Primer red-team techniques, with the adversarial-verify + grounding gate added to fix the "vivid but ungrounded" failure mode of a single-pass critique.
+- **Deterministic check D22** — verifies every `.claude/workflows/*.js` declares `export const meta` with a `name` matching its filename, and that the expected workflows are present. Suite is now **22 deterministic checks**.
+
+### Fixed
+- **Personal-content scrub now covers `.js`** — D5's `text_extensions` omitted `.js`, so the new workflow class would have shipped un-scrubbed. Added `.js` to the scan set; both workflows verified clean.
+
+---
+
 ## [0.14.1] - 2026-07-01
 
 ### Added
