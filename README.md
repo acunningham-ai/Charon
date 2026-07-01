@@ -1,8 +1,17 @@
 # Charon
 
-**The second brain that actually remembers — and tells you when it doesn't know.**
+*Pronounced "KAIR-ən" (/ˈkɛərən/) — the anglicised ferryman; Χάρων, "KHAH-rawn" (/ˈkʰarɔːn/), in the original Greek.*
 
-Built for executives, CISOs, AI-governance practitioners, and serious knowledge workers whose AI assistant has to hold context across weeks, hold a voice, refuse to fabricate, and work under controls that match the work.
+**Charon is a second-brain harness for [Claude Code](https://claude.com/claude-code) — durable memory, confidence-tagged answers, and a security baseline built by a CISO.**
+
+It gives your AI:
+
+- **Memory that survives sessions** — what you tell it today loads automatically tomorrow. No re-explaining.
+- **Answers you can audit** — every claim is tagged 🟢 verified / 🟡 medium / 🔴 assumed, so you see what's grounded and what's a guess.
+- **Parallel review** — hard questions dispatch several specialised agents at once (secure-coding, OWASP LLM, OWASP agentic) that converge.
+- **Security that's documented, not decorative** — the C-1..C-8 baseline enforced where it runs, injection detection, and a supply-chain vetting capability (Cerberus).
+
+Built for CISOs, AI-governance practitioners, agentic-AI engineers, and serious knowledge workers whose AI has to hold context across weeks, hold a voice, refuse to fabricate, and work under controls that match the work.
 
 > *Charon, in Greek myth, is the ferryman who carries souls across the river Styx. This harness carries context across sessions.*
 

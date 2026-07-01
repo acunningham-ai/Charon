@@ -8,6 +8,16 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.15.1] - 2026-07-01
+
+### Changed
+- **README hero repositioned — category-led.** The opening now leads with a plain what-it-is line ("Charon is a second-brain harness for Claude Code — durable memory, confidence-tagged answers, and a security baseline built by a CISO") followed by concrete capability bullets, rather than a claim/pain-first tagline. *Why:* the recruitment doc's first ~10 seconds should let a skeptical reader self-identify via category + concrete capability, not an emotive hook. Grounded in a self-verifying research pass over how high-star dev-tool + security OSS repos (ripgrep, Trivy, Semgrep, Falco) and comparable governance tooling open their READMEs — they lead with category, keep pain below the fold, and avoid saturated tropes. Security wording kept honest to shipped posture ("documented, and enforced where they run"). The pain narrative remains in "Why you'd want this".
+
+### Added
+- **Pronunciation guide** under the title — *"KAIR-ən" (/ˈkɛərən/)*, the anglicised ferryman, with the Ancient Greek Χάρων *"KHAH-rawn"* (/ˈkʰarɔːn/) noted. Readers were unsure how to say it.
+
+---
+
 ## [0.15.0] - 2026-07-01
 
 ### Added
