@@ -64,6 +64,7 @@ STANDALONE_HOOKS = {
     "_telemetry.py",     # imported by other hooks, not invoked by Claude Code
     "_verdict.py",       # imported by hooks adopting the verdict layer, not invoked directly
     "_jsonl_append.py",  # imported by _verdict.py and _telemetry.py for safe append
+    "_poisoning.py",     # detector module imported by poisoning-scan.py, not invoked directly
 }
 
 # Personal-content patterns — must NOT appear in any Charon file.
@@ -748,6 +749,44 @@ def check_community_detection() -> CheckResult:
     return CheckResult("Community detection (Louvain)", "PASS", result.stdout.strip())
 
 
+def check_vault_lint_and_migrator() -> CheckResult:
+    """vault-lint + migrate-tags run against the shipped taxonomy template:
+    the lint executes + emits valid JSON with a parsed taxonomy, and the
+    migrator dry-runs cleanly. Guards the content-graph hygiene capability."""
+    env = dict(os.environ)
+    env["HARNESS_VAULT_ROOT"] = str(REPO_ROOT)
+    findings: list[str] = []
+    lint = REPO_ROOT / "scripts" / "vault-lint.py"
+    migr = REPO_ROOT / "scripts" / "migrate-tags.py"
+    if not lint.exists():
+        return CheckResult("Vault-lint + tag-migrator", "FAIL", f"missing: {lint}")
+    if not migr.exists():
+        return CheckResult("Vault-lint + tag-migrator", "FAIL", f"missing: {migr}")
+    try:
+        r = subprocess.run([sys.executable, str(lint), "--json"],
+                           capture_output=True, text=True, timeout=30, env=env)
+        if r.returncode != 0:
+            findings.append(f"vault-lint exit {r.returncode}: {r.stderr.strip()[:200]}")
+        else:
+            data = json.loads(r.stdout)
+            tax = str(data.get("summary", {}).get("taxonomy", ""))
+            if not tax.startswith("v"):
+                findings.append(f"taxonomy template did not parse: {tax!r}")
+    except Exception as e:
+        findings.append(f"vault-lint error: {e}")
+    try:
+        r = subprocess.run([sys.executable, str(migr), "--batch", "all"],
+                           capture_output=True, text=True, timeout=30, env=env)
+        if r.returncode != 0:
+            findings.append(f"migrate-tags exit {r.returncode}: {r.stderr.strip()[:200]}")
+    except Exception as e:
+        findings.append(f"migrate-tags error: {e}")
+    if findings:
+        return CheckResult("Vault-lint + tag-migrator", "FAIL", f"{len(findings)} issue(s)", findings)
+    return CheckResult("Vault-lint + tag-migrator", "PASS",
+                       "lint runs, taxonomy template parses, migrator dry-runs clean")
+
+
 def check_closed_vocabularies() -> CheckResult:
     """Verify the closed-vocabulary sets in graph.py exist and are non-empty
     (per C-3.1 value-layer constraint)."""
@@ -793,6 +832,7 @@ CHECKS = [
     ("D17", check_vault_query_traversal),
     ("D18", check_vault_wiki_generation),
     ("D19", check_multimodal_extractors_present),
+    ("D20", check_vault_lint_and_migrator),
 ]
 
 

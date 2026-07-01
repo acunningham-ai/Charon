@@ -22,7 +22,7 @@ These rules auto-inject into the assistant's context when the user's prompt ment
 
 ## Slash commands (`.claude/commands/*.md`)
 
-35 invokable commands. Most accept arguments after the slash command.
+39 invokable commands. Most accept arguments after the slash command.
 
 ### Reporting + governance
 
@@ -55,6 +55,8 @@ These rules auto-inject into the assistant's context when the user's prompt ment
 | `/draft-linkedin` | Voice-driven content drafting with anchor-reading. *Example: when you want to write a LinkedIn post and start from a topic, anchor, or captured event — drafter reads your voice anchors first.* |
 | `/linkedin-metrics` | Capture LinkedIn analytics into published-post frontmatter. *Example: 48 hours and 7 days after a post lands, to record analytics into the post's `metrics_48h` / `metrics_7d` blocks.* |
 | `/capture-screenshot <path>` | Vision capture into `00-Inbox/_captured/screenshots/`. *Example: when a screenshot needs vision extraction into structured fields and inbox capture (e.g. a dashboard view someone shared).* |
+| `/brainstorm ["<problem>"]` | Structured divergent→convergent idea generation for non-code work — frame, diverge (5–8 options), converge, evaluate, recommend. Inline-first; optional save. *Example: naming a new capability, framing a launch, or weighing a strategy call — widen the options before you narrow.* |
+| `/systematic-debug ["<symptom>"]` | Hypothesis→test→eliminate debugging — pin the symptom, rank hypotheses, test one variable at a time, confirm root cause by reproduction, minimal fix, verify. *Example: a deployed service, the harness, or the capture pipeline is misbehaving and you want a methodical root-cause pass, not guess-and-restart.* |
 
 ### Research → content pipeline
 
@@ -71,6 +73,7 @@ The "research → compose → deliver" pipeline (standing-seat agents — see Su
 | Command | What it does |
 |---|---|
 | `/score-vault` | Deterministic vault hygiene audit (broken links, missing frontmatter, etc.). *Example: monthly hygiene check, or before publishing anything externally — catch broken links and frontmatter drift.* |
+| `/vault-lint` | Content-graph hygiene worklist over the authored body — broken markdown links + tag-taxonomy drift (reads `07-References/tag-taxonomy.md`). Complements `/score-vault` (harness surfaces). Read-only; fixes proposed for approval, bulk tag migration via `scripts/migrate-tags.py`. *Example: monthly, alongside `/score-vault` — catch broken note links and tags that drifted off your taxonomy.* |
 | `/curate-skills` | Review skill-curator report; archive stale/dormant skills (reversible). *Example: quarterly — review which skills haven't fired in a while and archive intentionally rather than letting them rot.* |
 | `/promote-rule <action>` | Surface promotion candidates: memory → path-rule → slash command. *Example: when a feedback memory has been used 3+ times across recent sessions, consider promoting it to a path-rule so it auto-loads.* |
 | `/telemetry-summary` | Roll up hook telemetry — counts, tokens, cost over the last N days. *Example: after a week of heavy harness use — see what fired, what consumed tokens, where the cost went.* |
@@ -226,6 +229,8 @@ You invoke these directly.
 | Script | What |
 |---|---|
 | **score-vault.py** | Vault hygiene audit (markdown report by default; `--json` for machine) |
+| **vault-lint.py** | Content-graph hygiene lint (broken authored links + tag-taxonomy drift). Deterministic, read-only. Exposed as `/vault-lint`; `--json` for machine output |
+| **migrate-tags.py** | Faceted-tag migrator — rewrites bare/legacy frontmatter tags to the taxonomy (companion to `/vault-lint`). Batchable (`--batch <facet>`), dry-run by default, `--apply` to write |
 | **skill-curator.py** | Daily skill-hygiene report — stale + archive candidates |
 | **scheduled-audit.py** | Quarterly deterministic audit (model-ID drift, permission drift, unpinned deps, captured-zone coverage) |
 | **archive-captures.py** | Monthly inbox archive — move captures >30d old to `09-Archive/` |
@@ -252,13 +257,13 @@ You invoke these directly.
 
 ## Test suite (`test-scenarios/`)
 
-16 LLM-behaviour scenarios + 19 deterministic checks. Run before any release and after any material change to rules / hooks / wizard.
+16 LLM-behaviour scenarios + 20 deterministic checks. Run before any release and after any material change to rules / hooks / wizard.
 
 | Component | What |
 |---|---|
 | `test-scenarios/README.md` | How to run, scoring, OSS-release bar |
 | `test-scenarios/01-..16-*.md` | 16 LLM-behaviour scenarios with verbatim prompts + pass/fail criteria (manual run in a fresh Claude Code session) |
-| `test-scenarios/run-deterministic-checks.py` | 19 automated checks: YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, closed-vocabulary, Cerberus engine + scan + SARIF, Louvain community detection, vault-graph HTML / query / wiki, multimodal extractors |
+| `test-scenarios/run-deterministic-checks.py` | 20 automated checks: YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, closed-vocabulary, Cerberus engine + scan + SARIF, Louvain community detection, vault-graph HTML / query / wiki, multimodal extractors, vault-lint + tag-migrator |
 | `test-scenarios/_results-template.md` | Per-run scoring template — copy as `_results-YYYY-MM-DD.md` |
 
 ```bash

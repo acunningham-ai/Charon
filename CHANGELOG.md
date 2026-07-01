@@ -8,6 +8,21 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.14.0] - 2026-07-01
+
+### Added
+- **Content-graph hygiene lint (`/vault-lint`)** — `scripts/vault-lint.py`, a deterministic, read-only worklist over the authored vault body. Two checks: **broken markdown file-links** across `01-Daily`/`02-BUs`/`03-Domains`/`04-People`/`05-Meetings`/`08-Projects` (06-/07- are `/score-vault`'s turf), and **tag-taxonomy drift** — frontmatter `tags:` linted against a faceted taxonomy. *Why:* classic PKM rots two ways — structural (dead links) and taxonomic (tag sprawl); this surfaces both as a worklist without touching prose. Complements `/score-vault` (which audits harness surfaces, not the knowledge body). No LLM call; exit 0 always (findings are a worklist, not a failure).
+- **Faceted-tag migrator (`scripts/migrate-tags.py`)** — companion to `/vault-lint`: rewrites bare/legacy tags to the faceted form. Resolves via a static migration map, then folder-derived context for `unit`/`portfolio`/`domain` (validated against the taxonomy's closed lists — underivable values are left alone, never guessed). Batchable (`--batch <facet>`), **dry-run by default**, `--apply` to write; only touches authored dirs, never captured content.
+- **User-owned tag taxonomy (`07-References/tag-taxonomy.md`)** — ships as a template with the faceting schema + illustrative values. The engine hardcodes no facet or value; it reads whatever you declare. Closed facets (`type`/`unit`/`portfolio`/`domain`) are auto-seedable from your first-run org-unit list; open facets (`topic`/`vendor`) accept any kebab value. *Why:* the structure is generic, the vocabulary is yours (per "rules teach structure, the user supplies content").
+- **`/brainstorm`** — structured divergent→convergent idea generation for non-code work (frame → diverge 5–8 → converge → evaluate → recommend). Inline-first; writes nothing without a yes. Pattern borrowed from obra/superpowers (inspiration, not vendored).
+- **`/systematic-debug`** — hypothesis→test→eliminate debugging (pin the symptom → ranked hypotheses → one variable at a time → confirm by reproduction → minimal fix → verify). Pattern borrowed from obra/superpowers (inspiration, not vendored).
+- **Deterministic check D20** — runs `/vault-lint` + the migrator against the shipped taxonomy template (lint executes, taxonomy parses, migrator dry-runs clean), so the new capability is release-gated. Suite is now **20 deterministic checks**.
+
+### Fixed
+- **Latent D2 hook-wiring failure** — `_poisoning.py` (the injection-detector module imported by `poisoning-scan.py`, added in v0.12.0) was neither wired in `settings.json` nor on the `STANDALONE_HOOKS` allowlist, so the hook-wiring check had been failing since v0.12.0. Added it to the allowlist alongside the other imported-module hooks (`_verdict.py`, `_telemetry.py`, `_jsonl_append.py`). *Why it matters:* the release gate is only meaningful when it's green for the right reasons — a stale FAIL trains you to ignore it.
+
+---
+
 ## [0.13.0] - 2026-06-30
 
 ### Added

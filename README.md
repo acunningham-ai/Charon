@@ -135,7 +135,7 @@ A working capture pipeline ships in `capture-pipeline/` — not a pattern, a run
 
 ### Tested, not just documented
 
-`test-scenarios/` ships with the harness — 16 LLM-behaviour scenarios + 19 automated deterministic checks. The same suite runs before any release and after any material change to rules / hooks / wizard. Pass-rate threshold is published; releases with a failing scenario must document it in known-limitations.
+`test-scenarios/` ships with the harness — 16 LLM-behaviour scenarios + 20 automated deterministic checks. The same suite runs before any release and after any material change to rules / hooks / wizard. Pass-rate threshold is published; releases with a failing scenario must document it in known-limitations.
 
 ```bash
 python test-scenarios/run-deterministic-checks.py    # PASS in ~3 seconds, CI-ready
@@ -183,7 +183,7 @@ Full walkthrough: [`INSTALL.md`](INSTALL.md).
 |---|---|
 | **Always-fire rules** | 4 rules — no-assumptions, save-on-mention, session-start-ritual, confidence-tags |
 | **Path-conditioned rules** | 9 rules — auto-injected on path/keyword match: board-reporting, ai-governance, secure-code, captures, quarterly-report, voice-content, skill-authoring, verdict-vocabulary, versioning |
-| **Slash commands** | 36 commands across reporting + governance, security review, the research→compose pipeline (`/prometheus`, `/calliope`, `/forum-agenda`), the knowledge-graph build (`/graph-backfill`, `/vault-query`), workflow, hygiene, and the 5-command Cerberus suite — full catalogue with fire conditions in [`CAPABILITIES.md`](CAPABILITIES.md) |
+| **Slash commands** | 39 commands across reporting + governance, security review, the research→compose pipeline (`/prometheus`, `/calliope`, `/forum-agenda`), the knowledge-graph build (`/graph-backfill`, `/vault-query`), workflow, hygiene, and the 5-command Cerberus suite — full catalogue with fire conditions in [`CAPABILITIES.md`](CAPABILITIES.md) |
 | **Hooks** | 10 hooks — load-rules (rule injection), save-on-mention (two-stage Haiku-classified), deny-destructive, validate-write-path, validate-memory-frontmatter, voice-anchor-ralph-loop, skill-usage-log, ssh-recovery, notification-toast, check-reauth-flag — plus `on-error.py`, invoked by scheduled runners on failure |
 | **MCP servers** | 3 local stdio servers — `vault-readonly` (keyword + semantic search, unit context, initiatives), `vault-ops` (patch_note, frontmatter_query, manage_tags), and `vault-graph` (entity / relationship queries, networkx-backed, read-only) |
 | **Agents** | 7 in `.claude/agents/` — **4 review/synthesis subagents** (secure-code-reviewer, owasp-llm-reviewer, owasp-agentic-reviewer, knowledge-synthesizer) dispatched in parallel for context isolation + bounded permissions; the **cerberus** security specialist; and **2 standing seats** of the research→compose pipeline — **prometheus** (research) and **calliope** (writing, drafts-only) — invoked via their own slash commands |
@@ -192,8 +192,8 @@ Full walkthrough: [`INSTALL.md`](INSTALL.md).
 | **Voice capture** | Local Whisper transcription via `scripts/voice-capture.py` + `/voice-note` slash command. Audio never leaves the machine. Optional install via `requirements-voice.txt`. |
 | **Capture pipeline** | Runnable Node.js reference impl — inbox + sent items via M365 (fully implemented), Gmail + IMAP (skeletons). `direction: inbound\|outbound` frontmatter, user-configurable schedule, prompt-injection wrapper on every capture, dedup by provider ID. See `EMAIL-PROVIDER-SETUP.md`. |
 | **First-run wizard** | YAML-defined questions (5 phases / 39 questions, ~25 always-asked + the rest conditional on your answers), state file resume on Ctrl+C, atomic write at the end, ANSI banner with optional ASCII trademark logo. The `engines` phase seeds the research ledger + forums so the pipeline isn't empty on day one |
-| **Test suite** | 16 LLM-behaviour scenarios + 19 deterministic checks (YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, Cerberus engine + SARIF, vault-graph pipeline, Louvain community detection, multimodal extractors) |
-| **Utility scripts** | score-vault, skill-curator, scheduled-audit, archive-captures, audit-unattended-run, recover-ssh-creds, check-capture-state, telemetry-summary |
+| **Test suite** | 16 LLM-behaviour scenarios + 20 deterministic checks (YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, Cerberus engine + SARIF, vault-graph pipeline, Louvain community detection, multimodal extractors, vault-lint + tag-migrator) |
+| **Utility scripts** | score-vault, vault-lint, migrate-tags, skill-curator, scheduled-audit, archive-captures, audit-unattended-run, recover-ssh-creds, check-capture-state, telemetry-summary |
 
 See [`CAPABILITIES.md`](CAPABILITIES.md) for the full catalogue with descriptions, fire conditions, and outputs.
 
@@ -271,7 +271,7 @@ Full setup walkthrough: [`INSTALL.md`](INSTALL.md) → [`FIRST-RUN.md`](FIRST-RU
 | [`ROADMAP.md`](ROADMAP.md) | What's coming next + what won't ship |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | License, PR process, skill-authoring standard |
 | [`CHANGELOG.md`](CHANGELOG.md) | Version history |
-| `test-scenarios/` | Pre-release reliability checks — 16 LLM scenarios + 19 automated checks |
+| `test-scenarios/` | Pre-release reliability checks — 16 LLM scenarios + 20 automated checks |
 
 ---
 
