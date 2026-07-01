@@ -8,6 +8,13 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.15.2] - 2026-07-01
+
+### Added
+- **`/deep-research` fetch-fallback (opt-in, off by default)** — the Fetch/Verify/Re-research agents called `WebFetch` with no fallback, so a JavaScript-rendered SPA, paywall, or anti-bot wall returned an app-shell / empty body and a recoverable source was silently lost as `sourceQuality:"unreliable"`. Added the minimal form of an ordered-backend list: ONE fallback backend (Jina Reader `r.jina.ai`, reached through the *same* `WebFetch` tool — no new dependency, no new capability grant, no key) that server-renders a page a direct fetch dropped. Gated behind `const ENABLE_JINA = false`: **off by default so the harness stays 100% local** with no external service in the fetch path — when false, every fetch prompt is byte-for-byte the prior WebFetch-only behaviour. Set it true to opt into external source-recovery. The proxied content is still untrusted web data (the `<untrusted>` / trust-boundary handling is unchanged), and the fallback is used *only* when a direct fetch is inadequate, so the proxy only ever sees URLs that already failed. *Why:* research resilience — recover otherwise-lost sources — without weakening the local-first posture or the injection trust boundary.
+
+---
+
 ## [0.15.1] - 2026-07-01
 
 ### Changed
