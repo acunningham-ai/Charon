@@ -8,6 +8,19 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.14.1] - 2026-07-01
+
+### Added
+- **Full 00-09 base-folder skeleton at first-run** — `scaffold_vault_structure()` now creates the complete base skeleton in every install mode, including an empty `02-BUs/` org-unit layer and `03-Domains/` (previously `02-BUs` was never scaffolded and `03-Domains` was full-mode-only). Each folder ships with an explainer README; no org-specific content is generated. *Why:* a capability the user hasn't set up yet still has a home to grow into — captures, meetings, projects, or the org-unit layer can be adopted later with zero folder setup.
+- **`first-run.py --scaffold-only`** — idempotent, non-interactive entrypoint that ensures the base skeleton under the configured vault root and exits. Useful standalone; also the hook the updater calls.
+- **One-touch base folders on update** — after a `github-self` fast-forward pull, `/charon-update` runs the scaffold-ensure so **existing** users pick up any newly-added base folders automatically (best-effort; never fails the update). New commands/scripts/rules/docs already arrived one-touch via the pull; this closes the folder gap.
+- **Deterministic check D21** — verifies `--scaffold-only` creates the nine base folders and is idempotent. Suite is now **21 deterministic checks**.
+
+### Fixed
+- Corrected stale first-run summary prose that told users to create `02-BUs/` themselves — it now scaffolds as an empty base folder with a README.
+
+---
+
 ## [0.14.0] - 2026-07-01
 
 ### Added

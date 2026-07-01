@@ -202,6 +202,26 @@ def _self_block_reason(ahead: int, behind: int, wt_clean: bool) -> Optional[str]
     return None
 
 
+def _run_scaffold_ensure() -> Optional[str]:
+    """After a self-update, ensure the 00-09 base-folder skeleton exists so any
+    newly-added base folders land without a manual first-run re-run — the
+    one-touch property. Best-effort: never raises, never fails the update.
+    Returns a short status line, or None if it couldn't run."""
+    repo_root = Path(__file__).resolve().parents[2]
+    script = repo_root / "scripts" / "first-run.py"
+    if not script.exists():
+        return None
+    try:
+        result = subprocess.run(
+            [sys.executable, str(script), "--scaffold-only"],
+            capture_output=True, text=True, timeout=30,
+        )
+    except Exception as exc:
+        return f"scaffold skipped: {exc}"
+    lines = (result.stdout or result.stderr).strip().splitlines()
+    return lines[-1] if lines else None
+
+
 def _apply_github_self(source: dict, status: dict, interactive: bool) -> dict:
     name = source["name"]
     branch = status["branch"]
@@ -215,7 +235,11 @@ def _apply_github_self(source: dict, status: dict, interactive: bool) -> dict:
         return {"source": name, "applied": False, "reason": f"git pull failed: {exc}"}
     smoke = source.get("post_update_smoke")
     smoke_ok = _run_smoke(smoke) if smoke else None
-    return {"source": name, "applied": True, "git_output": out.strip().splitlines()[-3:], "smoke_ok": smoke_ok}
+    result = {"source": name, "applied": True, "git_output": out.strip().splitlines()[-3:], "smoke_ok": smoke_ok}
+    scaffold_status = _run_scaffold_ensure()
+    if scaffold_status:
+        result["scaffold"] = scaffold_status
+    return result
 
 
 # ---------------- github-vendored ----------------
@@ -538,6 +562,8 @@ def main() -> int:
                 elif result["smoke_ok"] is False:
                     print(f"     ⚠️  smoke: FAIL — review changes carefully before committing")
                     any_failed = True
+            if result.get("scaffold"):
+                print(f"     folders: {result['scaffold']}")
         else:
             print(f"  ❌ {source['name']}: not applied — {result.get('reason', 'unknown')}")
             any_failed = True

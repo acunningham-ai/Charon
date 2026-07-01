@@ -787,6 +787,41 @@ def check_vault_lint_and_migrator() -> CheckResult:
                        "lint runs, taxonomy template parses, migrator dry-runs clean")
 
 
+def check_scaffold_only() -> CheckResult:
+    """first-run.py --scaffold-only creates the full 00-09 base skeleton under a
+    fresh vault root and is idempotent on a second run. Guards the one-touch
+    base-folder behaviour that /charon-update relies on post-update."""
+    import tempfile
+    fr = REPO_ROOT / "scripts" / "first-run.py"
+    if not fr.exists():
+        return CheckResult("Base-folder scaffold (--scaffold-only)", "FAIL", f"missing: {fr}")
+    expected = {"00-Inbox", "01-Daily", "02-BUs", "03-Domains", "04-People",
+                "05-Meetings", "06-Decisions", "08-Projects", "09-Archive"}
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            env = dict(os.environ)
+            env["HARNESS_VAULT_ROOT"] = td
+            r1 = subprocess.run([sys.executable, str(fr), "--scaffold-only"],
+                                capture_output=True, text=True, timeout=30, env=env)
+            if r1.returncode != 0:
+                return CheckResult("Base-folder scaffold (--scaffold-only)", "FAIL",
+                                   f"exit {r1.returncode}: {r1.stderr.strip()[:200]}")
+            created = {p.name for p in Path(td).iterdir() if p.is_dir()}
+            missing = expected - created
+            if missing:
+                return CheckResult("Base-folder scaffold (--scaffold-only)", "FAIL",
+                                   f"missing base folders: {sorted(missing)}")
+            r2 = subprocess.run([sys.executable, str(fr), "--scaffold-only"],
+                                capture_output=True, text=True, timeout=30, env=env)
+            if "nothing to do" not in r2.stdout.lower():
+                return CheckResult("Base-folder scaffold (--scaffold-only)", "WARN",
+                                   "second run did not report an idempotent no-op")
+    except Exception as e:
+        return CheckResult("Base-folder scaffold (--scaffold-only)", "FAIL", f"error: {e}")
+    return CheckResult("Base-folder scaffold (--scaffold-only)", "PASS",
+                       f"{len(expected)} base folders created, idempotent")
+
+
 def check_closed_vocabularies() -> CheckResult:
     """Verify the closed-vocabulary sets in graph.py exist and are non-empty
     (per C-3.1 value-layer constraint)."""
@@ -833,6 +868,7 @@ CHECKS = [
     ("D18", check_vault_wiki_generation),
     ("D19", check_multimodal_extractors_present),
     ("D20", check_vault_lint_and_migrator),
+    ("D21", check_scaffold_only),
 ]
 
 

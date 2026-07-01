@@ -82,10 +82,12 @@ STATE_FILE = Path.home() / ".charon-first-run-state.json"
 
 
 # ---------- Vault scaffolding ----------
-# Folders + README.md scaffolded on every install. 02-BUs/ is NEVER scaffolded
-# (user-defined org-unit layer — departments, business units, clients, etc.);
-# 03-Domains/ is full-mode only (term lands once the framework / critical-
-# controls questions have given it context).
+# The full 00-09 base-folder skeleton is scaffolded on every install, in every
+# mode — so a capability the user hasn't set up yet still has a home to grow
+# into later. Folders are created empty (with an explainer README); no
+# org-specific content is ever generated. 02-BUs/ ships as an empty org-unit
+# layer the user populates themselves; 03-Domains/ likewise. (07-References/
+# ships in-repo, so it isn't scaffolded here.)
 
 VAULT_SCAFFOLD_ALWAYS = {
     "00-Inbox": """# 00-Inbox
@@ -164,9 +166,25 @@ The monthly archive script (`scripts/archive-captures.py`) moves captured
 items >30 days old from `00-Inbox/_captured/` to `09-Archive/_captured/<YYYY>/`
 when you opt into the recurring task.
 """,
-}
+    "02-BUs": """# 02-BUs
 
-VAULT_SCAFFOLD_FULL_ONLY = {
+Your org-unit layer — Org / Business Units (departments, business units,
+clients, accounts, portfolio companies — whatever your business calls them;
+the first-run wizard captured your term).
+
+This base folder ships **empty on purpose**: the structure here is yours to
+define. A common layout the harness's folder-derivation understands:
+
+    02-BUs/
+      _Portfolio-<Group>/        (optional grouping tier)
+        <Unit-Name>/
+          CLAUDE.md              (optional; unit-specific context that auto-loads)
+          ...
+
+Populate it when you're ready to track per-unit context. `/vault-lint` and
+`scripts/migrate-tags.py` read this layout to derive `unit/` and `portfolio/`
+tags automatically.
+""",
     "03-Domains": """# 03-Domains
 
 Cross-cutting subject areas that span multiple org units / projects. Where
@@ -177,6 +195,10 @@ Common domains in a CISO-shaped harness: Security, Incident-Response,
 Vendor-Management, Compliance, Privacy, AI-Governance. Adjust for your role.
 """,
 }
+
+# Reserved: previously held full-mode-only folders. All base folders now
+# scaffold in every mode (see VAULT_SCAFFOLD_ALWAYS), so this is empty.
+VAULT_SCAFFOLD_FULL_ONLY: dict[str, str] = {}
 
 PHASE_TITLES_FALLBACK = {
     "identity_paths": "Identity and paths",
@@ -595,10 +617,11 @@ def print_capture_next_steps(cp_dir: Path, answers: dict[str, str]) -> None:
 def scaffold_vault_structure(vault: Path, mode: str) -> tuple[list[str], list[str]]:
     """Create the standard vault folder structure with per-folder README.md.
 
-    Always scaffolds: 00-Inbox, 01-Daily, 04-People, 05-Meetings, 06-Decisions,
-    08-Projects, 09-Archive.
-    Quick mode skips 03-Domains; Full mode includes it.
-    NEVER scaffolds 02-BUs (user-defined org layer).
+    Scaffolds the full 00-09 base skeleton in every mode: 00-Inbox, 01-Daily,
+    02-BUs, 03-Domains, 04-People, 05-Meetings, 06-Decisions, 08-Projects,
+    09-Archive. (07-References ships in-repo.) Folders are created empty with an
+    explainer README; 02-BUs is the user's org-unit layer, never populated with
+    org-specific content.
 
     Idempotent — skips any folder or README that already exists.
     Returns (created_folders, created_readmes) for the caller to log."""
@@ -719,8 +742,8 @@ def confirm_and_write(plans, vault, mem, answers, env_lines, anthropic_target, d
         scaffold_summary_folders += list(VAULT_SCAFFOLD_FULL_ONLY.keys())
     print(f"\nVault folders to scaffold under {vault} (skipped if they exist):")
     print("  " + ", ".join(sorted(scaffold_summary_folders)))
-    print("  Each gets a README.md explaining its purpose. 02-BUs/ is your org-unit")
-    print("  layer — you create it yourself with names that match your org.")
+    print("  Each gets a README.md explaining its purpose. 02-BUs/ ships as an empty")
+    print("  org-unit layer with a README — populate it with names that match your org.")
 
     if env_lines:
         print("\nEnvironment variables — add to your shell profile:")
@@ -791,7 +814,24 @@ def main():
         action="store_true",
         help="Full install: all 27 questions across 5 phases. ~20 minutes. (Default if --quick not set and not interactive.)",
     )
+    parser.add_argument(
+        "--scaffold-only",
+        action="store_true",
+        help="Ensure the 00-09 base-folder skeleton exists under the configured vault "
+             "root, then exit. Idempotent; asks no questions. Used by /charon-update "
+             "after a self-update so newly-added base folders land one-touch.",
+    )
     args = parser.parse_args()
+
+    if args.scaffold_only:
+        vault = vault_root()
+        created_folders, created_readmes = scaffold_vault_structure(vault, mode="full")
+        touched = sorted(set(created_folders) | set(created_readmes))
+        if touched:
+            print(f"Scaffolded base folders under {vault}: {', '.join(touched)}")
+        else:
+            print(f"Base folders already present under {vault} — nothing to do.")
+        return
 
     if args.no_logo:
         banner.print_banner(no_logo=True)

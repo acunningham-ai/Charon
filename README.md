@@ -135,7 +135,7 @@ A working capture pipeline ships in `capture-pipeline/` — not a pattern, a run
 
 ### Tested, not just documented
 
-`test-scenarios/` ships with the harness — 16 LLM-behaviour scenarios + 20 automated deterministic checks. The same suite runs before any release and after any material change to rules / hooks / wizard. Pass-rate threshold is published; releases with a failing scenario must document it in known-limitations.
+`test-scenarios/` ships with the harness — 16 LLM-behaviour scenarios + 21 automated deterministic checks. The same suite runs before any release and after any material change to rules / hooks / wizard. Pass-rate threshold is published; releases with a failing scenario must document it in known-limitations.
 
 ```bash
 python test-scenarios/run-deterministic-checks.py    # PASS in ~3 seconds, CI-ready
@@ -191,8 +191,8 @@ Full walkthrough: [`INSTALL.md`](INSTALL.md).
 | **Knowledge graph** | networkx-backed entity + relationship graph (stored as JSON; no native deps) extracted via Haiku at `scripts/extract_entities.py`. Optional install via `requirements-graph.txt`. |
 | **Voice capture** | Local Whisper transcription via `scripts/voice-capture.py` + `/voice-note` slash command. Audio never leaves the machine. Optional install via `requirements-voice.txt`. |
 | **Capture pipeline** | Runnable Node.js reference impl — inbox + sent items via M365 (fully implemented), Gmail + IMAP (skeletons). `direction: inbound\|outbound` frontmatter, user-configurable schedule, prompt-injection wrapper on every capture, dedup by provider ID. See `EMAIL-PROVIDER-SETUP.md`. |
-| **First-run wizard** | YAML-defined questions (5 phases / 39 questions, ~25 always-asked + the rest conditional on your answers), state file resume on Ctrl+C, atomic write at the end, ANSI banner with optional ASCII trademark logo. The `engines` phase seeds the research ledger + forums so the pipeline isn't empty on day one |
-| **Test suite** | 16 LLM-behaviour scenarios + 20 deterministic checks (YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, Cerberus engine + SARIF, vault-graph pipeline, Louvain community detection, multimodal extractors, vault-lint + tag-migrator) |
+| **First-run wizard** | YAML-defined questions (5 phases / 39 questions, ~25 always-asked + the rest conditional on your answers), state file resume on Ctrl+C, atomic write at the end, ANSI banner with optional ASCII trademark logo. The `engines` phase seeds the research ledger + forums so the pipeline isn't empty on day one. Scaffolds the full 00-09 base-folder skeleton (empty until you populate) so every capability has a home from day one; re-runnable idempotently via `--scaffold-only` |
+| **Test suite** | 16 LLM-behaviour scenarios + 21 deterministic checks (YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, Cerberus engine + SARIF, vault-graph pipeline, Louvain community detection, multimodal extractors, vault-lint + tag-migrator, base-folder scaffold) |
 | **Utility scripts** | score-vault, vault-lint, migrate-tags, skill-curator, scheduled-audit, archive-captures, audit-unattended-run, recover-ssh-creds, check-capture-state, telemetry-summary |
 
 See [`CAPABILITIES.md`](CAPABILITIES.md) for the full catalogue with descriptions, fire conditions, and outputs.
@@ -271,7 +271,7 @@ Full setup walkthrough: [`INSTALL.md`](INSTALL.md) → [`FIRST-RUN.md`](FIRST-RU
 | [`ROADMAP.md`](ROADMAP.md) | What's coming next + what won't ship |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | License, PR process, skill-authoring standard |
 | [`CHANGELOG.md`](CHANGELOG.md) | Version history |
-| `test-scenarios/` | Pre-release reliability checks — 16 LLM scenarios + 20 automated checks |
+| `test-scenarios/` | Pre-release reliability checks — 16 LLM scenarios + 21 automated checks |
 
 ---
 
