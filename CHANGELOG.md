@@ -8,6 +8,13 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.16.0] - 2026-07-03
+
+### Added
+- **Design System Reference — a design-knowledge layer for building visual surfaces** (`07-References/design-system-reference.md` + `07-References/design-system-data/*.csv` + `.claude/rules/design.md`). When you build a dashboard, landing/marketing page, chart, or Claude Artifact, `load-rules.py` now auto-injects a design rule that carries an always-apply accessibility/UX floor (contrast ≥ 4.5:1, never colour-alone for meaning, visible focus rings, restrained motion, no layout shift) and a chart-selection rule of thumb, then points at the full interface. The interface distils a borrowed dataset into (a) a **universal UX Do/Don't checklist** grouped by area with severity, and (b) a **chart-selection quick-reference** that picks the chart by the question *and surfaces the accessibility grade* — several common chart types (pie, treemap, network, 3D) grade C–D and must ship a table fallback or not be the primary view. The reference feeds the `frontend-design` and `artifact-design` skills; it does not replace them. Data adapted from [ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) v2.6.2 (MIT © 2024 Next Level Builder) — data only, no upstream code vendored or run; attribution in `NOTICE`. *Why:* the harness could research and write well but had no owned, always-loaded design floor, so visual builds leaned on model defaults with no accessibility guardrail.
+
+---
+
 ## [0.15.3] - 2026-07-02
 
 ### Fixed

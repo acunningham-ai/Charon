@@ -33,3 +33,21 @@ a "Modified by Charon" comment at the top of the file per Apache-2.0 §4(b).
 Per Apache-2.0 §4, a copy of the licence is included at LICENSE-cisco-apache-2.0.
 No NOTICE file was present in the upstream repo at the vendored SHA, so this
 attribution is the canonical record of the borrow.
+
+### ui-ux-pro-max-skill — design-knowledge dataset
+
+Location:   07-References/design-system-data/
+Source:     https://github.com/nextlevelbuilder/ui-ux-pro-max-skill  (v2.6.2)
+Copyright:  © 2024 Next Level Builder
+Licence:    MIT (see 07-References/design-system-data/LICENSE-ui-ux-pro-max)
+
+The CSV tables under 07-References/design-system-data/ (UX guidelines, chart
+selection, UI styles, colour palettes, typography pairings, motion tiers,
+landing patterns, product archetypes, icons, app-interface rules) are the data
+files from the ui-ux-pro-max-skill project, adapted for use as a harness-native
+markdown reference (07-References/design-system-reference.md). Only the data was
+borrowed — the upstream npm CLI and Python BM25 search machinery were not, and
+no upstream code was executed during extraction. The upstream's Google-Fonts
+catalogue, native-app-stack tables, and Chinese-language design.csv were
+excluded as out-of-scope for web-surface work. Per the MIT licence, the
+copyright and permission notice are preserved at the path noted above.
