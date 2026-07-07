@@ -63,7 +63,7 @@ Most personal-AI projects ship one or two of the patterns below. Charon ships al
 | **No assumptions** | Uncertain facts trigger an ask, not an extrapolation; filename-trap, prior/current-conflict, undocumented design — all named must-ask triggers | `.claude/rules/no-assumptions.md` (always-fire) |
 | **Save on mention** | Operational facts spoken in chat are written to the right memory file in the same turn, with one-clause acknowledgement | `.claude/rules/save-on-mention.md` (always-fire) + Haiku Stage 2 classifier hook |
 | **Session-start ritual** | Project name, person name, date question, deploy task — each triggers loading the relevant memory content before the first response | `.claude/rules/session-start-ritual.md` (always-fire) |
-| **Path-conditioned rules** | 7 path-rules auto-inject doctrine when the path/keyword fires (board-reporting, ai-governance, secure-code, captures, quarterly-report, voice-content, skill-authoring) | `.claude/rules/*.md` + `scripts/load-rules.py` (UserPromptSubmit hook) |
+| **Path-conditioned rules** | 10 path-rules auto-inject doctrine when the path/keyword fires (board-reporting, ai-governance, secure-code, captures, quarterly-report, voice-content, skill-authoring, verdict-vocabulary, versioning, design) | `.claude/rules/*.md` + `scripts/load-rules.py` (UserPromptSubmit hook) |
 | **Open-thread surfacing** | Pickup notes from prior sessions surface their open questions at the start of the next response — no silent inheritance of stale plans | `.claude/rules/session-start-ritual.md` |
 | **Refuse-to-fabricate** | Reporting skills refuse to compute scores / fabricate vendor names / invent framework numbers — they ask for source-of-truth input | `.claude/rules/quarterly-report.md` + `board-reporting.md` |
 
@@ -96,9 +96,11 @@ The reviews above are on-demand, and the C-1..C-8 controls bound *unattended* ru
 
 Charon ships a dependency-free **prompt-injection / poisoning detector** on `UserPromptSubmit` (`scripts/hooks/poisoning-scan.py`, engine `_poisoning.py`). It flags instruction-override, role-switch, exfiltration, tool-coaxing, secret-solicitation, hidden/encoded payloads, and model special-token injection — hardened against evasion three ways: Unicode-confusable + invisible folding (a Cyrillic-homoglyph attack can't slip past ASCII patterns), chat-template special-token detection (ChatML / Llama / Mistral / Gemma), and base64/hex **decode-then-rescan**. **It ships observe-only** — it writes a structured verdict to `state/verdict/` and never blocks or alters your prompt, so you can watch what it would have caught before promoting it to enforcing. Privacy: it logs categories and a score, never the matched text.
 
-### Research → compose pipeline (standing-seat agents)
+### Named agents — the research → compose pipeline
 
-Beyond the parallel *review* subagents, Charon ships two **standing seats** — named functional roles that carry work across sessions and hand off to each other. They take no outward action on their own; every send stays human-gated.
+Beyond the parallel *review* subagents, Charon ships **named standing seats** — functional roles that carry work across sessions, keep their own memory, and **hand off to one another in a pipeline**. They're roles (a research analyst, a writer), never a roleplay of you, and they take no outward action on their own — every send stays human-gated.
+
+**The pipeline: research → compose → deliver.** Prometheus researches and frames a content-worthy angle, then hands it to Calliope, who drafts it in *your* voice; you approve. A delivery seat is designed but deliberately unbuilt until the guardrails around an agent that can *send* are ready. The handoff persists across sessions via each seat's own artefact, so a framed angle is still waiting when you sit down to write. (Distinct from the multi-agent **workflows** below, which fan *many* subagents out on a single hard question and keep only findings that survive independent refutation.)
 
 - **Prometheus — the research seat (`/prometheus`).** A standing analyst with a persistent ledger of your research beats. It also reads an allowlist of your newsletter/digest emails as an input beat, researches the top threads each run, and writes a prioritised daily digest with framed content angles. *Why it matters:* research that isn't captured and prioritised gets re-done or missed — a seat with cross-day memory turns scattered reading into a daily "so what" you can act on. It triages and surfaces; you steer; it never acts on its own. *Optional KEV/CVE beat:* `scripts/kev-fetch.py` pulls the CISA Known-Exploited-Vulnerabilities catalogue and drops a scored, newsworthiness-ranked shortlist into the digest — so actively-exploited vulns in widely-run software surface for your triage without trawling feeds. The vendor lens is tunable to the software you (or your customers) actually run.
 - **Calliope — the writing seat (`/calliope`).** Composes in *your* voice across modes — post, stakeholder bulletin, tweet, email — taking a Prometheus angle or a raw topic to a draft. *Why it matters:* drafting is the bottleneck, and an AI that can *send* is a liability. **Calliope drafts only — never sends, posts, or emails;** bulletins are draft-to-approval. You get the speed without the blast-radius risk.
@@ -106,9 +108,9 @@ Beyond the parallel *review* subagents, Charon ships two **standing seats** — 
 
 First-run seeds all three (your beats, your newsletter senders, your forums) so they produce value on first run, not after weeks of manual setup.
 
-### Cerberus — the defensive AI-installation security capability the field has been missing
+### Cerberus — defensive security for the AI installation itself
 
-The reviews above protect the *code you're working on*. Cerberus protects the *AI installation* it runs in — the configuration, the plugins, the MCP servers, the dependencies you pull. To our knowledge, it is the first defensive security capability for AI installations that combines **secure-by-design construction** with **published-standards grounding** in a single open-source surface.
+The reviews above protect the *code you're working on*. Cerberus protects the *AI installation* it runs in — the configuration, the plugins, the MCP servers, the dependencies you pull. It's built for a surface most AI-security tooling skips, combining **secure-by-design construction** with **published-standards grounding** in a single open-source capability.
 
 **Why this is differentiated.** Most security tooling that has shipped for AI/agent ecosystems in 2025–2026 is offensive — autonomous hackers (Strix, PyRIT, Garak, DeepTeam) attacking running applications. The *defensive* surface — the AI installation itself — has been under-tooled. Cerberus addresses that gap directly, and does it three ways at once:
 
@@ -152,7 +154,7 @@ python test-scenarios/run-deterministic-checks.py    # PASS in ~3 seconds, CI-re
 
 ### Why this matters
 
-The shape of personal AI is converging on agentic systems that read your files, take actions, fire tools, and accumulate context. **The patterns that protected enterprise software** — input validation, allowlist enforcement, secret hygiene, audit trails, deterministic test coverage — **apply to personal AI too, but they're rarely shipped by default.** Charon ships them by default. You get the productivity of an LLM personal assistant with the discipline of a hardened engineering system.
+The shape of personal AI is converging on agentic systems that read your files, take actions, fire tools, and accumulate context. **The patterns that protected enterprise software** — input validation, allowlist enforcement, secret hygiene, audit trails, deterministic test coverage — **apply to personal AI too, but they're rarely shipped by default.** Charon ships them enabled by default — the write-path allowlist and deny-destructive gates run out of the box, the rest of the C-1..C-8 baseline is a documented standard your automations are held to at review, and heavier add-ons like the Cerberus hook scripts stay opt-in. You get the productivity of an LLM personal assistant with the discipline of a hardened engineering system.
 
 ---
 
@@ -191,7 +193,7 @@ Full walkthrough: [`INSTALL.md`](INSTALL.md).
 | Layer | What |
 |---|---|
 | **Always-fire rules** | 4 rules — no-assumptions, save-on-mention, session-start-ritual, confidence-tags |
-| **Path-conditioned rules** | 9 rules — auto-injected on path/keyword match: board-reporting, ai-governance, secure-code, captures, quarterly-report, voice-content, skill-authoring, verdict-vocabulary, versioning |
+| **Path-conditioned rules** | 10 rules — auto-injected on path/keyword match: board-reporting, ai-governance, secure-code, captures, quarterly-report, voice-content, skill-authoring, verdict-vocabulary, versioning, design |
 | **Slash commands** | 39 commands across reporting + governance, security review, the research→compose pipeline (`/prometheus`, `/calliope`, `/forum-agenda`), the knowledge-graph build (`/graph-backfill`, `/vault-query`), workflow, hygiene, and the 5-command Cerberus suite — full catalogue with fire conditions in [`CAPABILITIES.md`](CAPABILITIES.md) |
 | **Hooks** | 10 hooks — load-rules (rule injection), save-on-mention (two-stage Haiku-classified), deny-destructive, validate-write-path, validate-memory-frontmatter, voice-anchor-ralph-loop, skill-usage-log, ssh-recovery, notification-toast, check-reauth-flag — plus `on-error.py`, invoked by scheduled runners on failure |
 | **MCP servers** | 3 local stdio servers — `vault-readonly` (keyword + semantic search, unit context, initiatives), `vault-ops` (patch_note, frontmatter_query, manage_tags), and `vault-graph` (entity / relationship queries, networkx-backed, read-only) |
@@ -281,23 +283,23 @@ Full setup walkthrough: [`INSTALL.md`](INSTALL.md) → [`FIRST-RUN.md`](FIRST-RU
 | [`ROADMAP.md`](ROADMAP.md) | What's coming next + what won't ship |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | License, PR process, skill-authoring standard |
 | [`CHANGELOG.md`](CHANGELOG.md) | Version history |
-| `test-scenarios/` | Pre-release reliability checks — 16 LLM scenarios + 21 automated checks |
+| `test-scenarios/` | Pre-release reliability checks — 16 LLM scenarios + 22 automated checks |
 
 ---
 
 ## Project status
 
+**Public repository — MIT, live at [github.com/acunningham-ai/Charon](https://github.com/acunningham-ai/Charon).** Actively developed; the harness has been in daily use through 2025–26, and the public edition ships the generic patterns.
+
 | Phase | State |
 |---|---|
-| Initial scaffold | ✓ |
-| File-level credential scrub (Gate 1) | ✓ |
+| Public release (MIT) | ✓ live |
+| Credential scrub before publish | ✓ |
 | First-run wizard | ✓ |
-| Test suite | ✓ |
-| Internal-cohort validation | in progress |
-| Git-history credential scrub (Gate 2) | pending — before public toggle |
-| Public release | pending |
+| Test suite (16 scenarios + 22 checks) | ✓ |
+| Internal-cohort validation | ongoing |
 
-Currently a **private repo during the validation window**. Public toggle happens after trusted internal validators have run the test suite on their own machines. Track progress in [`ROADMAP.md`](ROADMAP.md).
+See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
 ---
 
