@@ -1,3 +1,11 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Charon — a second brain for Claude Code</title>
+</head>
+<body>
 <style>
   :root{
     --bg:#FCFCFD;--bg-2:#F6F7F9;--bg-3:#F0F2F5;
@@ -155,6 +163,11 @@
   .scard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px;box-shadow:var(--shadow-sm)}
   .sicon{width:34px;height:34px;border-radius:9px;background:var(--accent-weak);color:var(--accent-ink);display:grid;place-items:center;margin-bottom:14px}
   .scard h4{font-size:16px}.scard p{color:var(--ink-2);font-size:14px;margin-top:10px;line-height:1.5}
+  a.scard.link{display:block;text-decoration:none;transition:transform .12s ease,box-shadow .15s,border-color .15s}
+  a.scard.link:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);border-color:var(--line-2)}
+  a.scard.link h4{color:var(--accent-ink)}
+  .scard.soon{border-style:dashed}
+  .soonpill{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:600;color:var(--warn);background:var(--warn-bg);border-radius:6px;padding:2px 8px;margin-bottom:8px}
   .scode{max-width:680px;margin:26px auto 0}
 
   /* agents / seats + pipeline */
@@ -514,17 +527,18 @@ V8 deps vs registry <span class="g">✓ clean</span>
 <!-- INSTALL -->
 <section class="band tall" id="everything">
   <div class="wrap">
-    <div class="sec-head reveal"><p class="kicker">The full surface</p><h2>Everything it does.</h2><p>Nothing hidden, nothing oversold — the whole capability set, honestly scoped.</p></div>
+    <div class="sec-head reveal"><p class="kicker">The full surface</p><h2>Everything it does.</h2><p>Explore any capability in depth, or see the near-term work still in testing. Nothing hidden, nothing oversold.</p></div>
     <div class="scap">
-      <div class="scard reveal" style="--i:1"><h4>Memory &amp; recall</h4><p>Save-on-mention · session-start load · on-device semantic search · typed knowledge graph + Obsidian graph view · vault-query</p></div>
-      <div class="scard reveal" style="--i:1"><h4>Capture</h4><p>Email inbox + sent (M365) · voice notes (local Whisper — audio never leaves the machine) · screenshots · all marked untrusted</p></div>
-      <div class="scard reveal" style="--i:1"><h4>Reporting &amp; governance</h4><p>Quarterly report prep · control translation · board-reporting &amp; AI-governance doctrine · refuses to fabricate scores</p></div>
-      <div class="scard reveal" style="--i:2"><h4>Runs your day</h4><p>refresh-todo · triage-inbox · weekly-checkin · eod-reflect · knowledge-consolidate · brainstorm · systematic-debug</p></div>
-      <div class="scard reveal" style="--i:2"><h4>Research → compose</h4><p>Prometheus (research + CISA KEV/CVE feed) · Calliope (drafts in your voice, never sends) · forum-agenda</p></div>
-      <div class="scard reveal" style="--i:2"><h4>Security review</h4><p>secure-code-review · owasp-llm-review · owasp-agentic-review · fp-check · safe-rebuild</p></div>
-      <div class="scard reveal" style="--i:3"><h4>Cerberus</h4><p>setup · audit · vet a plugin/MCP · deps vs compromise registry · post-leak recover</p></div>
-      <div class="scard reveal" style="--i:3"><h4>Guardrails</h4><p>10 hooks — write-path allowlist, deny-destructive, injection shadow-scan, memory-frontmatter, secret redaction — plus post-run audit</p></div>
-      <div class="scard reveal" style="--i:3"><h4>Proof</h4><p>16 behaviour scenarios + 22 deterministic checks, run before every release · MIT, all readable</p></div>
+      <a class="scard link reveal" style="--i:1" href="memory.html"><h4>Memory →</h4><p>Durable plain-markdown memory, save-on-mention, on-device semantic search, optional typed graph.</p></a>
+      <a class="scard link reveal" style="--i:1" href="capture.html"><h4>Capture →</h4><p>Email inbox + sent into the vault, voice notes, screenshots — all untrusted by default.</p></a>
+      <a class="scard link reveal" style="--i:1" href="security.html"><h4>Security →</h4><p>Two runtime gates, two-layer injection defence, secure-code review, the C-1…C-8 baseline.</p></a>
+      <a class="scard link reveal" style="--i:2" href="cerberus.html"><h4>Cerberus →</h4><p>Vet a plugin or MCP before install; check dependencies against a live compromise registry.</p></a>
+      <a class="scard link reveal" style="--i:2" href="skills.html"><h4>Skills &amp; Hooks →</h4><p>Rules that load the right doctrine, deterministic guardrail hooks, and the named agents.</p></a>
+      <a class="scard link reveal" style="--i:2" href="workflows.html"><h4>Workflows →</h4><p>Self-verifying multi-agent research and an adversarial pre-mortem.</p></a>
+    </div>
+    <div class="scap" style="margin-top:16px">
+      <div class="scard soon reveal" style="--i:1"><span class="soonpill">in testing</span><h4>Self-healing &amp; improvement</h4><p>Loops that surface drift and improve the harness — with a human keeping the final say. Coming to Charon; overview when it ships.</p></div>
+      <div class="scard reveal" style="--i:2"><h4>Also inside</h4><p>Reporting &amp; governance prep · your-day commands (refresh-todo · triage-inbox · weekly-checkin · eod-reflect) · Prometheus KEV/CVE feed · 16 behaviour scenarios + 22 deterministic checks · MIT, all readable.</p></div>
     </div>
   </div>
 </section>
@@ -600,3 +614,5 @@ V8 deps vs registry <span class="g">✓ clean</span>
   });
 })();
 </script>
+</body>
+</html>

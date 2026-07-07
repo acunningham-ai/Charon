@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Charon — Memory</title>
+</head>
+<body>
+<style>
+  :root{
+    /* light premium, near-monochrome — shared with index.html */
+    --bg:#FCFCFD;--bg-2:#F6F7F9;--bg-3:#F0F2F5;
+    --ink:#0B0C0E;--ink-2:#3A4046;--muted:#6A7178;--faint:#9AA1A8;
+    --line:#E6E8EC;--line-2:#DDE0E5;
+    --accent:#0E6F66;--accent-ink:#0A5049;--accent-weak:#E7F1EF;
+    --t-bg:#0C1014;--t-bar:#151B22;--t-line:#20272F;--t-fg:#C9D2DC;--t-dim:#7E8A97;
+    --t-green:#54B98A;--t-amber:#D6A44B;--t-red:#E0685A;--t-teal:#4CC7BC;
+    --ok:#1E8A57;--warn:#9C7213;--bad:#B4472E;
+    --ok-bg:#E7F3EC;--warn-bg:#F6EEDD;--bad-bg:#F7E9E5;
+    --shadow-sm:0 1px 2px rgba(11,12,14,.04),0 1px 3px rgba(11,12,14,.06);
+    --shadow-md:0 4px 12px rgba(11,12,14,.06),0 12px 28px rgba(11,12,14,.07);
+    --shadow-lg:0 8px 24px rgba(11,12,14,.08),0 30px 60px rgba(11,12,14,.12);
+    --maxw:1080px;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code","JetBrains Mono",Menlo,Consolas,monospace;
+    --r:10px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.6;letter-spacing:-.006em;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 32px}
+  a{color:inherit;text-decoration:none}
+  h1,h2,h3,h4{margin:0;font-weight:600;letter-spacing:-.028em;text-wrap:balance;color:var(--ink)}
+  p{margin:0}
+  code{font-family:var(--mono)}
+  ::selection{background:var(--accent-weak);color:var(--accent-ink)}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+
+  /* nav */
+  nav{position:sticky;top:0;z-index:40;background:rgba(252,252,253,.8);backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)}
+  .nav-in{display:flex;align-items:center;height:60px;gap:8px}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:17px;letter-spacing:-.02em}
+  .brand .glyph{width:22px;height:22px;display:grid;place-items:center;color:var(--accent)}
+  .nav-links{display:flex;gap:4px;margin-left:26px}
+  .nav-links a{padding:7px 11px;border-radius:7px;color:var(--ink-2);font-size:14.5px;font-weight:450;transition:background .15s,color .15s}
+  .nav-links a:hover{background:var(--bg-3);color:var(--ink)}
+  .nav-links a.active{color:var(--accent-ink);background:var(--accent-weak)}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:6px}
+  .nav-ghost{padding:7px 12px;border-radius:7px;color:var(--ink-2);font-size:14.5px;font-weight:450;transition:background .15s}
+  .nav-ghost:hover{background:var(--bg-3);color:var(--ink)}
+  .btn{display:inline-flex;align-items:center;gap:7px;font-family:var(--sans);font-weight:500;font-size:14.5px;border-radius:8px;padding:8px 15px;cursor:pointer;border:1px solid transparent;transition:transform .12s ease,box-shadow .15s,background .15s}
+  .btn-dark{background:var(--ink);color:#fff;box-shadow:var(--shadow-sm)}
+  .btn-dark:hover{background:#000;transform:translateY(-1px);box-shadow:var(--shadow-md)}
+  .btn-dark:active{transform:translateY(0)}
+  @media(max-width:780px){.nav-links{display:none}}
+
+  /* hero */
+  .phero{position:relative;padding:74px 0 30px;overflow:hidden}
+  .phero::before{content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(52% 40% at 22% -10%,rgba(14,111,102,.09),transparent 70%)}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:550;color:var(--accent-ink);background:var(--accent-weak);border-radius:100px;padding:5px 13px;margin-bottom:22px;letter-spacing:.01em}
+  h1.big{font-size:clamp(34px,5vw,54px);line-height:1.06;letter-spacing:-.036em;max-width:18ch}
+  .phero .sub{font-size:clamp(17px,2vw,20px);line-height:1.55;color:var(--muted);max-width:58ch;margin-top:22px;font-weight:420}
+  .phero .sub b{color:var(--ink-2);font-weight:550}
+
+  /* the loop — three real steps */
+  .loop{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:46px;position:relative}
+  @media(max-width:800px){.loop{grid-template-columns:1fr}}
+  .step{background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px;box-shadow:var(--shadow-sm)}
+  .step .n{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;background:var(--accent-weak);color:var(--accent-ink);font-family:var(--mono);font-weight:600;font-size:13px;margin-bottom:13px}
+  .step h3{font-size:16.5px;line-height:1.25}
+  .step p{color:var(--ink-2);font-size:14px;margin-top:9px;line-height:1.55}
+  .step .k{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:11px;display:block}
+
+  /* sections */
+  section{padding:72px 0;border-top:1px solid var(--line)}
+  section.alt{background:var(--bg-2)}
+  .sec-head{max-width:64ch;margin:0 auto 48px;text-align:center}
+  .kicker{color:var(--accent);font-weight:600;font-size:14px;letter-spacing:-.01em;margin-bottom:12px}
+  .sec-head h2{font-size:clamp(26px,3.6vw,36px);line-height:1.12}
+  .sec-head p{color:var(--muted);font-size:17.5px;margin-top:16px}
+
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+  .row+.row{margin-top:64px}
+  .row.flip .col-text{order:2}
+  @media(max-width:800px){.row,.row.flip .col-text{grid-template-columns:1fr;order:0}.row{gap:28px}}
+  .col-text h3{font-size:24px;line-height:1.2}
+  .col-text .role{color:var(--accent);font-weight:600;font-size:13.5px;margin-bottom:12px}
+  .col-text p{color:var(--ink-2);font-size:16.5px;margin-top:14px;max-width:46ch}
+  .col-text .note{color:var(--muted);font-size:14px;margin-top:16px;padding-left:14px;border-left:2px solid var(--line-2)}
+  .optin{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--warn);background:var(--warn-bg);border-radius:100px;padding:4px 11px;margin-bottom:14px;letter-spacing:.02em}
+
+  .visual{background:var(--bg-2);border:1px solid var(--line);border-radius:14px;padding:26px;box-shadow:var(--shadow-sm);min-height:230px;display:flex;flex-direction:column;justify-content:center}
+
+  .note-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 18px;box-shadow:var(--shadow-sm);font-family:var(--mono);font-size:12.5px;line-height:1.7}
+  .note-card .fm{color:var(--muted)}
+  .note-card .k{color:var(--accent-ink)}
+  .note-card .link{color:var(--accent);background:var(--accent-weak);padding:1px 5px;border-radius:4px}
+  .edges{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .edges .e{font-family:var(--mono);font-size:11.5px;color:var(--ink-2);background:#fff;border:1px solid var(--line-2);border-radius:100px;padding:4px 11px}
+
+  .code-mini{background:var(--t-bg);border-radius:10px;padding:16px 18px;font-family:var(--mono);font-size:12px;line-height:1.9;color:var(--t-fg);overflow-x:auto;box-shadow:var(--shadow-sm)}
+  .code-mini .c{color:var(--t-dim)}
+  .code-mini .g{color:var(--t-green)}
+  .code-mini .r{color:var(--t-red)}
+  .code-mini .t{color:var(--t-teal)}
+  .code-mini .a{color:var(--t-amber)}
+  .code-mini .you{color:#fff;font-weight:600}
+
+  /* trust line */
+  .trust-line{text-align:center;max-width:60ch;margin:0 auto}
+  .trust-line p{color:var(--muted);font-size:16px;line-height:1.6}
+  .trust-line code{background:var(--bg-3);border-radius:5px;padding:1px 6px;font-size:.9em;color:var(--ink-2)}
+
+  /* footer */
+  footer{border-top:1px solid var(--line);background:var(--bg-2);padding:56px 0 40px}
+  .foot-grid{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:32px}
+  @media(max-width:720px){.foot-grid{grid-template-columns:1fr 1fr}}
+  .foot-brand p{color:var(--muted);font-size:14px;margin-top:14px;max-width:34ch}
+  .foot-col h4{font-size:13px;color:var(--faint);font-weight:600;margin-bottom:14px;letter-spacing:.01em}
+  .foot-col a{display:block;color:var(--ink-2);font-size:14px;margin-bottom:10px;font-weight:450}
+  .foot-col a:hover{color:var(--accent-ink)}
+  .foot-base{border-top:1px solid var(--line);margin-top:40px;padding-top:22px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;font-size:13px;color:var(--faint)}
+  .foot-base .mono{font-family:var(--mono)}
+
+  .draft-note{background:#111;color:#D6A44B;font-family:var(--mono);font-size:12px;text-align:center;padding:7px;letter-spacing:.03em}
+</style>
+
+
+<nav>
+  <div class="wrap nav-in">
+    <a class="brand" href="index.html">
+      <span class="glyph" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 13c1.5 1 3 1 4.5 0S10.5 12 12 13s3 1 4.5 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4.5 9.5 10 3l5.5 6.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="7.5" r="1.1" fill="currentColor"/></svg>
+      </span>
+      Charon
+    </a>
+    <div class="nav-links">
+      <a href="memory.html" class="active">Memory</a>
+      <a href="capture.html">Capture</a>
+      <a href="security.html">Security</a>
+      <a href="cerberus.html">Cerberus</a>
+      <a href="skills.html">Skills &amp; Hooks</a>
+      <a href="workflows.html">Workflows</a>
+    </div>
+    <div class="nav-right">
+      <a class="nav-ghost" href="https://github.com/acunningham-ai/Charon">GitHub</a>
+      <a class="btn btn-dark" href="index.html#install">Get started</a>
+    </div>
+  </div>
+</nav>
+
+<div class="phero">
+  <div class="wrap">
+    <span class="eyebrow">Memory</span>
+    <h1 class="big">What you tell it today loads automatically tomorrow.</h1>
+    <p class="sub">Claude Code starts every session from zero. Charon keeps a durable memory as <b>plain markdown files you own</b> — written the moment you mention something, loaded when it's relevant, so you stop re-explaining your world every morning.</p>
+
+    <div class="loop">
+      <div class="step">
+        <span class="n">1</span>
+        <h3>You say it</h3>
+        <p>Drop an operational fact, a decision, a person, a project into the conversation — just talking, no special syntax.</p>
+        <span class="k">in chat</span>
+      </div>
+      <div class="step">
+        <span class="n">2</span>
+        <h3>It's saved the same turn</h3>
+        <p>The save-on-mention hook routes the fact to the right memory file and acknowledges in one clause — not batched, not "I'll remember."</p>
+        <span class="k">save-on-mention hook</span>
+      </div>
+      <div class="step">
+        <span class="n">3</span>
+        <h3>It loads next time</h3>
+        <p>Name a project, a person or a date next session and the relevant memory content loads before the first response.</p>
+        <span class="k">session-start ritual</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section>
+  <div class="wrap">
+    <div class="row">
+      <div class="col-text">
+        <p class="role">It's just files</p>
+        <h3>Markdown you can read, edit and grep.</h3>
+        <p>Every memory is a plain markdown file with frontmatter and wiki-links. No database to trust, no opaque store — your knowledge stays in the open, versionable, portable, and yours the day you walk away from the tool.</p>
+        <p class="note">A one-line index (<code>MEMORY.md</code>) points at each file, so the model knows what exists without loading everything at once.</p>
+      </div>
+      <div class="visual">
+        <div class="note-card">
+          <div class="fm">--- <span class="k">type</span>: project · <span class="k">status</span>: active ---</div>
+          <div style="color:var(--ink);margin-top:8px">Renew wildcard cert before 2026-09-14.</div>
+          <div style="margin-top:6px;color:var(--ink-2)">Feeds <span class="link">[[q3-audit]]</span> · owner <span class="link">[[platform-team]]</span></div>
+          <div class="edges">
+            <span class="e">→ q3-audit</span><span class="e">→ platform-team</span><span class="e">→ renewals</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row flip">
+      <div class="col-text">
+        <p class="role">Save on mention</p>
+        <h3>Spoken once. Written before the turn ends.</h3>
+        <p>When you state a fact worth keeping, it's classified and written to the right file in the same reply. A second-stage model decides where it belongs — and closed enums keep the frontmatter valid instead of free-form drift.</p>
+        <p class="note">Known secret patterns — API keys, tokens, passwords — are redacted before anything is sent to the classifier. Credentials never enter the memory files; they stay in your secrets directory, pointed at, never quoted.</p>
+      </div>
+      <div class="visual">
+        <div class="code-mini">
+<span class="you">you ▸</span> the bot restarts need both services, not just one
+
+<span class="c"># save-on-mention</span>
+<span class="g">  ✓</span> routed → <span class="t">project CLAUDE.md</span> <span class="c">(operational fact)</span>
+<span class="g">  ✓</span> secrets scan <span class="c">(none present)</span>
+<span class="a">  →</span> "saving the restart sequence now"
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="kicker">Optional layer</p>
+      <h2>A typed graph, when you want relationship queries.</h2>
+      <p>The default is plain markdown — and that's enough for recall. If you want to <i>traverse</i> your knowledge, an optional graph layer adds typed entities and relationships on top of the same files.</p>
+    </div>
+    <div class="row">
+      <div class="col-text">
+        <span class="optin">opt-in · requirements-graph.txt</span>
+        <h3>Ask what connects to what.</h3>
+        <p>Install the optional graph dependencies and a background extractor builds a typed entity + relationship graph from your notes. Then query it in plain language — shortest path between two people, everything touching a project, a neighbourhood around one entity.</p>
+        <p class="note">networkx-backed, stored as JSON — no native build step. Read-only queries through the <code>vault-graph</code> server and <code>/vault-query</code>. Leave it uninstalled and memory still works exactly the same.</p>
+      </div>
+      <div class="visual" style="align-items:center">
+        <svg viewBox="0 0 300 190" width="100%" style="max-width:320px;margin:0 auto" aria-label="A small knowledge graph: a project node connected to people and a decision">
+          <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10">
+            <line x1="150" y1="95" x2="60" y2="42" stroke="#DDE0E5" stroke-width="1.4"/>
+            <line x1="150" y1="95" x2="248" y2="52" stroke="#DDE0E5" stroke-width="1.4"/>
+            <line x1="150" y1="95" x2="70" y2="150" stroke="#DDE0E5" stroke-width="1.4"/>
+            <line x1="150" y1="95" x2="238" y2="150" stroke="#DDE0E5" stroke-width="1.4"/>
+            <circle cx="150" cy="95" r="26" fill="#E7F1EF" stroke="#0E6F66" stroke-width="1.4"/>
+            <text x="150" y="98" text-anchor="middle" fill="#0A5049" font-weight="600">project</text>
+            <circle cx="60" cy="42" r="19" fill="#fff" stroke="#DDE0E5" stroke-width="1.3"/><text x="60" y="45" text-anchor="middle" fill="#3A4046">person</text>
+            <circle cx="248" cy="52" r="19" fill="#fff" stroke="#DDE0E5" stroke-width="1.3"/><text x="248" y="55" text-anchor="middle" fill="#3A4046">person</text>
+            <circle cx="70" cy="150" r="19" fill="#fff" stroke="#DDE0E5" stroke-width="1.3"/><text x="70" y="153" text-anchor="middle" fill="#3A4046">decision</text>
+            <circle cx="238" cy="150" r="19" fill="#fff" stroke="#DDE0E5" stroke-width="1.3"/><text x="238" y="153" text-anchor="middle" fill="#3A4046">org-unit</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="trust-line">
+      <p class="kicker">The point</p>
+      <h2 style="font-size:clamp(24px,3.2vw,32px);line-height:1.15">Your memory outlives the session — and the tool.</h2>
+      <p style="margin-top:16px">It's <code>.md</code> files in a folder. Read them, edit them, <code>grep</code> them, put them in git. Charon loads them; it doesn't lock them up.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="index.html"><span class="glyph" style="color:var(--accent)" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 13c1.5 1 3 1 4.5 0S10.5 12 12 13s3 1 4.5 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4.5 9.5 10 3l5.5 6.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="7.5" r="1.1" fill="currentColor"/></svg></span> Charon</a>
+        <p>The ferryman carried what had to survive the crossing. This one carries your context.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Product</h4>
+        <a href="memory.html">Memory</a>
+        <a href="security.html">Security</a>
+        <a href="skills.html">Skills &amp; Hooks</a>
+        <a href="workflows.html">Workflows</a>
+      </div>
+      <div class="foot-col">
+        <h4>Project</h4>
+        <a href="https://github.com/acunningham-ai/Charon">GitHub</a>
+        <a href="https://github.com/acunningham-ai/Charon">License · MIT</a>
+      </div>
+    </div>
+    <div class="foot-base">
+      <span>Open source · MIT · built by a practising CISO</span>
+      <span class="mono">Charon · KAIR-ən · Χάρων</span>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

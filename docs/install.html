@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Charon — Install</title>
+</head>
+<body>
+<style>
+  :root{
+    --bg:#FCFCFD;--bg-2:#F6F7F9;--bg-3:#F0F2F5;
+    --ink:#0B0C0E;--ink-2:#3A4046;--muted:#6A7178;--faint:#9AA1A8;
+    --line:#E6E8EC;--line-2:#DDE0E5;
+    --accent:#0E6F66;--accent-ink:#0A5049;--accent-weak:#E7F1EF;
+    --t-bg:#0C1014;--t-bar:#151B22;--t-line:#20272F;--t-fg:#C9D2DC;--t-dim:#7E8A97;
+    --t-green:#54B98A;--t-amber:#D6A44B;--t-red:#E0685A;--t-teal:#4CC7BC;
+    --ok:#1E8A57;--warn:#9C7213;--bad:#B4472E;
+    --ok-bg:#E7F3EC;--warn-bg:#F6EEDD;--bad-bg:#F7E9E5;
+    --shadow-sm:0 1px 2px rgba(11,12,14,.04),0 1px 3px rgba(11,12,14,.06);
+    --shadow-md:0 4px 12px rgba(11,12,14,.06),0 12px 28px rgba(11,12,14,.07);
+    --shadow-lg:0 8px 24px rgba(11,12,14,.08),0 30px 60px rgba(11,12,14,.12);
+    --maxw:1080px;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code","JetBrains Mono",Menlo,Consolas,monospace;
+    --r:10px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.6;letter-spacing:-.006em;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 32px}
+  a{color:inherit;text-decoration:none}
+  h1,h2,h3,h4{margin:0;font-weight:600;letter-spacing:-.028em;text-wrap:balance;color:var(--ink)}
+  p{margin:0}
+  code{font-family:var(--mono)}
+  ::selection{background:var(--accent-weak);color:var(--accent-ink)}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+
+  /* nav */
+  nav{position:sticky;top:0;z-index:40;background:rgba(252,252,253,.8);backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)}
+  .nav-in{display:flex;align-items:center;height:60px;gap:8px}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:17px;letter-spacing:-.02em}
+  .brand .glyph{width:22px;height:22px;display:grid;place-items:center;color:var(--accent)}
+  .nav-links{display:flex;gap:4px;margin-left:26px}
+  .nav-links a{padding:7px 11px;border-radius:7px;color:var(--ink-2);font-size:14.5px;font-weight:450;transition:background .15s,color .15s}
+  .nav-links a:hover{background:var(--bg-3);color:var(--ink)}
+  .nav-links a.active{color:var(--accent-ink);background:var(--accent-weak)}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:6px}
+  .nav-ghost{padding:7px 12px;border-radius:7px;color:var(--ink-2);font-size:14.5px;font-weight:450;transition:background .15s}
+  .nav-ghost:hover{background:var(--bg-3);color:var(--ink)}
+  .btn{display:inline-flex;align-items:center;gap:7px;font-family:var(--sans);font-weight:500;font-size:14.5px;border-radius:8px;padding:8px 15px;cursor:pointer;border:1px solid transparent;transition:transform .12s ease,box-shadow .15s,background .15s}
+  .btn-dark{background:var(--ink);color:#fff;box-shadow:var(--shadow-sm)}
+  .btn-dark:hover{background:#000;transform:translateY(-1px);box-shadow:var(--shadow-md)}
+  .btn-dark:active{transform:translateY(0)}
+  @media(max-width:780px){.nav-links{display:none}}
+
+  /* hero */
+  .phero{position:relative;padding:74px 0 30px;overflow:hidden}
+  .phero::before{content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(52% 40% at 22% -10%,rgba(14,111,102,.09),transparent 70%)}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:550;color:var(--accent-ink);background:var(--accent-weak);border-radius:100px;padding:5px 13px;margin-bottom:22px;letter-spacing:.01em}
+  h1.big{font-size:clamp(34px,5vw,54px);line-height:1.06;letter-spacing:-.036em;max-width:18ch}
+  .phero .sub{font-size:clamp(17px,2vw,20px);line-height:1.55;color:var(--muted);max-width:58ch;margin-top:22px;font-weight:420}
+  .phero .sub b{color:var(--ink-2);font-weight:550}
+
+  /* prereqs */
+  .prereqs{display:flex;flex-wrap:wrap;gap:10px;margin-top:36px}
+  .pre{display:inline-flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--line);border-radius:100px;padding:8px 16px;box-shadow:var(--shadow-sm);font-size:14px;color:var(--ink-2)}
+  .pre svg{color:var(--accent)}
+  .pre .opt{color:var(--faint);font-size:12.5px}
+
+  /* sections */
+  section{padding:68px 0;border-top:1px solid var(--line)}
+  section.alt{background:var(--bg-2)}
+  .sec-head{max-width:64ch;margin:0 auto 44px;text-align:center}
+  .kicker{color:var(--accent);font-weight:600;font-size:14px;letter-spacing:-.01em;margin-bottom:12px}
+  .sec-head h2{font-size:clamp(26px,3.6vw,36px);line-height:1.12}
+  .sec-head p{color:var(--muted);font-size:17.5px;margin-top:16px}
+
+  /* steps (real sequence) */
+  .steps{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+  .st{display:flex;gap:18px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px 22px;box-shadow:var(--shadow-sm)}
+  .st .n{flex:none;width:28px;height:28px;border-radius:8px;background:var(--accent-weak);color:var(--accent-ink);display:grid;place-items:center;font-family:var(--mono);font-weight:600;font-size:13px}
+  .st h3{font-size:17px;line-height:1.25}
+  .st p{color:var(--ink-2);font-size:14.5px;margin-top:6px;line-height:1.55}
+  .st .em{color:var(--accent-ink);font-weight:550}
+
+  /* code block */
+  .install-block{max-width:760px;margin:0 auto}
+  .code-full{background:var(--t-bg);border-radius:12px;padding:22px 24px;box-shadow:var(--shadow-md);overflow-x:auto;position:relative}
+  .code-full+.code-full{margin-top:16px}
+  .code-full .clabel{font-family:var(--mono);font-size:11px;color:var(--t-dim);letter-spacing:.04em;margin-bottom:10px}
+  .code-full pre{margin:0;font-family:var(--mono);font-size:13px;line-height:1.95;color:var(--t-fg);white-space:pre-wrap;word-break:break-word}
+  .code-full .c{color:var(--t-dim)}
+  .code-full .d{color:var(--t-teal)}
+  .copy2{position:absolute;top:14px;right:14px;background:var(--t-bar);border:1px solid var(--t-line);color:var(--t-dim);font-family:var(--mono);font-size:11px;padding:6px 10px;border-radius:6px;cursor:pointer;transition:.15s}
+  .copy2:hover{color:#fff;border-color:var(--t-dim)}
+  .verify-note{font-family:var(--mono);font-size:12px;color:var(--warn);text-align:center;margin-top:18px;max-width:60ch;margin-left:auto;margin-right:auto}
+
+  /* wizard phases */
+  .wiz{display:grid;grid-template-columns:1.1fr 1fr;gap:44px;align-items:center}
+  @media(max-width:860px){.wiz{grid-template-columns:1fr;gap:26px}}
+  .wiz h3{font-size:24px;line-height:1.2}
+  .wiz .role{color:var(--accent);font-weight:600;font-size:13.5px;margin-bottom:12px}
+  .wiz p{color:var(--ink-2);font-size:16px;margin-top:14px;max-width:46ch;line-height:1.55}
+  .wiz .note{color:var(--muted);font-size:14px;margin-top:16px;padding-left:14px;border-left:2px solid var(--line-2)}
+  .phase-list{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-sm)}
+  .prow{display:flex;align-items:center;gap:14px;padding:14px 18px}
+  .prow+.prow{border-top:1px solid var(--line)}
+  .prow .pn{font-family:var(--mono);font-size:11px;color:var(--faint);flex:none}
+  .prow .pt{font-size:14px;color:var(--ink)}
+  .prow .pd{margin-left:auto;font-size:12.5px;color:var(--muted)}
+
+  /* docs cards */
+  .docs{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:800px){.docs{grid-template-columns:1fr 1fr}}
+  @media(max-width:520px){.docs{grid-template-columns:1fr}}
+  .doc{display:block;background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px;box-shadow:var(--shadow-sm);transition:transform .12s ease,box-shadow .15s,border-color .15s}
+  .doc:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);border-color:var(--line-2)}
+  .doc .dn{font-family:var(--mono);font-size:13px;color:var(--accent-ink);font-weight:600}
+  .doc p{color:var(--muted);font-size:13.5px;margin-top:8px;line-height:1.5}
+
+  /* honest ceiling */
+  .ceiling{max-width:680px;margin:0 auto;display:flex;gap:16px;align-items:flex-start;background:var(--warn-bg);border:1px solid #E9D9B0;border-radius:14px;padding:22px 24px}
+  .ceiling svg{flex:none;color:var(--warn);margin-top:2px}
+  .ceiling p{font-size:14.5px;color:var(--ink-2);line-height:1.55}
+  .ceiling b{color:var(--ink)}
+
+  /* footer */
+  footer{border-top:1px solid var(--line);background:var(--bg-2);padding:56px 0 40px}
+  .foot-grid{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:32px}
+  @media(max-width:720px){.foot-grid{grid-template-columns:1fr 1fr}}
+  .foot-brand p{color:var(--muted);font-size:14px;margin-top:14px;max-width:34ch}
+  .foot-col h4{font-size:13px;color:var(--faint);font-weight:600;margin-bottom:14px;letter-spacing:.01em}
+  .foot-col a{display:block;color:var(--ink-2);font-size:14px;margin-bottom:10px;font-weight:450}
+  .foot-col a:hover{color:var(--accent-ink)}
+  .foot-base{border-top:1px solid var(--line);margin-top:40px;padding-top:22px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;font-size:13px;color:var(--faint)}
+  .foot-base .mono{font-family:var(--mono)}
+
+  .draft-note{background:#111;color:#D6A44B;font-family:var(--mono);font-size:12px;text-align:center;padding:7px;letter-spacing:.03em}
+</style>
+
+
+<nav>
+  <div class="wrap nav-in">
+    <a class="brand" href="index.html">
+      <span class="glyph" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 13c1.5 1 3 1 4.5 0S10.5 12 12 13s3 1 4.5 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4.5 9.5 10 3l5.5 6.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="7.5" r="1.1" fill="currentColor"/></svg>
+      </span>
+      Charon
+    </a>
+    <div class="nav-links">
+      <a href="memory.html">Memory</a>
+      <a href="capture.html">Capture</a>
+      <a href="security.html">Security</a>
+      <a href="cerberus.html">Cerberus</a>
+      <a href="skills.html">Skills &amp; Hooks</a>
+      <a href="workflows.html">Workflows</a>
+    </div>
+    <div class="nav-right">
+      <a class="nav-ghost" href="https://github.com/acunningham-ai/Charon">GitHub</a>
+      <a class="btn btn-dark" href="#install">Get started</a>
+    </div>
+  </div>
+</nav>
+
+<div class="phero">
+  <div class="wrap">
+    <span class="eyebrow">Install</span>
+    <h1 class="big">Clone it, read it, run it, cross.</h1>
+    <p class="sub">Charon runs on the Claude Code CLI. One command after cloning detects what you have, offers to install what you don't, then hands off to a <b>~20-minute first-run wizard</b> that builds your foundations.</p>
+    <div class="prereqs">
+      <span class="pre"><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="m5.5 8 1.6 1.6L10.5 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg> Claude Code CLI</span>
+      <span class="pre"><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="m5.5 8 1.6 1.6L10.5 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg> Python 3.10+</span>
+      <span class="pre"><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg> Obsidian <span class="opt">optional</span></span>
+    </div>
+  </div>
+</div>
+
+<section id="install">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="kicker">Four steps</p>
+      <h2>The install, honestly.</h2>
+      <p>No magic one-liner that pipes a script straight into your shell. Charon is a CISO tool — it asks you to read the installer before you run it. That step is the point.</p>
+    </div>
+    <div class="steps">
+      <div class="st">
+        <span class="n">1</span>
+        <div>
+          <h3>Clone the repo</h3>
+          <p>Anywhere — outside cloud-synced folders is faster. It's public and MIT.</p>
+        </div>
+      </div>
+      <div class="st">
+        <span class="n">2</span>
+        <div>
+          <h3><span class="em">Inspect</span> the installer</h3>
+          <p>Open <code>install.ps1</code> / <code>install.sh</code> and skim it — it's short, and it tells you which package managers it'll invoke and where it'll write. Modelling the discipline the tool teaches starts here.</p>
+        </div>
+      </div>
+      <div class="st">
+        <span class="n">3</span>
+        <div>
+          <h3>Run the bootstrap</h3>
+          <p>It detects Python 3.10+ and Obsidian, offers <code>(a)uto / (m)anual / (s)kip</code> per missing prerequisite, installs Python dependencies, and creates <code>~/.secrets/</code> with restricted permissions.</p>
+        </div>
+      </div>
+      <div class="st">
+        <span class="n">4</span>
+        <div>
+          <h3>Cross — the first-run wizard</h3>
+          <p>The bootstrap hands off to a ~20-minute interactive setup that builds your identity, vault, voice profile, and framework. Then point Claude Code at the folder and start a session.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="kicker">Copy-paste</p>
+      <h2>The real commands.</h2>
+    </div>
+    <div class="install-block">
+      <div class="code-full">
+        <button class="copy2" data-target="cmd-nix" aria-label="Copy macOS and Linux commands">Copy</button>
+        <div class="clabel">macOS · Linux</div>
+<pre id="cmd-nix"><span class="c"># clone anywhere outside a cloud-synced folder</span>
+<span class="d">$</span> git clone https://github.com/acunningham-ai/Charon.git "$HOME/second-brain"
+<span class="d">$</span> cd "$HOME/second-brain"
+
+<span class="c"># read it first, then run the bootstrap</span>
+<span class="d">$</span> bash install.sh</pre>
+      </div>
+      <div class="code-full">
+        <button class="copy2" data-target="cmd-win" aria-label="Copy Windows commands">Copy</button>
+        <div class="clabel">Windows · PowerShell</div>
+<pre id="cmd-win"><span class="c"># clone</span>
+<span class="d">$</span> git clone https://github.com/acunningham-ai/Charon.git "$env:USERPROFILE\second-brain"
+<span class="d">$</span> cd "$env:USERPROFILE\second-brain"
+
+<span class="c"># least-permissive policy that works for a locally-cloned script</span>
+<span class="d">$</span> powershell -ExecutionPolicy RemoteSigned -File install.ps1</pre>
+      </div>
+      <p class="verify-note">Optional: every tagged release publishes a SHA-256 of the installer in its notes — <code>Get-FileHash install.ps1 -Algorithm SHA256</code> to verify before running.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="wiz">
+      <div>
+        <p class="role">The first-run wizard</p>
+        <h3>About 20 minutes, and you can stop any time.</h3>
+        <p>The wizard walks five phases of questions — most always asked, the rest conditional on your answers. It seeds your research beats and forums so the standing seats produce value on day one, and scaffolds the full folder skeleton so every capability has a home.</p>
+        <p class="note">State persists to <code>~/.charon-first-run-state.json</code> — Ctrl+C any time and resume later. Re-run any phase on its own to refresh that section without redoing the rest.</p>
+      </div>
+      <div class="phase-list">
+        <div class="prow"><span class="pn">01</span><span class="pt">Identity &amp; vault path</span></div>
+        <div class="prow"><span class="pn">02</span><span class="pt">Voice profile</span></div>
+        <div class="prow"><span class="pn">03</span><span class="pt">Org structure &amp; framework</span></div>
+        <div class="prow"><span class="pn">04</span><span class="pt">Dashboard &amp; tool exceptions</span></div>
+        <div class="prow"><span class="pn">05</span><span class="pt">Research beats &amp; forums</span><span class="pd">seeds the seats</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="kicker">Documentation</p>
+      <h2>Everything's written down.</h2>
+      <p>The full walkthrough runs INSTALL → FIRST-RUN → CONFIGURATION. The rest is there when you need it.</p>
+    </div>
+    <div class="docs">
+      <a class="doc" href="https://github.com/acunningham-ai/Charon/blob/main/INSTALL.md"><span class="dn">INSTALL.md</span><p>Setting up on a new machine, with the ExecutionPolicy troubleshooting ladder.</p></a>
+      <a class="doc" href="https://github.com/acunningham-ai/Charon/blob/main/FIRST-RUN.md"><span class="dn">FIRST-RUN.md</span><p>Walking through the interactive setup wizard, phase by phase.</p></a>
+      <a class="doc" href="https://github.com/acunningham-ai/Charon/blob/main/CONFIGURATION.md"><span class="dn">CONFIGURATION.md</span><p>Tuning paths, secrets, scheduled tasks, and optional integrations.</p></a>
+      <a class="doc" href="https://github.com/acunningham-ai/Charon/blob/main/CAPABILITIES.md"><span class="dn">CAPABILITIES.md</span><p>The full catalogue of skills, rules, and hooks — and when each fires.</p></a>
+      <a class="doc" href="https://github.com/acunningham-ai/Charon/blob/main/SECURITY.md"><span class="dn">SECURITY.md</span><p>The threat model, the C-1…C-8 baseline, and responsible disclosure.</p></a>
+      <a class="doc" href="https://github.com/acunningham-ai/Charon/blob/main/CONTRIBUTING.md"><span class="dn">CONTRIBUTING.md</span><p>License, PR process, and the skill-authoring standard.</p></a>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="ceiling">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2v10M10 15v.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.4"/></svg>
+      <p><b>Not in a plugin marketplace yet.</b> Charon installs via clone + bootstrap, not a single <code>claude install</code> command — so first setup is a ~20-minute wizard, not a 30-second add. Marketplace packaging is near-term. We'd rather tell you that than pretend the friction isn't there.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="index.html"><span class="glyph" style="color:var(--accent)" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 13c1.5 1 3 1 4.5 0S10.5 12 12 13s3 1 4.5 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4.5 9.5 10 3l5.5 6.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="7.5" r="1.1" fill="currentColor"/></svg></span> Charon</a>
+        <p>The ferryman carried what had to survive the crossing. This one carries your context.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Product</h4>
+        <a href="memory.html">Memory</a>
+        <a href="security.html">Security</a>
+        <a href="skills.html">Skills &amp; Hooks</a>
+        <a href="workflows.html">Workflows</a>
+      </div>
+      <div class="foot-col">
+        <h4>Project</h4>
+        <a href="https://github.com/acunningham-ai/Charon">GitHub</a>
+        <a href="install.html">Install</a>
+        <a href="https://github.com/acunningham-ai/Charon">License · MIT</a>
+      </div>
+    </div>
+    <div class="foot-base">
+      <span>Open source · MIT · built by a practising CISO</span>
+      <span class="mono">Charon · KAIR-ən · Χάρων</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  document.querySelectorAll('.copy2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var pre=document.getElementById(b.getAttribute('data-target'));
+      if(!pre)return;
+      var t=pre.innerText.replace(/^\$ /gm,'').replace(/^#.*$/gm,'').replace(/\n{2,}/g,'\n').trim();
+      if(navigator.clipboard)navigator.clipboard.writeText(t).then(function(){b.textContent='Copied';setTimeout(function(){b.textContent='Copy';},1400);});
+    });
+  });
+})();
+</script>
+</body>
+</html>
