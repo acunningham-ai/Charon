@@ -205,6 +205,18 @@
   .foot-base .mono{font-family:var(--mono)}
 
   .draft-note{background:#111;color:#D6A44B;font-family:var(--mono);font-size:12px;text-align:center;padding:7px;letter-spacing:.03em}
+  /* scripted terminal scene — matches the home hero */
+  .termscene{padding:6px 0 2px}
+  .term{max-width:820px;margin:0 auto;background:var(--t-bg);border:1px solid var(--t-line);border-radius:14px;box-shadow:var(--shadow-lg,0 8px 24px rgba(11,12,14,.10),0 30px 60px rgba(11,12,14,.14));overflow:hidden;text-align:left}
+  .term-bar{display:flex;align-items:center;gap:8px;padding:13px 16px;background:var(--t-bar);border-bottom:1px solid var(--t-line)}
+  .term-bar .dot{width:11px;height:11px;border-radius:50%}
+  .term-bar .dot.r{background:#E0685A}.term-bar .dot.y{background:#D6A44B}.term-bar .dot.g{background:#54B98A}
+  .term-title{margin-left:10px;font-family:var(--mono);font-size:12.5px;color:var(--t-dim)}
+  .term-body{padding:22px 24px 26px;font-family:var(--mono);font-size:13px;line-height:1.9;color:var(--t-fg);overflow-x:auto}
+  .term-body .line{white-space:pre-wrap}
+  .term-body .prompt{color:var(--t-teal)}.term-body .dim{color:var(--t-dim)}.term-body .you{color:#fff;font-weight:600}
+  .term-body .ok{color:var(--t-green)}.term-body .amber{color:var(--t-amber)}.term-body .red{color:var(--t-red)}
+  .term-cap{text-align:center;color:var(--t-dim);font-size:12px;margin-top:14px;font-family:var(--mono)}
 </style>
 
 
@@ -235,24 +247,23 @@
   <div class="wrap">
     <span class="eyebrow">Security</span>
     <h1 class="big">Guardrails you can read — and the honest edges of them.</h1>
-    <p class="sub">Charon was built by a practising CISO, so it says exactly what it enforces and what it only checks. <b>Two controls run as gates by default.</b> The rest is a documented baseline your own automations satisfy, checked at review. Nothing here claims to stop everything.</p>
+    <p class="sub">Charon was built by a practising CISO, so it says exactly what it enforces and what it only checks. <b>One control blocks writes at runtime on every install; a second confines what unattended runs can write.</b> The rest is a documented baseline your own automations satisfy, checked at review. Nothing here claims to stop everything.</p>
 
     <div class="tiers">
       <div class="tier run">
         <div class="tlabel">Enforced at runtime</div>
         <h3>Blocks the action, by default</h3>
-        <p>Two PreToolUse gates ship enabled on every install — no configuration required.</p>
+        <p>A PreToolUse gate ships enabled on every install — no configuration required.</p>
         <div class="items">
-          <span>Write-path allowlist</span>
-          <span>Deny-by-default on destructive writes</span>
+          <span>Deny-by-default on writes &amp; deletes to protected zones</span>
         </div>
       </div>
       <div class="tier att">
         <div class="tlabel">Runs on unattended runs</div>
-        <h3>Checks after the fact</h3>
+        <h3>Confines the blast radius</h3>
         <p>Automatic controls that fire around scheduled, non-interactive runs.</p>
         <div class="items">
-          <span>Post-run audit against the allowlist</span>
+          <span>Write-path allowlist (unattended runs)</span>
           <span>Secret-pattern redaction before LLM calls</span>
           <span>Budget caps on unattended calls</span>
         </div>
@@ -268,6 +279,23 @@
     </div>
   </div>
 </div>
+
+<section class="termscene">
+  <div class="wrap">
+    <div class="term" role="img" aria-label="A Charon session where the always-on deny-destructive gate blocks a delete in a protected zone">
+      <div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">claude code — ~/vault — charon</span></div>
+      <div class="term-body">
+<div class="line"><span class="prompt">you ▸</span> <span class="you">tidy up — delete the old note 09-Archive/2025-Q4.md</span></div>
+<div class="line"> </div>
+<div class="line"><span class="prompt">charon ▸</span> Write → <span class="dim">deny-destructive.py (PreToolUse)</span></div>
+<div class="line"><span class="red">  ✗ blocked</span> — 09-Archive/** is a protected zone</div>
+<div class="line"><span class="dim">     read-only by default · ask before overriding</span></div>
+<div class="line"><span class="prompt">charon ▸</span> I didn't delete it. Override the guard for this one file?</div>
+      </div>
+    </div>
+    <p class="term-cap">Example session — real capability, illustrative data.</p>
+  </div>
+</section>
 
 <section>
   <div class="wrap">

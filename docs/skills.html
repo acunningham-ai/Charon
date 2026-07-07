@@ -144,6 +144,18 @@
   .foot-base .mono{font-family:var(--mono)}
 
   .draft-note{background:#111;color:#D6A44B;font-family:var(--mono);font-size:12px;text-align:center;padding:7px;letter-spacing:.03em}
+  /* scripted terminal scene — matches the home hero */
+  .termscene{padding:6px 0 2px}
+  .term{max-width:820px;margin:0 auto;background:var(--t-bg);border:1px solid var(--t-line);border-radius:14px;box-shadow:var(--shadow-lg,0 8px 24px rgba(11,12,14,.10),0 30px 60px rgba(11,12,14,.14));overflow:hidden;text-align:left}
+  .term-bar{display:flex;align-items:center;gap:8px;padding:13px 16px;background:var(--t-bar);border-bottom:1px solid var(--t-line)}
+  .term-bar .dot{width:11px;height:11px;border-radius:50%}
+  .term-bar .dot.r{background:#E0685A}.term-bar .dot.y{background:#D6A44B}.term-bar .dot.g{background:#54B98A}
+  .term-title{margin-left:10px;font-family:var(--mono);font-size:12.5px;color:var(--t-dim)}
+  .term-body{padding:22px 24px 26px;font-family:var(--mono);font-size:13px;line-height:1.9;color:var(--t-fg);overflow-x:auto}
+  .term-body .line{white-space:pre-wrap}
+  .term-body .prompt{color:var(--t-teal)}.term-body .dim{color:var(--t-dim)}.term-body .you{color:#fff;font-weight:600}
+  .term-body .ok{color:var(--t-green)}.term-body .amber{color:var(--t-amber)}.term-body .red{color:var(--t-red)}
+  .term-cap{text-align:center;color:var(--t-dim);font-size:12px;margin-top:14px;font-family:var(--mono)}
 </style>
 
 
@@ -178,13 +190,31 @@
     <p class="sub">Charon is built from three kinds of parts — <b>rules</b> that shape how the model behaves, <b>skills</b> it can run on request, and <b>hooks</b>: deterministic code the harness runs on its own, outside the model's discretion.</p>
     <div class="stats">
       <span class="stat"><b>4</b><span>always-fire rules</span></span>
-      <span class="stat"><b>7</b><span>path-conditioned rules</span></span>
+      <span class="stat"><b>10</b><span>path-conditioned rules</span></span>
       <span class="stat"><b>39</b><span>slash commands</span></span>
       <span class="stat"><b>10</b><span>hooks</span></span>
       <span class="stat"><b>3</b><span>local MCP servers</span></span>
     </div>
   </div>
 </div>
+
+<section class="termscene">
+  <div class="wrap">
+    <div class="term" role="img" aria-label="A Charon session where a path-matched rule fires automatically and shapes a board report">
+      <div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">claude code — ~/vault — charon</span></div>
+      <div class="term-body">
+<div class="line"><span class="prompt">you ▸</span> <span class="you">draft the Q3 board line on our patching posture</span></div>
+<div class="line"> </div>
+<div class="line"><span class="ok">  ▸</span> rule fired · <span class="you">board-reporting.md</span> <span class="dim">(path-matched, automatic)</span></div>
+<div class="line"><span class="prompt">charon ▸</span> Patching posture: <span class="you">68%</span>, up from 61% last quarter.</div>
+<div class="line">  <span class="dim">why:</span> three units cleared their end-of-life backlog; two remain</div>
+<div class="line">  <span class="dim">exposed on legacy servers — named, with owners and dates.</span></div>
+<div class="line"><span class="dim">  (board-reporting rule: never a number without the plain-language cause)</span></div>
+      </div>
+    </div>
+    <p class="term-cap">Example session — real capability, illustrative data.</p>
+  </div>
+</section>
 
 <section>
   <div class="wrap">
@@ -366,5 +396,43 @@
     </div>
   </div>
 </footer>
+<script>
+(function(){
+  var st=document.createElement('style');
+  st.textContent='.code-mini{white-space:pre-wrap}.tw-cursor{display:inline-block;width:8px;height:15px;background:var(--t-teal,#4CC7BC);vertical-align:-2px;margin-left:1px;animation:twblink 1.05s step-end infinite}@keyframes twblink{50%{opacity:0}}@media (prefers-reduced-motion:reduce){.tw-cursor{display:none}}';
+  (document.head||document.documentElement).appendChild(st);
+  var reduce=window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var blocks=[].slice.call(document.querySelectorAll('.term-body, .code-mini, .code-full pre'));
+  function snap(el){
+    var lns=el.querySelectorAll('.line');
+    if(lns.length) return {mode:'line',lines:[].slice.call(lns).map(function(ln){return [].slice.call(ln.childNodes).map(function(n){return {cls:(n.nodeType===1?n.className:''),text:n.textContent};});})};
+    return {mode:'flat',segs:[].slice.call(el.childNodes).map(function(n){return {cls:(n.nodeType===1?n.className:''),text:n.textContent};})};
+  }
+  function typeFlat(el,segs){
+    el.textContent=''; var cur=document.createElement('span'); cur.className='tw-cursor'; el.appendChild(cur);
+    var si=0,ci=0,tx=null;
+    function ns(){var s=segs[si],h=document.createElement('span');if(s&&s.cls)h.className=s.cls;tx=document.createTextNode('');h.appendChild(tx);el.insertBefore(h,cur);ci=0;}
+    function tk(){ if(si>=segs.length)return; var s=segs[si]; if(ci<s.text.length){var c=s.text.charAt(ci++);tx.nodeValue+=c;setTimeout(tk,(c===' '||c==='\n')?6:14);} else {si++; if(si<segs.length){ns();setTimeout(tk,0);} else el.appendChild(cur);} }
+    if(segs.length){ns();setTimeout(tk,250);}
+  }
+  function typeLines(el,lines){
+    el.textContent=''; var cur=document.createElement('span'); cur.className='tw-cursor';
+    var li=0,si=0,ci=0,ln=null,tx=null;
+    function nl(){ln=document.createElement('div');ln.className='line';el.appendChild(ln);ln.appendChild(cur);si=0;ns();}
+    function ns(){var s=lines[li][si],h=document.createElement('span');if(s&&s.cls)h.className=s.cls;tx=document.createTextNode('');h.appendChild(tx);ln.insertBefore(h,cur);ci=0;}
+    function dn(){if(ln)ln.appendChild(cur);}
+    function tk(){ if(li>=lines.length)return; var sg=lines[li]; if(!sg.length){li++; if(li<lines.length){nl();setTimeout(tk,120);}else dn(); return;} var s=sg[si]; if(ci<s.text.length){var c=s.text.charAt(ci++);tx.nodeValue+=c;setTimeout(tk,c===' '?7:15);} else if(++si<sg.length){ns();tk();} else {li++; if(li<lines.length){nl();setTimeout(tk,160);}else dn();} }
+    if(lines.length){nl();setTimeout(tk,300);}
+  }
+  blocks.forEach(function(el){
+    var s=snap(el);
+    if(reduce) return;
+    var started=false;
+    function go(){if(started)return;started=true; if(s.mode==='line')typeLines(el,s.lines); else typeFlat(el,s.segs);}
+    if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){io.disconnect();go();}});},{threshold:.3});io.observe(el);}
+    else go();
+  });
+})();
+</script>
 </body>
 </html>

@@ -96,6 +96,18 @@
   .foot-links{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:18px;font-size:14px}
   .foot-links a{color:var(--ink-2)}.foot-links a:hover{color:var(--accent-ink)}
   .foot-base{margin-top:22px;font-size:13px;color:var(--faint);font-family:var(--mono)}
+  /* scripted terminal scene — matches the home hero */
+  .termscene{padding:6px 0 2px}
+  .term{max-width:820px;margin:0 auto;background:var(--t-bg);border:1px solid var(--t-line);border-radius:14px;box-shadow:var(--shadow-lg,0 8px 24px rgba(11,12,14,.10),0 30px 60px rgba(11,12,14,.14));overflow:hidden;text-align:left}
+  .term-bar{display:flex;align-items:center;gap:8px;padding:13px 16px;background:var(--t-bar);border-bottom:1px solid var(--t-line)}
+  .term-bar .dot{width:11px;height:11px;border-radius:50%}
+  .term-bar .dot.r{background:#E0685A}.term-bar .dot.y{background:#D6A44B}.term-bar .dot.g{background:#54B98A}
+  .term-title{margin-left:10px;font-family:var(--mono);font-size:12.5px;color:var(--t-dim)}
+  .term-body{padding:22px 24px 26px;font-family:var(--mono);font-size:13px;line-height:1.9;color:var(--t-fg);overflow-x:auto}
+  .term-body .line{white-space:pre-wrap}
+  .term-body .prompt{color:var(--t-teal)}.term-body .dim{color:var(--t-dim)}.term-body .you{color:#fff;font-weight:600}
+  .term-body .ok{color:var(--t-green)}.term-body .amber{color:var(--t-amber)}.term-body .red{color:var(--t-red)}
+  .term-cap{text-align:center;color:var(--t-dim);font-size:12px;margin-top:14px;font-family:var(--mono)}
 </style>
 </head>
 <body>
@@ -129,6 +141,29 @@
     <p class="sub">The review skills check the code you write. Cerberus checks the <b>installation around it</b> — the config, the plugins, the MCP servers, and the dependencies you pull in. Most AI-security tooling that shipped in 2025–26 is offensive; the defensive surface has been under-tooled, and that's what Cerberus covers.</p>
   </div>
 </div>
+
+<section class="termscene">
+  <div class="wrap">
+    <div class="term" role="img" aria-label="A Charon /cerberus-vet run scoring a third-party MCP server against the V0 to V8 threat model">
+      <div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">claude code — ~/vault — cerberus</span></div>
+      <div class="term-body">
+<div class="line"><span class="prompt">you ▸</span> <span class="you">/cerberus-vet github.com/example/notion-mcp</span></div>
+<div class="line"> </div>
+<div class="line"><span class="dim">clone → sandbox (purged after) · walk tree · V0–V8</span></div>
+<div class="line"><span class="ok">  V1</span> capability scope     <span class="ok">✓ declared honestly</span></div>
+<div class="line"><span class="amber">  V2</span> network egress       <span class="amber">⚠ api.notion.com + 1 analytics host</span></div>
+<div class="line"><span class="ok">  V5</span> tool-desc injection  <span class="ok">✓ none</span></div>
+<div class="line"><span class="ok">  V6</span> secret exposure      <span class="ok">✓ none</span></div>
+<div class="line"><span class="amber">  V8</span> dependencies         <span class="amber">⚠ 1 transitive unpinned</span></div>
+<div class="line"> </div>
+<div class="line"><span class="prompt">charon ▸</span> Risk <span class="amber">MEDIUM · 61/100</span> — proceed subject to mitigation or</div>
+<div class="line">  <span class="dim">acceptance of each Important finding. Risk evidence, not approval —</span></div>
+<div class="line">  <span class="dim">the tool-approval decision is yours.</span></div>
+      </div>
+    </div>
+    <p class="term-cap">Example session — real capability, illustrative data.</p>
+  </div>
+</section>
 
 <section>
   <div class="wrap">
