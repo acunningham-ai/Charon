@@ -325,13 +325,13 @@
     <div class="sec-head">
       <p class="kicker">Security review, built in</p>
       <h2>A security reviewer that never clocks off.</h2>
-      <p>The secure-code rule fires the moment you touch code, and three OWASP-grounded lenses can review it in parallel — then <code>/fp-check</code> throws out the findings it can't reproduce. There's also a capability that audits the AI installation itself: its config, plugins, and the dependencies you pull.</p>
+      <p>The secure-code rule fires the moment you touch code, and three OWASP-grounded lenses can review it in parallel — then <code>/fp-check</code> — a false-positive check — throws out the findings it can't reproduce. There's also a capability that audits the AI installation itself: its config, plugins, and the dependencies you pull.</p>
     </div>
     <div class="rev-grid">
       <div class="rev"><code>/secure-code-review</code><p>Baseline secure-coding lens plus C-1…C-8 coverage.</p></div>
       <div class="rev"><code>/owasp-llm-review</code><p>OWASP Top 10 for LLM Applications (2025), LLM01–LLM10.</p></div>
       <div class="rev"><code>/owasp-agentic-review</code><p>OWASP Agentic AI Security (2026), ASI01–ASI10.</p></div>
-      <div class="rev"><code>/fp-check</code><p>Re-reads each finding at file:line — withdraws what it can't reproduce.</p></div>
+      <div class="rev"><code>/fp-check</code><p>False-positive gate — re-reads each finding at file:line and withdraws what it can't reproduce.</p></div>
       <div class="rev"><code>Cerberus suite</code><p>Read-only audit of the AI installation: config, plugins, MCP servers, dependencies. Opt-in, never silently enabled.</p></div>
     </div>
     <p style="text-align:center;margin-top:26px"><a href="security.html#secure-code" style="color:var(--accent-ink);font-weight:600">See how secure-code review works &rarr;</a></p>

@@ -484,7 +484,7 @@ V8 deps vs registry <span class="g">✓ clean</span>
       <div class="flow reveal" style="--i:2">
         <h3>Security review that just happens.</h3>
         <div class="chain"><span>secure-code rule</span><span class="arw">→</span><span>3 OWASP reviewers</span><span class="arw">→</span><span>fp-check</span></div>
-        <p>Touch a code path and the doctrine fires on its own; three reviewers run in parallel; fp-check throws out what it can't reproduce. Real findings reach you before merge — without remembering to run anything.</p>
+        <p>Touch a code path and the doctrine fires on its own; three reviewers run in parallel; then <code>/fp-check</code> — a false-positive gate — throws out what it can't reproduce. Real findings reach you before merge, without remembering to run anything.</p>
       </div>
       <div class="flow reveal" style="--i:1">
         <h3>Adopt community tools — don't fear them.</h3>
@@ -514,18 +514,18 @@ V8 deps vs registry <span class="g">✓ clean</span>
     </div>
     <p class="kicker reveal" style="text-align:center;margin:48px 0 20px">The full toolbox</p>
     <div class="scap">
-      <div class="scard reveal" style="--i:1"><h4>Doctrine · 14 rules</h4><p>4 always-on — no-assumptions · confidence-tags · save-on-mention · session-start — plus 10 path-triggered: board-reporting · ai-governance · secure-code · captures · quarterly-report · voice-content · skill-authoring · verdict-vocabulary · versioning · design</p></div>
-      <div class="scard reveal" style="--i:1"><h4>Runs your day</h4><p>/refresh-todo · /triage-inbox · /weekly-checkin · /eod-reflect · /knowledge-consolidate · /brainstorm · /systematic-debug · /push-fact · /save-feedback</p></div>
-      <div class="scard reveal" style="--i:1"><h4>Reporting &amp; governance</h4><p>/quarterly-report-prep · /control-translate · board-reporting &amp; AI-governance doctrine · refuses to fabricate scores</p></div>
-      <div class="scard reveal" style="--i:2"><h4>Research → compose</h4><p>Prometheus (research + CISA KEV/CVE feed) · Calliope (drafts in your voice) · /forum-agenda · knowledge-synthesizer</p></div>
-      <div class="scard reveal" style="--i:2"><h4>Content</h4><p>/draft-linkedin · /linkedin-metrics · Calliope modes: post · bulletin · tweet · email</p></div>
-      <div class="scard reveal" style="--i:2"><h4>Security review · 5</h4><p>/secure-code-review · /owasp-llm-review · /owasp-agentic-review · /fp-check · /safe-rebuild</p></div>
-      <div class="scard reveal" style="--i:3"><h4>Cerberus · 5</h4><p>/cerberus-setup · /cerberus-audit · /cerberus-vet · /cerberus-deps · /cerberus-recover</p></div>
-      <div class="scard reveal" style="--i:3"><h4>Guardrail hooks · 10</h4><p>write-path allowlist · deny-destructive · injection shadow-scan · memory-frontmatter · load-rules · save-on-mention · skill-usage-log · ssh-recovery · notification-toast · on-error</p></div>
-      <div class="scard reveal" style="--i:3"><h4>Local &amp; private</h4><p>On-device semantic search (bge-micro + sqlite-vec) · voice notes via local Whisper — audio never leaves the machine · typed knowledge graph · /vault-query · /graph-backfill</p></div>
-      <div class="scard reveal" style="--i:1"><h4>Data layer · 3 MCP servers</h4><p>vault-readonly (keyword + semantic search) · vault-ops (patch, frontmatter query, tags) · vault-graph (entity + relationship queries)</p></div>
-      <div class="scard reveal" style="--i:2"><h4>Hygiene &amp; ops</h4><p>/score-vault · /vault-lint · /curate-skills · /promote-rule · /telemetry-summary · scheduled-audit · archive-captures</p></div>
-      <div class="scard reveal" style="--i:3"><h4>Proof &amp; setup</h4><p>16 behaviour scenarios + 22 deterministic checks, run every release · ~20-min first-run wizard · MIT, all readable</p></div>
+      <div class="scard reveal" style="--i:1"><h4>Doctrine · 14 rules</h4><p>The right discipline loads itself — board-reporting when you write a report, secure-code when you touch code, untrusted-handling on captured content. 4 always-on, 10 that fire on the task at hand.</p></div>
+      <div class="scard reveal" style="--i:1"><h4>Runs your day</h4><p>Turn a full inbox into a prioritised to-do list, surface only what's actionable, synthesise the week's patterns, reflect at end of day, consolidate scattered notes into one doc, and work through problems methodically.</p></div>
+      <div class="scard reveal" style="--i:1"><h4>Reporting &amp; governance</h4><p>Draft a quarterly stakeholder report, turn a control rating into board-ready plain language, apply board &amp; governance doctrine — and refuse to fabricate scores.</p></div>
+      <div class="scard reveal" style="--i:2"><h4>Research → compose</h4><p>A standing analyst researches your beats and a live exploited-vulnerability feed; a writer drafts in your voice from the angle it surfaces; a forum feed builds recurring-meeting agendas.</p></div>
+      <div class="scard reveal" style="--i:2"><h4>Content</h4><p>Draft posts, stakeholder bulletins, tweets and emails in your voice — then capture the analytics back into the record.</p></div>
+      <div class="scard reveal" style="--i:2"><h4>Security review · 5</h4><p>A baseline secure-coding pass, an OWASP LLM Top-10 lens, an OWASP agentic lens, a false-positive gate, and a finding-driven safe rebuild.</p></div>
+      <div class="scard reveal" style="--i:3"><h4>Cerberus · 5</h4><p>Harden a new setup, audit your posture, vet a plugin or MCP before install, check dependencies against a compromise registry, and recover after a leak.</p></div>
+      <div class="scard reveal" style="--i:3"><h4>Guardrail hooks · 10</h4><p>Deterministic checks that run on their own — allowlist every write, block edits to protected zones, flag injection attempts, keep memory well-formed, redact secrets, and load the right rules per prompt.</p></div>
+      <div class="scard reveal" style="--i:3"><h4>Local &amp; private</h4><p>On-device semantic search and voice notes transcribed locally — audio never leaves the machine — plus a typed knowledge graph you can query.</p></div>
+      <div class="scard reveal" style="--i:1"><h4>Data layer · 3 MCP servers</h4><p>The model reaches your vault through narrow, audited tools: read-only search, safe scoped edits, and entity/relationship queries.</p></div>
+      <div class="scard reveal" style="--i:2"><h4>Hygiene &amp; ops</h4><p>Audit vault health, catch broken links and tag drift, retire stale skills, promote proven rules, roll up usage, and archive old captures.</p></div>
+      <div class="scard reveal" style="--i:3"><h4>Proof &amp; setup</h4><p>16 behaviour scenarios + 22 deterministic checks run every release, a ~20-minute first-run wizard, and MIT — all readable.</p></div>
     </div>
     <div class="scap" style="margin-top:16px">
       <div class="scard soon reveal" style="--i:1"><span class="soonpill">in testing</span><h4>Self-healing &amp; improvement</h4><p>Loops that surface drift and improve the harness — with a human keeping the final say. Coming to Charon; overview when it ships.</p></div>
