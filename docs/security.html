@@ -306,7 +306,7 @@
     <div class="sec-head">
       <p class="kicker">The default gates</p>
       <h2>What actually blocks — and when.</h2>
-      <p>Both are PreToolUse hooks, Python you can read in <code>scripts/hooks/</code>. One stops protected-zone writes the moment you make them, on every install; the other confines what an <em>unattended</em> run can write.</p>
+      <p>The model can't quietly write where it shouldn't — and you can read exactly why, in plain Python. Two PreToolUse hooks in <code>scripts/hooks/</code>: one stops protected-zone writes the moment you make them, on every install; the other confines what an <em>unattended</em> run can write.</p>
     </div>
     <div class="gates">
       <div class="gate">
@@ -346,8 +346,8 @@
   <div class="wrap">
     <div class="sec-head">
       <p class="kicker">The baseline · C-1 … C-8</p>
-      <h2>A standard every automation must satisfy.</h2>
-      <p>C-1…C-8 is the security pattern encoded in the harness's authoring rules. Most of it is an <b>obligation on new code, checked at review</b> — not a runtime block. Here's each control and how it's actually enforced.</p>
+      <h2>New code can't quietly lower the bar.</h2>
+      <p>Everything you or the AI builds later has to clear the same security pattern — and it shows up in context at the moment you'd cut a corner, so the harness doesn't rot as it grows. Most of C-1…C-8 is an <b>obligation on new code, checked at review</b> — not a runtime block. Here's each control and how it's actually enforced.</p>
     </div>
     <div class="tbl-wrap">
       <table>
@@ -357,7 +357,7 @@
         <tbody>
           <tr><td><span class="cid">C-1</span></td><td class="cwhat">Hardened system prompts on unattended LLM calls</td><td><span class="ebadge rev">authoring · review</span></td></tr>
           <tr><td><span class="cid">C-2</span></td><td class="cwhat">Tool minimisation — default-deny <code>Bash</code> / <code>Agent</code> / <code>WebFetch</code> / MCP</td><td><span class="ebadge rev">config · review</span></td></tr>
-          <tr><td><span class="cid">C-3</span></td><td class="cwhat">PreToolUse write-path allowlist for <code>Write</code> access</td><td><span class="ebadge run">runtime gate</span></td></tr>
+          <tr><td><span class="cid">C-3</span></td><td class="cwhat">PreToolUse write-path allowlist for <code>Write</code> access</td><td><span class="ebadge att">on unattended runs</span></td></tr>
           <tr><td><span class="cid">C-3.1</span></td><td class="cwhat">Value-layer constraint — closed enums for structured outputs</td><td><span class="ebadge rev">authoring · review</span></td></tr>
           <tr><td><span class="cid">C-4</span></td><td class="cwhat">Budget cap on every unattended <code>claude -p</code> call</td><td><span class="ebadge att">on unattended runs</span></td></tr>
           <tr><td><span class="cid">C-5</span></td><td class="cwhat">Post-run audit after every unattended runner</td><td><span class="ebadge att">on unattended runs</span></td></tr>
@@ -375,8 +375,8 @@
   <div class="wrap">
     <div class="sec-head">
       <p class="kicker">Three threat surfaces</p>
-      <h2>Mapped to the standards, not invented.</h2>
-      <p>The threat model is written against OWASP's published catalogues for LLM and agentic systems, plus a vault-content layer for what the harness itself holds.</p>
+      <h2>You can defend it to a board — not just assert it.</h2>
+      <p>Every risk here traces to a standard you can cite: the threat model is written against OWASP's published catalogues for LLM and agentic systems, plus a vault-content layer for what the harness itself holds.</p>
     </div>
     <div class="surfaces">
       <div class="surface">
