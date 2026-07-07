@@ -148,21 +148,18 @@
 
 <section class="termscene">
   <div class="wrap">
-    <div class="term" role="img" aria-label="A Charon /cerberus-vet run scoring a third-party MCP server against the V0 to V8 threat model">
+    <div class="term" role="img" aria-label="A Charon /cerberus-audit run scoring the user's own Claude Code setup against the 7-layer threat model">
       <div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">claude code — ~/vault — cerberus</span></div>
       <div class="term-body">
-<div class="line"><span class="prompt">you ▸</span> <span class="you">/cerberus-vet github.com/example/notion-mcp</span></div>
+<div class="line"><span class="prompt">you ▸</span> <span class="you">/cerberus-audit</span></div>
 <div class="line"> </div>
-<div class="line"><span class="dim">clone → sandbox (purged after) · walk tree · V0–V8</span></div>
-<div class="line"><span class="ok">  V1</span> capability scope     <span class="ok">✓ declared honestly</span></div>
-<div class="line"><span class="amber">  V2</span> network egress       <span class="amber">⚠ api.notion.com + 1 analytics host</span></div>
-<div class="line"><span class="ok">  V5</span> tool-desc injection  <span class="ok">✓ none</span></div>
-<div class="line"><span class="ok">  V6</span> secret exposure      <span class="ok">✓ none</span></div>
-<div class="line"><span class="amber">  V8</span> dependencies         <span class="amber">⚠ 1 transitive unpinned</span></div>
+<div class="line"><span class="dim">read-only · your Claude Code setup · 7-layer threat model</span></div>
+<div class="line"><span class="ok">  ✓</span> no secrets in settings or shell history</div>
+<div class="line"><span class="ok">  ✓</span> bypass mode off · core hooks present</div>
+<div class="line"><span class="amber">  ⚠</span> an MCP server binds <span class="you">0.0.0.0</span> <span class="dim">— reachable off-box</span></div>
+<div class="line"><span class="amber">  ⚠</span> Bash allowlist broader than this project needs</div>
 <div class="line"> </div>
-<div class="line"><span class="prompt">charon ▸</span> Risk <span class="amber">MEDIUM · 61/100</span> — proceed subject to mitigation or</div>
-<div class="line">  <span class="dim">acceptance of each Important finding. Risk evidence, not approval —</span></div>
-<div class="line">  <span class="dim">the tool-approval decision is yours.</span></div>
+<div class="line"><span class="prompt">charon ▸</span> posture <span class="amber">82/100</span> · 2 findings, each with a fix. Walk the first?</div>
       </div>
     </div>
     <p class="term-cap">Example session — real capability, illustrative data.</p>
