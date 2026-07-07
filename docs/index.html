@@ -171,6 +171,14 @@
   .explore{text-align:center;margin-top:30px}
   .explore a{color:var(--accent-ink);font-weight:600;font-size:15px}
   .explore a:hover{text-decoration:underline}
+  .flows{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media(max-width:800px){.flows{grid-template-columns:1fr}}
+  .flow{background:#fff;border:1px solid var(--line);border-radius:16px;padding:26px;box-shadow:var(--shadow-sm)}
+  .flow h3{font-size:19px;line-height:1.25}
+  .flow p{color:var(--ink-2);font-size:14.5px;margin-top:10px;line-height:1.55}
+  .chain{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:14px}
+  .chain span{font-family:var(--mono);font-size:11.5px;color:var(--accent-ink);background:var(--accent-weak);border-radius:6px;padding:3px 9px}
+  .chain .arw{color:var(--faint);background:none;padding:0 2px}
   .scode{max-width:680px;margin:26px auto 0}
 
   /* agents / seats + pipeline */
@@ -463,10 +471,39 @@ V8 deps vs registry <span class="g">✓ clean</span>
   </div>
 </section>
 
-<!-- INSTALL -->
-<section class="band tall" id="everything">
+<!-- WHAT IT UNLOCKS TOGETHER -->
+<section class="band tall" id="together">
   <div class="wrap">
-    <div class="sec-head reveal"><p class="kicker">The full surface</p><h2>Everything it does.</h2><p>Explore any capability in depth, or see the near-term work still in testing. Nothing hidden, nothing oversold.</p></div>
+    <div class="sec-head reveal"><p class="kicker">Where it gets interesting</p><h2>The capabilities aren't the point — what they do together is.</h2><p>Any one feature is table stakes. The value is in the chains: the parts hand off to each other, so outcomes happen that no single capability delivers.</p></div>
+    <div class="flows">
+      <div class="flow reveal" style="--i:1">
+        <h3>Your inbox becomes published thinking.</h3>
+        <div class="chain"><span>Capture</span><span class="arw">→</span><span>Prometheus</span><span class="arw">→</span><span>Calliope</span><span class="arw">→</span><span>you approve</span></div>
+        <p>Your mail flows into the vault; the research seat frames a content-worthy angle from it; the writing seat drafts it in your voice. Scattered reading turns into a post — you just say yes.</p>
+      </div>
+      <div class="flow reveal" style="--i:2">
+        <h3>Security review that just happens.</h3>
+        <div class="chain"><span>secure-code rule</span><span class="arw">→</span><span>3 OWASP reviewers</span><span class="arw">→</span><span>fp-check</span></div>
+        <p>Touch a code path and the doctrine fires on its own; three reviewers run in parallel; fp-check throws out what it can't reproduce. Real findings reach you before merge — without remembering to run anything.</p>
+      </div>
+      <div class="flow reveal" style="--i:1">
+        <h3>Adopt community tools — don't fear them.</h3>
+        <div class="chain"><span>/cerberus-vet</span><span class="arw">→</span><span>/safe-rebuild</span><span class="arw">→</span><span>adopt</span></div>
+        <p>Vet a third-party plugin or MCP; if it's risky, safe-rebuild re-specs and re-verifies it in a scratch dir. You end up adopting a fixed version instead of rejecting a useful tool.</p>
+      </div>
+      <div class="flow reveal" style="--i:2">
+        <h3>An adversary that knows your world.</h3>
+        <div class="chain"><span>/devils-advocate</span><span class="arw">→</span><span>grounded on your memory + vault</span></div>
+        <p>Stress-test a hard call and the critique is grounded against <i>your</i> notes and decisions — not generic advice. The pre-mortem raises the risks that actually apply to you.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FULL SURFACE -->
+<section class="band alt tall" id="everything">
+  <div class="wrap">
+    <div class="sec-head reveal"><p class="kicker">The full surface</p><h2>Everything it does.</h2><p><b>39 commands · 14 rules · 10 hooks · 7 agents · 2 workflows · 3 MCP servers</b>, plus a working capture pipeline. Six pillars have deep-dive pages; the rest of the toolbox is below — nothing hidden, nothing oversold.</p></div>
     <div class="scap">
       <a class="scard link reveal" style="--i:1" href="memory.html"><h4>Memory →</h4><p>Durable plain-markdown memory, save-on-mention, on-device semantic search, optional typed graph.</p></a>
       <a class="scard link reveal" style="--i:1" href="capture.html"><h4>Capture →</h4><p>Email inbox + sent into the vault, voice notes, screenshots — all untrusted by default.</p></a>
@@ -475,14 +512,28 @@ V8 deps vs registry <span class="g">✓ clean</span>
       <a class="scard link reveal" style="--i:2" href="skills.html"><h4>Skills &amp; Hooks →</h4><p>Rules that load the right doctrine, deterministic guardrail hooks, and the named agents.</p></a>
       <a class="scard link reveal" style="--i:2" href="workflows.html"><h4>Workflows →</h4><p>Self-verifying multi-agent research and an adversarial pre-mortem.</p></a>
     </div>
+    <p class="kicker reveal" style="text-align:center;margin:48px 0 20px">The full toolbox</p>
+    <div class="scap">
+      <div class="scard reveal" style="--i:1"><h4>Doctrine · 14 rules</h4><p>4 always-on — no-assumptions · confidence-tags · save-on-mention · session-start — plus 10 path-triggered: board-reporting · ai-governance · secure-code · captures · quarterly-report · voice-content · skill-authoring · verdict-vocabulary · versioning · design</p></div>
+      <div class="scard reveal" style="--i:1"><h4>Runs your day</h4><p>/refresh-todo · /triage-inbox · /weekly-checkin · /eod-reflect · /knowledge-consolidate · /brainstorm · /systematic-debug · /push-fact · /save-feedback</p></div>
+      <div class="scard reveal" style="--i:1"><h4>Reporting &amp; governance</h4><p>/quarterly-report-prep · /control-translate · board-reporting &amp; AI-governance doctrine · refuses to fabricate scores</p></div>
+      <div class="scard reveal" style="--i:2"><h4>Research → compose</h4><p>Prometheus (research + CISA KEV/CVE feed) · Calliope (drafts in your voice) · /forum-agenda · knowledge-synthesizer</p></div>
+      <div class="scard reveal" style="--i:2"><h4>Content</h4><p>/draft-linkedin · /linkedin-metrics · Calliope modes: post · bulletin · tweet · email</p></div>
+      <div class="scard reveal" style="--i:2"><h4>Security review · 5</h4><p>/secure-code-review · /owasp-llm-review · /owasp-agentic-review · /fp-check · /safe-rebuild</p></div>
+      <div class="scard reveal" style="--i:3"><h4>Cerberus · 5</h4><p>/cerberus-setup · /cerberus-audit · /cerberus-vet · /cerberus-deps · /cerberus-recover</p></div>
+      <div class="scard reveal" style="--i:3"><h4>Guardrail hooks · 10</h4><p>write-path allowlist · deny-destructive · injection shadow-scan · memory-frontmatter · load-rules · save-on-mention · skill-usage-log · ssh-recovery · notification-toast · on-error</p></div>
+      <div class="scard reveal" style="--i:3"><h4>Local &amp; private</h4><p>On-device semantic search (bge-micro + sqlite-vec) · voice notes via local Whisper — audio never leaves the machine · typed knowledge graph · /vault-query · /graph-backfill</p></div>
+      <div class="scard reveal" style="--i:1"><h4>Data layer · 3 MCP servers</h4><p>vault-readonly (keyword + semantic search) · vault-ops (patch, frontmatter query, tags) · vault-graph (entity + relationship queries)</p></div>
+      <div class="scard reveal" style="--i:2"><h4>Hygiene &amp; ops</h4><p>/score-vault · /vault-lint · /curate-skills · /promote-rule · /telemetry-summary · scheduled-audit · archive-captures</p></div>
+      <div class="scard reveal" style="--i:3"><h4>Proof &amp; setup</h4><p>16 behaviour scenarios + 22 deterministic checks, run every release · ~20-min first-run wizard · MIT, all readable</p></div>
+    </div>
     <div class="scap" style="margin-top:16px">
       <div class="scard soon reveal" style="--i:1"><span class="soonpill">in testing</span><h4>Self-healing &amp; improvement</h4><p>Loops that surface drift and improve the harness — with a human keeping the final say. Coming to Charon; overview when it ships.</p></div>
-      <div class="scard reveal" style="--i:2"><h4>Also inside</h4><p>Reporting &amp; governance prep · your-day commands (refresh-todo · triage-inbox · weekly-checkin · eod-reflect) · Prometheus KEV/CVE feed · 16 behaviour scenarios + 22 deterministic checks · MIT, all readable.</p></div>
     </div>
   </div>
 </section>
 
-<section class="band alt tall" id="install">
+<section class="band tall" id="install">
   <div class="wrap">
     <div class="sec-head reveal"><p class="kicker">Get started</p><h2>Clone it, read it, run it, cross.</h2><p>Charon runs on the Claude Code CLI. One command after cloning detects what you have, offers to install what you don't, then hands off to a ~20-minute first-run wizard.</p></div>
     <div class="steps">
