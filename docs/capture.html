@@ -101,6 +101,10 @@
   .term-body .prompt{color:var(--t-teal)}.term-body .dim{color:var(--t-dim)}.term-body .you{color:#fff;font-weight:600}
   .term-body .ok{color:var(--t-green)}.term-body .amber{color:var(--t-amber)}.term-body .red{color:var(--t-red)}
   .term-cap{text-align:center;color:var(--t-dim);font-size:12px;margin-top:14px;font-family:var(--mono)}
+  /* traffic-light bar on inline console snippets, for continuity */
+  .code-mini{position:relative;padding-top:44px}
+  .code-mini::before{content:"";position:absolute;top:0;left:0;right:0;height:32px;background:var(--t-bar,#151B22);border-bottom:1px solid var(--t-line,#20272F);border-radius:10px 10px 0 0}
+  .code-mini::after{content:"";position:absolute;top:12px;left:16px;width:9px;height:9px;border-radius:50%;background:#E0685A;box-shadow:16px 0 0 #D6A44B,32px 0 0 #54B98A}
 </style>
 </head>
 <body>

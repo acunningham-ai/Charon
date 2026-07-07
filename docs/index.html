@@ -235,6 +235,14 @@
   .foot-base{border-top:1px solid var(--line);margin-top:40px;padding-top:22px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;font-size:13px;color:var(--faint)}
   .foot-base .mono{font-family:var(--mono)}
   .draft-note{background:#111;color:#D6A44B;font-family:var(--mono);font-size:12px;text-align:center;padding:7px;letter-spacing:.03em}
+  /* traffic-light bar on inline console snippets + install blocks, for continuity */
+  .code-mini{position:relative;padding-top:44px}
+  .code-mini::before{content:"";position:absolute;top:0;left:0;right:0;height:32px;background:var(--t-bar,#151B22);border-bottom:1px solid var(--t-line,#20272F);border-radius:10px 10px 0 0}
+  .code-mini::after{content:"";position:absolute;top:12px;left:16px;width:9px;height:9px;border-radius:50%;background:#E0685A;box-shadow:16px 0 0 #D6A44B,32px 0 0 #54B98A}
+  .code-full{padding-top:46px}
+  .code-full::before{content:"";position:absolute;top:0;left:0;right:0;height:32px;background:var(--t-bar,#151B22);border-bottom:1px solid var(--t-line,#20272F);border-radius:12px 12px 0 0}
+  .code-full::after{content:"";position:absolute;top:12px;left:16px;width:9px;height:9px;border-radius:50%;background:#E0685A;box-shadow:16px 0 0 #D6A44B,32px 0 0 #54B98A}
+  .copy2{top:9px}
 </style>
 
 <div class="prog" id="prog"></div>
