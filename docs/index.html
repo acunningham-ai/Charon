@@ -95,6 +95,8 @@
   .term-body .line{white-space:pre}
   .term-body .prompt{color:var(--t-teal)}.term-body .dim{color:var(--t-dim)}.term-body .you{color:#fff;font-weight:600}
   .term-body .ok{color:var(--t-green)}.term-body .amber{color:var(--t-amber)}.term-body .red{color:var(--t-red)}
+  .term-body .cursor{display:inline-block;width:8px;height:15px;background:var(--t-teal);vertical-align:-2px;margin-left:1px;animation:blink 1.05s step-end infinite}
+  @keyframes blink{50%{opacity:0}}
   .term-cap{text-align:center;color:var(--faint);font-size:12.5px;margin-top:16px;font-family:var(--mono)}
 
   /* ---- generic two-col row ---- */
@@ -272,7 +274,7 @@
     <div class="hero-meta reveal" style="--i:4"><code>Charon</code> · KAIR-ən · runs on the Claude Code CLI · ~20-min guided setup · your vault starts empty</div>
     <div class="term reveal" style="--i:5" role="img" aria-label="A Charon session recalling memory and confidence-tagging an answer">
       <div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">claude code — ~/vault — charon</span></div>
-      <div class="term-body">
+      <div class="term-body" id="term">
 <div class="line"><span class="dim">▸ session start — restoring memory…</span></div>
 <div class="line"><span class="ok">  ✓</span> recalled <span class="you">3 projects</span>, <span class="you">12 people</span>, <span class="you">47 notes</span></div>
 <div class="line"> </div>
@@ -280,7 +282,7 @@
 <div class="line"> </div>
 <div class="line"><span class="prompt">charon ▸</span></div>
 <div class="line">  <span class="ok">[ verified ]</span>   expires <span class="you">2026-09-14</span> — read from the cert this turn.</div>
-<div class="line">  <span class="amber">[ unverified ]</span> renewal runs through the platform team <span class="dim">(from memory).</span></div>
+<div class="line">  <span class="amber">[ medium ]</span>     renewal runs through the platform team <span class="dim">(from memory).</span></div>
 <div class="line">  <span class="red">[ assumed ]</span>    auto-renew likely on — <span class="dim">not checked. verify first.</span></div>
       </div>
     </div>
@@ -344,7 +346,7 @@
     <div class="answer reveal" style="--i:1">
       <div class="aq">▸ when does the certificate expire, and who renews it?</div>
       <div class="al"><span class="chip ok">verified</span><span>Expires <b>2026-09-14</b> — read from the current certificate this turn.</span></div>
-      <div class="al"><span class="chip warn">unverified</span><span>Renewal usually runs through the platform team — from memory, not re-confirmed.</span></div>
+      <div class="al"><span class="chip warn">medium</span><span>Renewal usually runs through the platform team — from memory, not re-confirmed.</span></div>
       <div class="al"><span class="chip bad">assumed</span><span>Auto-renewal is probably enabled — the config wasn't checked. Verify before relying on it.</span></div>
     </div>
   </div>
@@ -366,10 +368,10 @@
 
 <section class="band alt" id="security">
   <div class="wrap">
-    <div class="sec-head reveal"><p class="kicker">Security</p><h2>Guardrails you can read — and the honest edges of them.</h2><p>Built by a practising CISO, so it says what it enforces and what it only checks. Two controls run as gates by default; the rest is a documented baseline, checked at review.</p></div>
+    <div class="sec-head reveal"><p class="kicker">Security</p><h2>Guardrails you can read — and the honest edges of them.</h2><p>Built by a practising CISO, so it says what it enforces and what it only checks. One control blocks on every install; more engage on unattended runs; the rest is a documented baseline, checked at review.</p></div>
     <div class="tiers">
-      <div class="tier run reveal" style="--i:1"><div class="tlabel">Enforced at runtime</div><h4>Blocks the action</h4><p>Two PreToolUse gates ship enabled on every install — a write-path allowlist and deny-by-default on destructive writes.</p></div>
-      <div class="tier att reveal" style="--i:2"><div class="tlabel">On unattended runs</div><h4>Checks after the fact</h4><p>Post-run audit against the allowlist, secret redaction before LLM calls, budget caps.</p></div>
+      <div class="tier run reveal" style="--i:1"><div class="tlabel">Enforced at runtime</div><h4>Blocks the action</h4><p>A PreToolUse gate ships enabled on every install — deny-by-default on writes and deletes to protected zones: archive, session journals, voice anchors, published posts.</p></div>
+      <div class="tier att reveal" style="--i:2"><div class="tlabel">On unattended runs</div><h4>Confines the blast radius</h4><p>Scheduled and headless runs add a write-path allowlist that confines writes to an approved set, plus secret redaction before LLM calls and budget caps.</p></div>
       <div class="tier shadow reveal" style="--i:3"><div class="tlabel">Shadow · observe</div><h4>Flags &amp; logs</h4><p>The prompt-injection detector surfaces attempts for review — honest about being detection, not prevention.</p></div>
     </div>
     <p class="explore reveal"><a href="security.html">Explore Security → the two-layer injection defence, secure-code review, and the full C-1…C-8 baseline</a></p>
@@ -582,6 +584,45 @@ V8 deps vs registry <span class="g">✓ clean</span>
     },{threshold:.12,rootMargin:'0px 0px -8% 0px'});
     els.forEach(function(e){ io.observe(e); });
   } else { els.forEach(function(e){ e.classList.add('in'); }); }
+
+  // console typewriter — every terminal/console block types in char-by-char, preserving span
+  // colours; runs when the block scrolls into view; reduced-motion shows the whole thing statically.
+  (function(){
+    var st=document.createElement('style');
+    st.textContent='.code-mini{white-space:pre-wrap}.tw-cursor{display:inline-block;width:8px;height:15px;background:var(--t-teal,#4CC7BC);vertical-align:-2px;margin-left:1px;animation:twblink 1.05s step-end infinite}@keyframes twblink{50%{opacity:0}}@media (prefers-reduced-motion:reduce){.tw-cursor{display:none}}';
+    (document.head||document.documentElement).appendChild(st);
+    var reduce=window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var blocks=[].slice.call(document.querySelectorAll('.term-body, .code-mini, .code-full pre'));
+    function snap(el){
+      var lns=el.querySelectorAll('.line');
+      if(lns.length) return {mode:'line',lines:[].slice.call(lns).map(function(ln){return [].slice.call(ln.childNodes).map(function(n){return {cls:(n.nodeType===1?n.className:''),text:n.textContent};});})};
+      return {mode:'flat',segs:[].slice.call(el.childNodes).map(function(n){return {cls:(n.nodeType===1?n.className:''),text:n.textContent};})};
+    }
+    function typeFlat(el,segs){
+      el.textContent=''; var cur=document.createElement('span'); cur.className='tw-cursor'; el.appendChild(cur);
+      var si=0,ci=0,tx=null;
+      function ns(){var s=segs[si],h=document.createElement('span');if(s&&s.cls)h.className=s.cls;tx=document.createTextNode('');h.appendChild(tx);el.insertBefore(h,cur);ci=0;}
+      function tk(){ if(si>=segs.length)return; var s=segs[si]; if(ci<s.text.length){var c=s.text.charAt(ci++);tx.nodeValue+=c;setTimeout(tk,(c===' '||c==='\n')?6:14);} else {si++; if(si<segs.length){ns();setTimeout(tk,0);} else el.appendChild(cur);} }
+      if(segs.length){ns();setTimeout(tk,250);}
+    }
+    function typeLines(el,lines){
+      el.textContent=''; var cur=document.createElement('span'); cur.className='tw-cursor';
+      var li=0,si=0,ci=0,ln=null,tx=null;
+      function nl(){ln=document.createElement('div');ln.className='line';el.appendChild(ln);ln.appendChild(cur);si=0;ns();}
+      function ns(){var s=lines[li][si],h=document.createElement('span');if(s&&s.cls)h.className=s.cls;tx=document.createTextNode('');h.appendChild(tx);ln.insertBefore(h,cur);ci=0;}
+      function dn(){if(ln)ln.appendChild(cur);}
+      function tk(){ if(li>=lines.length)return; var sg=lines[li]; if(!sg.length){li++; if(li<lines.length){nl();setTimeout(tk,120);}else dn(); return;} var s=sg[si]; if(ci<s.text.length){var c=s.text.charAt(ci++);tx.nodeValue+=c;setTimeout(tk,c===' '?7:15);} else if(++si<sg.length){ns();tk();} else {li++; if(li<lines.length){nl();setTimeout(tk,160);}else dn();} }
+      if(lines.length){nl();setTimeout(tk,300);}
+    }
+    blocks.forEach(function(el){
+      var s=snap(el);
+      if(reduce) return;
+      var started=false;
+      function go(){if(started)return;started=true; if(s.mode==='line')typeLines(el,s.lines); else typeFlat(el,s.segs);}
+      if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){io.disconnect();go();}});},{threshold:.3});io.observe(el);}
+      else go();
+    });
+  })();
 
   // scroll progress bar + active nav link
   var prog=document.getElementById('prog');

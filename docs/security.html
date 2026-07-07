@@ -272,17 +272,17 @@
 <section>
   <div class="wrap">
     <div class="sec-head">
-      <p class="kicker">The two default gates</p>
-      <h2>What actually blocks, out of the box.</h2>
-      <p>These are the only controls that stop an action with no setup on your part. Both run as PreToolUse hooks — Python you can read in <code>scripts/hooks/</code>.</p>
+      <p class="kicker">The default gates</p>
+      <h2>What actually blocks — and when.</h2>
+      <p>Both are PreToolUse hooks, Python you can read in <code>scripts/hooks/</code>. One stops protected-zone writes the moment you make them, on every install; the other confines what an <em>unattended</em> run can write.</p>
     </div>
     <div class="gates">
       <div class="gate">
         <span class="gtag">C-3 · write-path allowlist</span>
-        <h3>Writes have to be on the list.</h3>
-        <p>Every <code>Write</code> is checked against an allowlist before it lands. A path outside the allowed zones is denied — the model can't quietly write where it shouldn't.</p>
+        <h3>On unattended runs, writes stay on the list.</h3>
+        <p>For scheduled or headless <code>claude -p</code> runs, every <code>Write</code> is checked against an allowlist before it lands — bounding the blast radius if a captured read is poisoned. Interactively this gate is dormant; deny-destructive is what guards you there.</p>
         <div class="code-mini">
-<span class="c"># PreToolUse · validate-write-path.py</span>
+<span class="c"># PreToolUse · validate-write-path.py · unattended run</span>
 <span class="t">verdict</span>  target=<span class="a">07-References/digest.md</span>
          <span class="g">→ allow</span>  <span class="c">(matches allowlist)</span>
 
@@ -293,7 +293,7 @@
       <div class="gate">
         <span class="gtag">deny-destructive</span>
         <h3>Some zones are read-only, period.</h3>
-        <p>A second gate refuses writes and deletes to protected zones by default. Extend the list to your own — it's a glob array you edit in one file.</p>
+        <p>The always-on gate — every install, every session. It refuses writes and deletes to protected zones by default. Extend the list to your own; it's a glob array you edit in one file.</p>
         <div class="zones">
           <code>09-Archive/**</code>
           <code>memory/sessions/**</code>
@@ -518,5 +518,43 @@
     </div>
   </div>
 </footer>
+<script>
+(function(){
+  var st=document.createElement('style');
+  st.textContent='.code-mini{white-space:pre-wrap}.tw-cursor{display:inline-block;width:8px;height:15px;background:var(--t-teal,#4CC7BC);vertical-align:-2px;margin-left:1px;animation:twblink 1.05s step-end infinite}@keyframes twblink{50%{opacity:0}}@media (prefers-reduced-motion:reduce){.tw-cursor{display:none}}';
+  (document.head||document.documentElement).appendChild(st);
+  var reduce=window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var blocks=[].slice.call(document.querySelectorAll('.term-body, .code-mini, .code-full pre'));
+  function snap(el){
+    var lns=el.querySelectorAll('.line');
+    if(lns.length) return {mode:'line',lines:[].slice.call(lns).map(function(ln){return [].slice.call(ln.childNodes).map(function(n){return {cls:(n.nodeType===1?n.className:''),text:n.textContent};});})};
+    return {mode:'flat',segs:[].slice.call(el.childNodes).map(function(n){return {cls:(n.nodeType===1?n.className:''),text:n.textContent};})};
+  }
+  function typeFlat(el,segs){
+    el.textContent=''; var cur=document.createElement('span'); cur.className='tw-cursor'; el.appendChild(cur);
+    var si=0,ci=0,tx=null;
+    function ns(){var s=segs[si],h=document.createElement('span');if(s&&s.cls)h.className=s.cls;tx=document.createTextNode('');h.appendChild(tx);el.insertBefore(h,cur);ci=0;}
+    function tk(){ if(si>=segs.length)return; var s=segs[si]; if(ci<s.text.length){var c=s.text.charAt(ci++);tx.nodeValue+=c;setTimeout(tk,(c===' '||c==='\n')?6:14);} else {si++; if(si<segs.length){ns();setTimeout(tk,0);} else el.appendChild(cur);} }
+    if(segs.length){ns();setTimeout(tk,250);}
+  }
+  function typeLines(el,lines){
+    el.textContent=''; var cur=document.createElement('span'); cur.className='tw-cursor';
+    var li=0,si=0,ci=0,ln=null,tx=null;
+    function nl(){ln=document.createElement('div');ln.className='line';el.appendChild(ln);ln.appendChild(cur);si=0;ns();}
+    function ns(){var s=lines[li][si],h=document.createElement('span');if(s&&s.cls)h.className=s.cls;tx=document.createTextNode('');h.appendChild(tx);ln.insertBefore(h,cur);ci=0;}
+    function dn(){if(ln)ln.appendChild(cur);}
+    function tk(){ if(li>=lines.length)return; var sg=lines[li]; if(!sg.length){li++; if(li<lines.length){nl();setTimeout(tk,120);}else dn(); return;} var s=sg[si]; if(ci<s.text.length){var c=s.text.charAt(ci++);tx.nodeValue+=c;setTimeout(tk,c===' '?7:15);} else if(++si<sg.length){ns();tk();} else {li++; if(li<lines.length){nl();setTimeout(tk,160);}else dn();} }
+    if(lines.length){nl();setTimeout(tk,300);}
+  }
+  blocks.forEach(function(el){
+    var s=snap(el);
+    if(reduce) return;
+    var started=false;
+    function go(){if(started)return;started=true; if(s.mode==='line')typeLines(el,s.lines); else typeFlat(el,s.segs);}
+    if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){io.disconnect();go();}});},{threshold:.3});io.observe(el);}
+    else go();
+  });
+})();
+</script>
 </body>
 </html>
