@@ -8,6 +8,14 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.16.1] - 2026-07-08
+
+### Changed
+- **`/devils-advocate` — three adversarial-council techniques folded in (existing capability improved).** Additive to the proven 3-vote survival math; nothing about the verify pass changed. (1) **Problem-restatement gate** — the frame step now judges whether the decision is well-enough framed to red-team; a genuinely misframed *and* costly-to-reverse decision returns early asking to be sharpened, instead of burning a full hostile fan-out on a fuzzy target (easily-reversible decisions proceed regardless). (2) **Counterweight steelman** — one defender voice runs concurrently with the hostile lenses, making the strongest honest case *for* the decision; it feeds the synthesis only (never the refuters, whose independence is load-bearing), so the verdict weighs the defense rather than being one-sidedly negative. (3) **Dissent-quota / false-consensus watch** — a load-bearing risk killed *unanimously* (3-0, no dissenting vote) is flagged for a sanity re-read and can be resurrected into the verdict, guarding against a monoculture of skeptics discarding a real risk. *Why:* borrowed from the `0xNyk/council-of-high-intelligence` pattern (evaluated, not vendored) — they close real gaps in a single-pass red-team without weakening the adversarial-verify core. The workflow now has a fourth return shape (`verdict: "needs_sharpening"`); a programmatic consumer must switch on `verdict` (documented inline).
+- **`/prometheus` — cross-source dedupe + signal-ranked digest (existing capability improved).** New protocol step (5b): the same story often arrives via more than one input (a worked research thread, the newsletter email beat, the optional KEV shortlist). Prometheus now **merges duplicates into one item** — with a **Corroboration** line naming every input it surfaced across, instead of listing it two or three times — and **ranks the digest by signal** (research signal-strength: corroboration + actionability for the user's remit + velocity + beat priority) so the highest-signal item leads. *Why:* borrowed from the `mvanhorn/last30days-skill` scoring+dedupe idea (pattern only — its cookie-reading and multi-vendor egress were explicitly not taken). "Signal" here is research signal-strength, **not** social-engagement metrics: Prometheus reads no browser cookies and calls no engagement APIs. Prompt-only change — no new tools, egress, or write-paths; security posture unchanged.
+
+---
+
 ## [0.16.0] - 2026-07-03
 
 ### Added

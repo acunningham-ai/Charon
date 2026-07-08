@@ -64,7 +64,7 @@ The "research → compose → deliver" pipeline (standing-seat agents — see Su
 
 | Command | What it does |
 |---|---|
-| `/prometheus` | Run the standing research analyst — read the ledger, scan the newsletter email beat, research top-K active threads, write a prioritised daily digest with content angles. *Example: each morning, to advance your standing research beats and surface what's worth acting on or writing about — without sifting raw sources yourself.* |
+| `/prometheus` | Run the standing research analyst — read the ledger, scan the newsletter email beat, research top-K active threads, dedupe the same story across inputs, and write a **signal-ranked** prioritised daily digest with content angles. *Example: each morning, to advance your standing research beats and surface what's worth acting on or writing about — without sifting raw sources yourself.* |
 | `/calliope [mode] "<topic>"` | The writing seat — composes in your voice across modes (post / bulletin / tweet / email). Drafts only, never sends. *Example: turn a Prometheus angle or a raw topic into a draft post or a stakeholder bulletin — `/calliope bulletin "<issue>"` scaffolds the advisory + responses tracker for your sign-off.* |
 | `/forum-agenda [forum]` | Recurring-forum feed — scans captured email / chat / meetings / sessions over a window for items relevant to a forum's remit, surfaces candidate agenda items for triage. *Example: a week before a monthly governance forum, to build the agenda from what actually happened since it last met.* |
 
@@ -197,7 +197,7 @@ Seven agents in two categories. **Review / synthesis subagents** are dispatched 
 
 | Seat | What it does | Invoked by | Tools |
 |---|---|---|---|
-| `prometheus` | Research seat — standing analyst; ledger of beats + newsletter email beat → prioritised daily digest with content angles. Read + write-note only (writes only to `00-Inbox/_research/`). | `/prometheus` | Read, Write, WebSearch, WebFetch, Skill, Glob, Grep |
+| `prometheus` | Research seat — standing analyst; ledger of beats + newsletter email beat → cross-source-deduped, signal-ranked daily digest with content angles. Read + write-note only (writes only to `00-Inbox/_research/`). | `/prometheus` | Read, Write, WebSearch, WebFetch, Skill, Glob, Grep |
 | `calliope` | Writing seat — composes in your voice across modes (post / bulletin / tweet / email). **Drafts only, never sends.** | `/calliope` | Read, Write, Edit, Glob, Grep, Skill |
 
 See `.claude/agents/README.md` for the dispatch pattern + per-seat capability and intent.
@@ -209,7 +209,7 @@ Multi-agent **workflows** — deterministic orchestration scripts run by the Cla
 | Workflow | What it does |
 |---|---|
 | `/deep-research "<question>"` | Self-verifying deep research — decompose into search angles → parallel web search → fetch + extract falsifiable claims → 3-vote adversarial verify with a re-queue-until-zero loop (evidence-handling rejects re-researched against a live source) → cited synthesis. *Example: a multi-source factual question where you want claims fact-checked and sourced, not a single-pass summary.* |
-| `/devils-advocate "<decision>"` | Adversarial pre-mortem for a hard-to-reverse **non-code** decision. Hostile lenses (Key Assumptions Check · Pre-Mortem · adapted-adversary · disappointed-counterparty · conditional Analysis of Competing Hypotheses) → consolidate → 3-vote adversarial verify → **grounding gate** (each surviving risk tagged grounded / plausible / invented, checked against memory + the authored vault) → kill / proceed-with-fixes / proceed verdict. Draft-only. *Example: before committing to a hire, a launch, a policy line, or a big bet you can't easily walk back.* |
+| `/devils-advocate "<decision>"` | Adversarial pre-mortem for a hard-to-reverse **non-code** decision. **Framing gate** (a misframed + costly-to-reverse decision is bounced back to be sharpened first) → hostile lenses (Key Assumptions Check · Pre-Mortem · adapted-adversary · disappointed-counterparty · conditional Analysis of Competing Hypotheses) run alongside one **steelman counterweight** (the strongest honest case *for* the decision, feeding synthesis only) → consolidate → 3-vote adversarial verify + **dissent-quota watch** (a load-bearing risk killed 3-0 is re-read, not silently dropped) → **grounding gate** (each surviving risk tagged grounded / plausible / invented, checked against memory + the authored vault) → kill / proceed-with-fixes / proceed verdict. Draft-only. *Example: before committing to a hire, a launch, a policy line, or a big bet you can't easily walk back.* |
 
 Both are **read + reason only** — no writes, sends, or posts; caller input and any fetched/vault content is treated as data, not instructions (ASI01/ASI06). Workflows spawn many subagents — intended for hard questions / high-stakes calls, not quick asks.
 

@@ -56,6 +56,14 @@ For each thread, decide: is there a use case + relevance angle worth a post / sh
 bulletin? If yes, frame the **angle** (use case + why now + durable principle + channel) — NOT a
 finished artefact.
 
+### 4b. Cross-source dedupe + signal-score
+You pull from more than one input — worked threads, the email beat, and (if the 1c KEV pre-step was
+run) the KEV shortlist. **Merge duplicate items** (same underlying subject) into ONE, with a
+**Corroboration** line naming the inputs it surfaced across; don't list it twice. Then **rank the
+digest by signal** (research signal-strength: corroboration + actionability for the user's remit +
+velocity + beat priority — NOT social engagement; no cookies, no engagement APIs) so the
+highest-signal item leads. Full rubric in the persona.
+
 ### 5. Write the digest
 `00-Inbox/_research/<YYYY-MM-DD>.md` in the persona's digest format. The artefact the user reads.
 

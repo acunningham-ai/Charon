@@ -3,13 +3,25 @@ export const meta = {
   description: 'Adversarial pre-mortem / devil\'s advocate for hard-to-reverse NON-CODE decisions (a hire, board framing, a policy line, a big bet). Fans out hostile lenses (assumptions check, pre-mortem, adapted-adversary, disappointed-counterparty, conditional ACH), then adversarially 3-vote verifies every surfaced risk so plausible-but-wrong critiques are killed, and runs a grounding gate that tags each surviving risk grounded / plausible / invented (checking memory + the authored vault). Ends on a kill / proceed-with-fixes / proceed verdict. Draft-only; writes nothing without a yes.',
   whenToUse: 'When you want a decision stress-tested before committing — especially costly-to-reverse non-code calls. BEFORE invoking, check the decision is specific enough: if you cannot tell what "commit" means, what success looks like, or whether there are competing options, ask 1-2 clarifying questions FIRST (per no-assumptions), then pass the sharpened decision as args. NOT for code design (use Plan/Workflow), open ideation with no decision yet (use /brainstorm), cheap reversible calls, or security findings (use /fp-check).',
   phases: [
-    { title: 'Frame', detail: 'Normalize the decision; pick adversary + counterparty archetypes; detect competing options + reversibility' },
-    { title: 'Lenses', detail: 'Parallel hostile lenses: assumptions · pre-mortem · adapted-adversary · disappointed-counterparty · conditional ACH' },
+    { title: 'Frame', detail: 'Normalize the decision; problem-restatement gate (halt if misframed + costly-to-reverse); pick adversary + counterparty archetypes; detect competing options + reversibility' },
+    { title: 'Lenses', detail: 'Parallel hostile lenses: assumptions · pre-mortem · adapted-adversary · disappointed-counterparty · conditional ACH — plus one counterweight steelman defender voice' },
     { title: 'Consolidate', detail: 'Merge semantic-duplicate risks across lenses, rank by severity (barrier)' },
-    { title: 'Verify', detail: '3-vote adversarial challenge per risk (2/3 refutes kill it) + grounding gate against memory/vault' },
-    { title: 'Synthesize', detail: 'Verdict + top risks (fixable vs structural) + 3 must-fix + grounding ledger + open questions to verify' },
+    { title: 'Verify', detail: '3-vote adversarial challenge per risk (2/3 refutes kill it) + grounding gate against memory/vault + dissent-quota false-consensus watch on unanimously-killed load-bearing risks' },
+    { title: 'Synthesize', detail: 'Verdict + top risks (fixable vs structural) + steelman counterweight + 3 must-fix + grounding ledger + false-consensus watch + open questions to verify' },
   ],
 }
+
+// Council borrow (2026-07-08, from 0xNyk/council-of-high-intelligence): three techniques folded in
+// ADDITIVELY — the proven 3-vote survival math is untouched.
+//   1. Problem-restatement gate (Frame): frame emits framingVerdict; a misframed + costly-to-reverse
+//      decision returns early for sharpening rather than red-teaming a fuzzy target (council restates
+//      the problem before answering; also honours the no-assumptions rule).
+//   2. Counterweight steelman lens (Lenses): one defender voice argues the decision is SOUND, feeding
+//      SYNTHESIS ONLY (not the refuters — their independence is load-bearing) so the verdict weighs the
+//      defense, not just surviving attacks (council's counterweight-pair).
+//   3. Dissent-quota / false-consensus watch (Verify): a load-bearing risk killed UNANIMOUSLY (3-0) is
+//      flagged for a sanity re-read — guards the monoculture-skeptic false-consensus failure the clean-
+//      sweep note already warns about (council's mandatory-dissent check).
 
 // devils-advocate (heavy variant, authored 2026-07-01):
 //   Frame → parallel(Lenses) → Consolidate(barrier) → parallel(Verify 3-vote + grounding) → Synthesize
@@ -25,6 +37,15 @@ export const meta = {
 //      before acting" — never laundered into the verdict as if it were a finding. (the validate-before-acting discipline +
 //      the confidence-tags rule.)
 // Claude stays planner+verifier throughout. Draft-only tool: no send/post/write-to-vault without a yes.
+
+// Return-shape caveat (Y-1): this workflow returns several distinct shapes, distinguished by `verdict`:
+//   "kill" | "proceed_with_fixes" | "proceed"  → the full synthesized report (topRisks, groundingLedger, …)
+//   "needs_sharpening"                          → the framing-gate early return (sharpenBeforeRerun[], no risks)
+//   "no_surviving_risks"                        → every risk refuted (refuted[], no topRisks)
+//   (no `verdict` field, has `error`/`summary`) → an agent dropped mid-run; degraded/partial result
+// The intended consumer is the assistant reading this JSON, which branches on shape naturally. A future
+// PROGRAMMATIC consumer must switch on `verdict` (and handle the error/summary-only shapes) — do not assume
+// topRisks is always present.
 
 const VOTES_PER_RISK = 3
 const REFUTES_REQUIRED = 2         // ≥2/3 skeptics refute → the risk is dropped
@@ -54,7 +75,7 @@ const U = (s) => "<decision>" + (s == null ? "" : String(s)) + "</decision>"
 // ─── Schemas ───
 const FRAME_SCHEMA = {
   type: "object",
-  required: ["decision", "decisionType", "commitMeaning", "reversibility", "successCriteria", "adversaryArchetype", "counterpartyArchetype", "competingOptions"],
+  required: ["decision", "decisionType", "commitMeaning", "reversibility", "successCriteria", "adversaryArchetype", "counterpartyArchetype", "competingOptions", "framingVerdict"],
   properties: {
     decision: { type: "string", description: "The decision, normalized to one clear sentence." },
     decisionType: { enum: ["product_launch", "hire", "policy_or_governance", "board_or_stakeholder_report", "strategic_bet", "vendor_or_tool", "communication", "personal_or_career", "other"] },
@@ -65,6 +86,9 @@ const FRAME_SCHEMA = {
     adversaryArchetype: { type: "string", description: "The specific hostile force for THIS decision type. Product→funded competitor. Policy→the BU that must comply / the stakeholder who opposes it. Board report→the skeptical director. Hire→the case this is the wrong hire. Bet→the market/timing that kills it." },
     counterpartyArchetype: { type: "string", description: "The party who has to LIVE WITH the consequence and could feel let down. Product→the customer. Policy→the BU. Board report→the director who later feels misled. Hire→the team, or the hire themselves." },
     reframeNote: { type: "string", description: "Optional: anything about the framing worth flagging (e.g. the decision is actually two decisions, or the success criteria conflict)." },
+    // Council problem-restatement gate: is the decision well-enough framed to red-team, or does the user need to sharpen it first?
+    framingVerdict: { enum: ["clear", "needs_sharpening"], description: "clear = the decision, commit-meaning, and success criteria are specific enough that hostile lenses will produce grounded critique. needs_sharpening = the decision is vague, is actually two-or-more decisions bundled, has conflicting/absent success criteria, or 'commit' is undefined — red-teaming it now would generate filler." },
+    sharpeningNeeded: { type: "array", items: { type: "string" }, description: "If framingVerdict=needs_sharpening: the 1-3 specific questions/ambiguities the user must resolve before a useful red-team. Empty when clear." },
   },
 }
 
@@ -81,6 +105,23 @@ const LENS_SCHEMA = {
         severity: { enum: ["load_bearing", "important", "minor"], description: "load_bearing = if this is real/wrong, the decision fails. important = weakened but survives. minor = barely affects outcome." },
         restsOn: { type: "string", description: "The premise this depends on — what has to be true for this risk to matter. This is what the grounding gate checks." },
         falsifier: { type: "string", description: "The specific evidence that would prove this risk real, or prove it a non-issue." },
+      },
+    }},
+  },
+}
+
+// Council counterweight-pair: the single defender voice that balances the hostile fan-out.
+// Feeds SYNTHESIS only — deliberately NOT the refuters (their independence is load-bearing).
+const STEELMAN_SCHEMA = {
+  type: "object",
+  required: ["steelmanSummary", "defenses"],
+  properties: {
+    steelmanSummary: { type: "string", description: "One sentence: the strongest single reason this decision is the right call." },
+    defenses: { type: "array", minItems: 1, maxItems: 6, items: {
+      type: "object", required: ["claim", "whyLikelyAttackFails"],
+      properties: {
+        claim: { type: "string", description: "A concrete reason the decision is sound / an asset it has going for it." },
+        whyLikelyAttackFails: { type: "string", description: "The most likely hostile critique of this point, and why it does not actually land." },
       },
     }},
   },
@@ -143,6 +184,7 @@ const SYNTH_SCHEMA = {
     }},
     mustFixBeforeCommit: { type: "array", maxItems: 3, items: { type: "string" } },
     structuralConcerns: { type: "array", items: { type: "string" } },
+    counterweightNote: { type: "string", description: "How the steelman's strongest case FOR the decision weighs against the surviving risks — the one place the verdict is allowed to credit the defense. Empty if the steelman was thin/absent (say so)." },
     groundingLedger: {
       type: "object", required: ["grounded", "plausible", "invented"],
       properties: {
@@ -172,7 +214,8 @@ const frame = await agent(
   "3. State what success looks like in ~6 months (the criteria the risks will be judged against).\n" +
   "4. List any COMPETING OPTIONS the user is choosing between. If it's a single go/no-go with no live alternative, return an empty array — this switches off the ACH lens.\n" +
   "5. Pick the ADVERSARY archetype that fits THIS decision (not a generic '$100M competitor' unless it's a product) and the COUNTERPARTY who has to live with the consequence.\n" +
-  "6. Flag anything off about the framing (two decisions bundled as one, conflicting success criteria)." +
+  "6. Flag anything off about the framing (two decisions bundled as one, conflicting success criteria).\n" +
+  "7. PROBLEM-RESTATEMENT GATE. Judge whether the decision is well-enough framed to red-team usefully. Set framingVerdict=needs_sharpening ONLY when the decision is genuinely too vague to critique (no clear commit-meaning, actually two-or-more decisions bundled, absent/conflicting success criteria) — in that case list the 1-3 specific things the user must sharpen in sharpeningNeeded. If it is specific enough that hostile lenses will produce grounded critique, set framingVerdict=clear and leave sharpeningNeeded empty. Bias toward `clear` — only gate on genuine ambiguity, not mere breadth." +
   TRUST_GUARD + "\nStructured output only.",
   { label: "frame", schema: FRAME_SCHEMA }
 )
@@ -180,6 +223,24 @@ if (!frame) return { error: "Frame agent returned nothing — cannot proceed." }
 log("Decision: " + frame.decision.slice(0, 90))
 log("Type: " + frame.decisionType + " · reversibility: " + frame.reversibility + " · options: " + frame.competingOptions.length)
 log("Adversary: " + frame.adversaryArchetype.slice(0, 60) + " · Counterparty: " + frame.counterpartyArchetype.slice(0, 60))
+
+// ─── Problem-restatement gate (council borrow) ───
+// A misframed decision that is also costly-to-reverse gets bounced back for sharpening rather than
+// burning the full hostile fan-out on a fuzzy target. Easily-reversible decisions proceed regardless
+// (the cost of a slightly-fuzzy red-team is low, and the caller may just want a fast gut-check).
+if (frame.framingVerdict === "needs_sharpening" && frame.reversibility !== "easily_reversible") {
+  log("⚠ Framing gate: decision needs sharpening before a useful red-team (" + (frame.sharpeningNeeded || []).length + " item(s))")
+  return {
+    verdict: "needs_sharpening",
+    decision: frame.decision,
+    decisionType: frame.decisionType,
+    reversibility: frame.reversibility,
+    reframeNote: frame.reframeNote,
+    summary: "The decision isn't framed tightly enough to red-team usefully yet — a hostile fan-out now would generate filler, not grounded critique. Sharpen the points below and re-run. (Problem-restatement gate; costly-to-reverse decisions are held here rather than red-teamed on a fuzzy target.)",
+    sharpenBeforeRerun: frame.sharpeningNeeded || [],
+    stats: { gatedAtFrame: true },
+  }
+}
 
 // ─── Phase 1: Lenses (parallel fan-out) ───
 phase("Lenses")
@@ -241,6 +302,17 @@ if (frame.competingOptions.length >= 1) {
   })
 }
 
+// Counterweight steelman defender (council borrow) — fired concurrently with the hostile lenses.
+// Feeds SYNTHESIS only; never the refuters. A thin defense here is itself signal.
+const steelmanP = agent(
+  "You are the steelman defender in an adversarial review. Every other voice is attacking this decision; " +
+  "your job is the opposite: make the STRONGEST honest case that it is the right call.\n\n" + CTX +
+  "\n## Task\nName the concrete reasons the decision is sound and the assets it has going for it. For each, state the most likely " +
+  "hostile critique and why it does not actually land. Be honest — do not defend the indefensible; a thin or strained defense is itself " +
+  "signal worth surfacing. This is the counterweight that keeps the final verdict from being one-sidedly negative.\nStructured output only.",
+  { label: "lens:steelman", phase: "Lenses", schema: STEELMAN_SCHEMA }
+)
+
 const lensResults = (await parallel(
   LENSES.map(l => () =>
     agent(l.prompt, { label: "lens:" + l.key, phase: "Lenses", schema: LENS_SCHEMA })
@@ -251,6 +323,10 @@ const lensResults = (await parallel(
       })
   )
 )).filter(Boolean)
+
+const steelman = await steelmanP
+if (steelman) log("steelman: " + (steelman.defenses || []).length + " defenses — " + (steelman.steelmanSummary || "").slice(0, 70))
+else log("⚠ steelman dropped — verdict will proceed without the counterweight")
 
 if (lensResults.length === 0) return { error: "All lenses failed — no risks to review.", frame }
 
@@ -336,17 +412,27 @@ const verified = (await parallel(rankedRisks.map(r => () => verifyRisk(r)))).fil
 const survivors = verified.filter(v => v.survives)
 const refuted = verified.filter(v => !v.survives)
 const inventedSurvivors = survivors.filter(v => v.grounding === "invented")
+// Dissent-quota / false-consensus watch (council borrow): a LOAD-BEARING risk killed UNANIMOUSLY (3-0,
+// no dissenting vote) is exactly where monoculture skepticism can throw away a real risk. Flag it for a
+// sanity re-read rather than trusting the clean sweep — operationalises the clean-sweep-suspicion note.
+const falseConsensusWatch = refuted.filter(v =>
+  v.risk.severity === "load_bearing" && v.valid.length === VOTES_PER_RISK && v.refutedVotes === VOTES_PER_RISK
+)
 log("Verify done: " + survivors.length + " survived, " + refuted.length + " refuted, " +
-  inventedSurvivors.length + " survivor(s) rest on invented premises (⚠ verify before acting)")
+  inventedSurvivors.length + " survivor(s) rest on invented premises (⚠ verify before acting)" +
+  (falseConsensusWatch.length ? " · " + falseConsensusWatch.length + " load-bearing risk(s) killed 3-0 (dissent-quota watch)" : ""))
 
 if (survivors.length === 0) {
   return {
     decision: frame.decision, frame, lensSummaries,
     verdict: "no_surviving_risks",
     summary: "No red-team risk survived 3-vote adversarial verification (" + refuted.length + " refuted as generic/invented/overreach). " +
-      "Either the decision is unusually robust, or the lenses produced only filler — treat a clean sweep with mild suspicion and re-run with a sharper decision statement if this feels too easy.",
+      "Either the decision is unusually robust, or the lenses produced only filler — treat a clean sweep with mild suspicion and re-run with a sharper decision statement if this feels too easy." +
+      (falseConsensusWatch.length ? " ⚠ Dissent-quota watch: " + falseConsensusWatch.length + " load-bearing risk(s) were killed unanimously (3-0) — re-read these before trusting the sweep." : ""),
+    steelman: steelman || null,
+    falseConsensusWatch: falseConsensusWatch.map(v => ({ risk: v.risk.statement, refuteClass: v.refuteClass, note: "killed 3-0 — dissent-quota flags unanimous verdicts on load-bearing risks for a sanity re-read" })),
     refuted: refuted.map(r => ({ risk: r.risk.statement, why: r.refuteClass, vote: (r.valid.length - r.refutedVotes) + "-" + r.refutedVotes })),
-    stats: { lenses: lensResults.length, rawRisks: allItems.length, consolidated: consolidated.risks.length, verified: verified.length, survived: 0 },
+    stats: { lenses: lensResults.length, rawRisks: allItems.length, consolidated: consolidated.risks.length, verified: verified.length, survived: 0, falseConsensusWatch: falseConsensusWatch.length },
   }
 }
 
@@ -366,7 +452,16 @@ const report = await agent(
   "You are writing the red-team verdict for a decision. Only VERIFIED risks (survived 3-vote adversarial challenge) are below.\n\n" +
   "## Decision\n" + U(frame.decision) + "\n**Reversibility:** " + frame.reversibility + " · **Success in 6mo:** " + frame.successCriteria.join("; ") + "\n\n" +
   "## Lens punchlines\n" + lensSummaries.map(s => "- " + s.lens + ": " + s.summary).join("\n") + "\n\n" +
+  (steelman
+    ? "## Steelman counterweight (the strongest honest case FOR the decision)\n" + steelman.steelmanSummary + "\n" +
+      (steelman.defenses || []).map(d => "- " + d.claim + " (likely attack: " + d.whyLikelyAttackFails + ")").join("\n") + "\n\n"
+    : "## Steelman counterweight\n(none produced — note the absence in counterweightNote)\n\n") +
   "## Verified surviving risks\n" + survivorBlock + "\n\n" +
+  (falseConsensusWatch.length
+    ? "## Dissent-quota watch — load-bearing risks killed UNANIMOUSLY (3-0)\n" +
+      falseConsensusWatch.map(v => "- " + v.risk.statement + " (refuted as " + (v.refuteClass || "no clear class") + ")").join("\n") +
+      "\nThese were dropped by a monoculture of skeptics with no dissenting vote. Re-read them: if any is actually real, resurrect it into topRisks.\n\n"
+    : "") +
   "## Instructions\n" +
   "1. Verdict: kill (load-bearing risks are grounded AND structural), proceed_with_fixes (real risks but closeable), or proceed (risks are minor/plausible-only).\n" +
   "2. topRisks: rank the survivors. For each, mark type=fixable (closeable before commit) or structural (needs a moat/rethink/accepting the risk), and give the fix.\n" +
@@ -374,7 +469,9 @@ const report = await agent(
   "4. mustFixBeforeCommit: at most 3, the highest-leverage fixes.\n" +
   "5. groundingLedger: sort surviving risks into grounded / plausible / invented. The `invented` list is load-bearing risks resting on premises the lenses generated — the user must VERIFY these before treating them as real. Be honest here; this ledger is the whole point.\n" +
   "6. openQuestionsToVerify: the specific facts to confirm (a load-bearing factual gap should be handed to /deep-research, not guessed).\n" +
-  "7. caveats: weight the verdict by reversibility — an irreversible decision warrants more caution on plausible-only risks than an easily-reversible one." +
+  "7. caveats: weight the verdict by reversibility — an irreversible decision warrants more caution on plausible-only risks than an easily-reversible one.\n" +
+  "8. counterweightNote: weigh the steelman's strongest case against the surviving risks — this is the one place you credit the defense. If the steelman was thin or absent, say so plainly (a weak defense supports a harsher verdict).\n" +
+  "9. If any dissent-quota-watch risk above is, on re-read, actually real, resurrect it into topRisks with its true severity rather than leaving it silently killed." +
   TRUST_GUARD + "\nStructured output only.",
   { label: "synthesize", schema: SYNTH_SCHEMA }
 )
@@ -382,8 +479,10 @@ if (!report) {
   return {
     decision: frame.decision, frame, lensSummaries,
     summary: "Synthesis failed — returning verified risks unmerged.",
+    steelman: steelman || null,
     survivors: survivors.map(s => ({ risk: s.risk.statement, severity: s.risk.severity, grounding: s.grounding, vote: (s.valid.length - s.refutedVotes) + "-" + s.refutedVotes })),
-    stats: { lenses: lensResults.length, rawRisks: allItems.length, consolidated: consolidated.risks.length, survived: survivors.length },
+    falseConsensusWatch: falseConsensusWatch.map(v => ({ risk: v.risk.statement, refuteClass: v.refuteClass, note: "killed 3-0 — dissent-quota flagged for re-read" })),
+    stats: { lenses: lensResults.length, rawRisks: allItems.length, consolidated: consolidated.risks.length, survived: survivors.length, falseConsensusWatch: falseConsensusWatch.length },
   }
 }
 
@@ -393,7 +492,9 @@ return {
   reversibility: frame.reversibility,
   reframeNote: frame.reframeNote,
   lensSummaries,
+  steelman: steelman || null,
   ...report,
+  falseConsensusWatch: falseConsensusWatch.map(v => ({ risk: v.risk.statement, refuteClass: v.refuteClass, note: "killed 3-0 — dissent-quota flagged for re-read; resurrected into topRisks if the synthesis found it real" })),
   refuted: refuted.map(r => ({ risk: r.risk.statement, why: r.refuteClass, vote: (r.valid.length - r.refutedVotes) + "-" + r.refutedVotes })),
   stats: {
     lenses: lensResults.length,
@@ -402,6 +503,7 @@ return {
     verified: verified.length,
     survived: survivors.length,
     inventedPremiseSurvivors: inventedSurvivors.length,
+    falseConsensusWatch: falseConsensusWatch.length,
     refuted: refuted.length,
     droppedAtCap: droppedForCap,
   },
