@@ -221,6 +221,55 @@
   </div>
 </section>
 
+<section id="grounding">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="kicker">Not our opinion — the platform's own guidance</p>
+      <h2>Built the way Anthropic says to build it.</h2>
+      <p>The design choices below aren't house style. They're what Anthropic's own published guidance for its most capable models recommends — Charon just wires them in by default.</p>
+    </div>
+    <div class="gates">
+      <div class="gate">
+        <span class="gtag">fresh-context verification</span>
+        <h3>Nothing grades its own homework.</h3>
+        <p>Anthropic's guidance is explicit: <i>"separate, fresh-context verifier subagents tend to outperform self-critique."</i> So Charon's security reviewers and its workflow verify pass are <b>independent agents in their own context</b> — a finding is challenged by a reviewer that never saw the work being defended, not re-graded by the model that produced it.</p>
+        <p class="std">Applies to: /secure-code-review's three parallel reviewers · /fp-check · the workflow 3-vote verify.</p>
+      </div>
+      <div class="gate">
+        <span class="gtag">deterministic final gate</span>
+        <h3>The last word is code, not a prompt.</h3>
+        <p>The safety-relevant decision — <i>may this write land?</i> — is made by a Python hook you can read, not by model judgement a persuasive instruction could talk past. The model proposes; a deterministic gate disposes. That's the separation the platform guidance points to, made concrete.</p>
+        <p class="std">Applies to: <code>deny-destructive.py</code> (always on) · <code>validate-write-path.py</code> (unattended runs).</p>
+      </div>
+    </div>
+
+    <div class="sec-head" style="margin-top:56px">
+      <p class="kicker">The gap most agentic setups leave open</p>
+      <h2>And closing the hole the popular playbook ignores.</h2>
+      <p>The going pattern for an "agentic OS" is a loop on a cron: it reads untrusted input — issue trackers, CI logs, web pages — and feeds it straight to a model that has write access, commits, and opens pull requests, unattended. That is a textbook injection surface, and the usual build ships it with <b>no write-path allowlist, no provenance separation, and no post-run audit</b>. A crafted issue or a poisoned log can steer the run, and nothing bounds what it writes.</p>
+    </div>
+    <div class="nots">
+      <div class="not">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="m5.5 8 1.6 1.6L10.5 6M10 2 3 5v5c0 4 3 6.5 7 8 4-1.5 7-4 7-8V5l-7-3Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <p><b>Untrusted input is data.</b> Captured email, chat, and web content is treated as data, never instructions — an embedded directive is inert, not executed.</p>
+      </div>
+      <div class="not">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="m5.5 8 1.6 1.6L10.5 6M10 2 3 5v5c0 4 3 6.5 7 8 4-1.5 7-4 7-8V5l-7-3Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <p><b>Bounded writes on unattended runs.</b> A scheduled <code>claude -p</code> run checks every write against an allowlist before it lands — so a poisoned read can't write wherever it likes.</p>
+      </div>
+      <div class="not">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="m5.5 8 1.6 1.6L10.5 6M10 2 3 5v5c0 4 3 6.5 7 8 4-1.5 7-4 7-8V5l-7-3Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <p><b>Always-on zone guard.</b> Deny-destructive refuses writes and deletes to protected zones on every session, attended or not.</p>
+      </div>
+      <div class="not">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="m5.5 8 1.6 1.6L10.5 6M10 2 3 5v5c0 4 3 6.5 7 8 4-1.5 7-4 7-8V5l-7-3Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <p><b>Post-run audit.</b> Every unattended run is followed by an audit of what changed against the allowlist — so drift is caught, not discovered later.</p>
+      </div>
+    </div>
+    <p class="honest-beat">Honest scope, again: the write-path allowlist is the <i>unattended-runs</i> tier — interactively it's deny-destructive that guards you — and treating input as data is discipline plus a hard no-write path, not a magic filter. The point isn't that Charon is unbreakable; it's that the exact surface the cron-loop playbook leaves wide open is the one Charon was built to close.</p>
+  </div>
+</section>
+
 <section id="secure-code">
   <div class="wrap">
     <div class="sec-head">
