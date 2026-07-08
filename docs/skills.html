@@ -173,6 +173,7 @@
       <a href="security.html">Security</a>
       <a href="cerberus.html">Cerberus</a>
       <a href="skills.html" class="active">Skills &amp; Hooks</a>
+      <a href="agents.html">Agents</a>
       <a href="workflows.html">Workflows</a>
       <a href="index.html#install">Install</a>
     </div>
@@ -274,79 +275,10 @@
   <div class="wrap">
     <div class="sec-head">
       <p class="kicker">Named agents</p>
-      <h2>A small crew of standing roles — each with one job, and its own memory.</h2>
-      <p>Some agents are named functional seats, not one-off commands. They carry work across sessions, keep their own working notes, and hand off to one another. They're roles — a research analyst, a writer — never a roleplay of <i>you</i>.</p>
+      <h2>Some roles stand on their own.</h2>
+      <p>A few capabilities aren't one-off skills — they're standing agents with their own memory that hand work to each other: Prometheus researches, Calliope drafts in your voice, and a planned delivery seat would send. They get their own page.</p>
     </div>
-    <div class="seats">
-      <div class="seat">
-        <div class="sname"><h3>Prometheus</h3><span class="cmd">/prometheus</span></div>
-        <p class="role2">The research seat · the Titan of forethought</p>
-        <p>A standing analyst with a persistent ledger of your research beats. Each run it researches the top threads and writes a prioritised digest with framed angles — so scattered reading becomes a daily "so what." It marks which findings are worth writing about and frames the use case, ready to hand to Calliope. An optional beat pulls the CISA known-exploited-vulnerabilities catalogue, ranked for triage.</p>
-        <span class="gate"><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 1.5 2.5 4v4c0 3.2 2.3 5.4 5.5 6.5 3.2-1.1 5.5-3.3 5.5-6.5V4L8 1.5Z" stroke="currentColor" stroke-width="1.3"/></svg> Surfaces and steers — never acts on its own</span>
-      </div>
-      <div class="seat">
-        <div class="sname"><h3>Calliope</h3><span class="cmd">/calliope</span></div>
-        <p class="role2">The writing seat · the Muse of eloquence</p>
-        <p>Composes in <i>your</i> voice across modes — post, stakeholder bulletin, tweet, email — taking a Prometheus angle or a raw topic to a finished draft. It loads your voice profile and anchors first, so the draft sounds like you, not a generic model. Drafting is the bottleneck; an AI that can <i>send</i> is a liability. So Calliope drafts only.</p>
-        <span class="gate"><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 1.5 2.5 4v4c0 3.2 2.3 5.4 5.5 6.5 3.2-1.1 5.5-3.3 5.5-6.5V4L8 1.5Z" stroke="currentColor" stroke-width="1.3"/></svg> Drafts only — never sends, posts, or emails</span>
-      </div>
-    </div>
-    <p class="roster-note">Named seats are functional roles, not personas — a documented anti-pattern is having an agent roleplay <i>your</i> identity. A delivery seat (Hermes) is designed but not yet shipped.</p>
-  </div>
-</section>
-
-<section class="alt">
-  <div class="wrap">
-    <div class="sec-head">
-      <p class="kicker">The automation between them</p>
-      <h2>Research → compose → deliver. Hand off, don't hand over.</h2>
-      <p>The seats aren't isolated. They form a pipeline: one frames the work, the next drafts it, and — by design — a human stays on the consequential edge. Nothing goes out without you.</p>
-    </div>
-    <div class="pipe">
-      <svg viewBox="0 0 760 190" width="100%" aria-label="Pipeline: Prometheus frames an angle, hands to Calliope who drafts in your voice, you approve, then a planned delivery seat sends">
-        <defs><marker id="ah2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0l6 3-6 3z" fill="#9AA1A8"/></marker></defs>
-        <g font-family="-apple-system,BlinkMacSystemFont,Segoe UI,system-ui,sans-serif">
-          <!-- nodes -->
-          <rect x="24" y="60" width="176" height="52" rx="12" fill="#fff" stroke="#0E6F66" stroke-width="1.4"/>
-          <text x="112" y="82" text-anchor="middle" font-size="15" font-weight="600" fill="#0B0C0E">Prometheus</text>
-          <text x="112" y="99" text-anchor="middle" font-size="11" fill="#6A7178">research</text>
-
-          <rect x="292" y="60" width="176" height="52" rx="12" fill="#fff" stroke="#0E6F66" stroke-width="1.4"/>
-          <text x="380" y="82" text-anchor="middle" font-size="15" font-weight="600" fill="#0B0C0E">Calliope</text>
-          <text x="380" y="99" text-anchor="middle" font-size="11" fill="#6A7178">compose</text>
-
-          <rect x="560" y="60" width="176" height="52" rx="12" fill="#F6F7F9" stroke="#9AA1A8" stroke-width="1.4" stroke-dasharray="5 4"/>
-          <text x="648" y="82" text-anchor="middle" font-size="15" font-weight="600" fill="#6A7178">deliver</text>
-          <text x="648" y="99" text-anchor="middle" font-size="11" fill="#9AA1A8">planned · Hermes</text>
-
-          <!-- arrows -->
-          <path d="M200 86 L288 86" stroke="#9AA1A8" stroke-width="1.4" fill="none" marker-end="url(#ah2)"/>
-          <path d="M468 86 L556 86" stroke="#9AA1A8" stroke-width="1.4" fill="none" marker-end="url(#ah2)"/>
-
-          <!-- arrow labels -->
-          <text x="244" y="52" text-anchor="middle" font-size="11" fill="#0A5049" font-weight="600">frames an angle</text>
-          <text x="512" y="52" text-anchor="middle" font-size="11" fill="#0A5049" font-weight="600">you approve</text>
-
-          <!-- steer note under Prometheus -->
-          <text x="112" y="134" text-anchor="middle" font-size="10.5" fill="#6A7178">you steer via the ledger</text>
-          <!-- human gate note -->
-          <text x="512" y="134" text-anchor="middle" font-size="10.5" fill="#9C7213" font-weight="600">human-gated edge</text>
-          <!-- draft note under Calliope -->
-          <text x="380" y="134" text-anchor="middle" font-size="10.5" fill="#6A7178">drafts in your voice</text>
-        </g>
-      </svg>
-      <p class="cap">Prometheus keeps a cross-session ledger you steer; it frames a content-worthy angle and hands it to Calliope, who drafts it in your voice. You approve. A delivery seat would then send — but that seat is deliberately unbuilt until the guardrails around an agent that can <i>send</i> are ready.</p>
-    </div>
-    <div class="autopatterns">
-      <div class="ap">
-        <h4>Cross-session handoff</h4>
-        <p>The seats don't lose the thread between conversations — Prometheus's ledger and digest persist, so today's framed angle is still there when you sit down to write.</p>
-      </div>
-      <div class="ap">
-        <h4>Human on the edge</h4>
-        <p>The pipeline automates the <i>work</i>, not the <i>decision</i>. Research and drafting run freely; the moment something would leave your control, it stops for you.</p>
-      </div>
-    </div>
+    <p style="text-align:center;margin-top:8px"><a href="agents.html" style="color:var(--accent-ink);font-weight:600">Explore Agents &rarr;</a></p>
   </div>
 </section>
 
@@ -382,6 +314,7 @@
         <a href="security.html">Security</a>
         <a href="cerberus.html">Cerberus</a>
         <a href="skills.html">Skills &amp; Hooks</a>
+        <a href="agents.html">Agents</a>
         <a href="workflows.html">Workflows</a>
       </div>
       <div class="foot-col">
