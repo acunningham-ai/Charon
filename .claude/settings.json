@@ -97,6 +97,10 @@
           {
             "type": "command",
             "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/check-reauth-flag.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/check-todo-freshness.py\""
           }
         ]
       }

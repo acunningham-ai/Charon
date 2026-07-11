@@ -30,6 +30,12 @@ from lib.harness_paths import capture_pipeline_root  # noqa: E402
 
 ERROR_LOG = capture_pipeline_root() / "state" / "error-log.jsonl"
 
+# When a TODO-regeneration runner fails, also drop a durable flag so the
+# SessionStart hook (check-todo-freshness.py) can name the cause — belt-and-braces
+# alongside that hook's live staleness check. Matched by substring so it fires
+# for whatever the user names their TODO-regen runner.
+TODO_FLAG = capture_pipeline_root() / "state" / "TODO-REGEN-FAILED.flag"
+
 
 def append_jsonl(entry: dict) -> None:
     try:
@@ -88,20 +94,46 @@ def show_toast(runner_name: str, exit_code: str) -> None:
         pass
 
 
+def write_todo_flag(runner_name: str, exit_code: str, tail: str) -> None:
+    """Drop the TODO-REGEN-FAILED flag so check-todo-freshness.py can name the
+    cause. Fail-safe: a flag-write error must not make the handler fail harder."""
+    reason = "TODO regeneration exited non-zero"
+    if str(exit_code) == "124":
+        reason = "TODO regeneration killed on wall-clock timeout"
+    elif tail and "budget" in tail.lower():
+        reason = "TODO regeneration exceeded the USD budget cap"
+    payload = {
+        "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "runner": runner_name,
+        "exit_code": exit_code,
+        "reason": reason,
+    }
+    try:
+        TODO_FLAG.parent.mkdir(parents=True, exist_ok=True)
+        TODO_FLAG.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
+
+
 def main() -> int:
     if len(sys.argv) < 3:
         return 0
     runner_name = sys.argv[1]
     exit_code = sys.argv[2]
     log_path = sys.argv[3] if len(sys.argv) >= 4 else ""
+    tail = tail_log(log_path)
     entry = {
         "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "runner": runner_name,
         "exit_code": exit_code,
-        "tail": tail_log(log_path),
+        "tail": tail,
     }
     append_jsonl(entry)
     show_toast(runner_name, exit_code)
+    # A runner whose name mentions "todo" is a TODO-regeneration step; record the
+    # failure durably so the freshness hook can name it at next session start.
+    if "todo" in runner_name.lower():
+        write_todo_flag(runner_name, exit_code, tail)
     return 0
 
 

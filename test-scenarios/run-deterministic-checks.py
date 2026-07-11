@@ -883,6 +883,63 @@ def check_workflows_present() -> CheckResult:
                        f"{len(found)} workflows, meta names match filenames")
 
 
+def check_todo_freshness_hook() -> CheckResult:
+    """check-todo-freshness.py is wired under SessionStart and behaves: it
+    surfaces a STALE banner for an old TODO.md and stays silent for a fresh one.
+    Guards the failure-surfacing net (a dead TODO-regen can't silently drop work)."""
+    import tempfile
+    from datetime import date
+
+    name = "TODO freshness net"
+    hook = HOOKS_DIR / "check-todo-freshness.py"
+    if not hook.exists():
+        return CheckResult(name, "FAIL", "check-todo-freshness.py missing")
+
+    # Wired under SessionStart specifically (not just present somewhere).
+    try:
+        settings = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+        cmds = [
+            h.get("command", "")
+            for grp in settings.get("hooks", {}).get("SessionStart", [])
+            for h in grp.get("hooks", [])
+        ]
+        if not any("check-todo-freshness.py" in c for c in cmds):
+            return CheckResult(name, "FAIL", "not wired under SessionStart in settings.json")
+    except Exception as exc:
+        return CheckResult(name, "FAIL", f"settings.json unreadable: {exc}")
+
+    # Behavioural smoke: stale → banner, fresh → silent.
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            vault = Path(td) / "vault"
+            (vault / "00-Inbox" / "_captured").mkdir(parents=True)
+            env = dict(os.environ, HARNESS_VAULT_ROOT=str(vault),
+                       HARNESS_CAPTURE_ROOT=str(Path(td) / "pipeline"))
+
+            (vault / "TODO.md").write_text(
+                "---\ntype: todo\ngenerated: 2020-01-01\n---\n# TODO\n", encoding="utf-8")
+            stale = subprocess.run([sys.executable, str(hook)], env=env,
+                                   capture_output=True, encoding="utf-8",
+                                   errors="replace", timeout=30)
+            if "STALE" not in stale.stdout:
+                return CheckResult(name, "FAIL", "no STALE banner for an old TODO.md",
+                                   [stale.stdout[:200]])
+
+            (vault / "TODO.md").write_text(
+                f"---\ntype: todo\ngenerated: {date.today().isoformat()}\n---\n# TODO\n",
+                encoding="utf-8")
+            fresh = subprocess.run([sys.executable, str(hook)], env=env,
+                                   capture_output=True, encoding="utf-8",
+                                   errors="replace", timeout=30)
+            if fresh.stdout.strip():
+                return CheckResult(name, "FAIL", "not silent for a fresh TODO.md",
+                                   [fresh.stdout[:200]])
+    except Exception as exc:
+        return CheckResult(name, "FAIL", f"behavioural smoke errored: {exc}")
+
+    return CheckResult(name, "PASS", "wired under SessionStart; stale->banner, fresh->silent")
+
+
 # ---------- Output ----------
 
 CHECKS = [
@@ -908,6 +965,7 @@ CHECKS = [
     ("D20", check_vault_lint_and_migrator),
     ("D21", check_scaffold_only),
     ("D22", check_workflows_present),
+    ("D23", check_todo_freshness_hook),
 ]
 
 

@@ -8,6 +8,13 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.17.0] - 2026-07-10
+
+### Added
+- **Failure-surfacing net for TODO.md — a stale front-of-mind list can no longer fail silently (new capability).** New SessionStart hook `scripts/hooks/check-todo-freshness.py` computes TODO staleness **live** from the `generated:` frontmatter date and, when stale, surfaces a banner at the top of the session — how many days behind, roughly how many captured items may be un-triaged, and (when known) the specific failure reason. Fresh TODO → completely silent. `scripts/hooks/on-error.py` now drops a `TODO-REGEN-FAILED.flag` (in the capture-pipeline `state/` dir) when a runner whose name mentions "todo" exits non-zero, so the banner can name the cause; the freshness hook self-cleans that flag once TODO regenerates. *Why:* a scheduled TODO-regeneration step can fail quietly (budget cap, wall-clock timeout, a hung headless run) and stop updating TODO.md with no signal — new captures then never reach your front-of-mind list. on-error's log + desktop toast are easy to miss; a session-start banner isn't. Freshness is computed live (not flag-dependent) so the net fires even if the failing process died before writing a flag. Bounded, fail-silent, and the (larger) un-triaged-capture scan runs only on the already-stale path so fresh mornings stay near-zero-cost. New deterministic check **D23** (suite now 23) verifies wiring + behaviour (stale→banner, fresh→silent). No new tools, egress, or write-paths beyond its own flag; captured content is counted by mtime only and never read into output.
+
+---
+
 ## [0.16.1] - 2026-07-08
 
 ### Changed
