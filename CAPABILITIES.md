@@ -19,6 +19,7 @@ These rules auto-inject into the assistant's context when the user's prompt ment
 | **quarterly-report.md** | reporting project paths and keywords | Three-question gate, no carry-forward, dashboard as source of truth |
 | **voice-content.md** | LinkedIn / content-drafting paths | Voice anchors must be read, published posts immutable, chat-context ≠ post copy |
 | **skill-authoring.md** | `.claude/commands/`, `.claude/skills/`, MCP, hooks paths | Ten patterns for writing skills; frontmatter checklist; security-baseline reminders |
+| **backlink-discipline.md** | any authored `NN-Name` folder path + authoring keywords | Every substantial note earns ≥3 `[[backlinks]]`, ≥1 to the oldest ~20% of the vault (the anti-recency link); denylist scope grows with the vault |
 
 ## Slash commands (`.claude/commands/*.md`)
 

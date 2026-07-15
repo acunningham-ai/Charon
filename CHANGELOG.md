@@ -8,6 +8,18 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.18.0] - 2026-07-15
+
+### Added
+- **Backlink authoring discipline — new notes earn a place in the graph instead of landing as orphans (new capability).** New path-conditioned rule `.claude/rules/backlink-discipline.md` fires when you author in any `NN-Name` vault folder (or use authoring keywords like "write a note" / "synthesis") and asks every *substantive* new note to carry **≥3 `[[backlinks]]` to existing notes, at least one of them into the oldest ~20% of the vault** — the "anti-recency link". *Why:* a second brain decays into a warehouse when new notes only link to this month's notes; forcing one link back across time resurfaces dormant thinking and keeps link-density climbing, which is the truest signal that the vault is alive rather than merely accumulating. The relative "oldest ~20%" threshold works at any vault age (three months or ten years) and auto-ages with no re-tuning. `/graph-backfill`'s `## Related` footer links count toward the ≥3, so the generative discipline and the reflection tool compose; `/vault-lint`'s orphan hunt is the audit backstop. Scope is a **denylist, not an allowlist** — any authored top-level folder is in scope the moment it is created (`00-Inbox/_captured/**`, templates, `09-Archive`, `.obsidian`, `CLAUDE.md` excluded), so the rule grows with the vault and needs no folder list to maintain. Provenance: adapted from a viral "self-writing vault" post (rule 5), stress-tested and reshaped (relative age threshold, denylist scope) before adoption.
+
+### Changed
+- **`scripts/load-rules.py` now recognises numbered folders past `09-`.** The path-extraction pattern was capped at `0\d-` (matched only `00-`–`09-`); broadened to `\d\d-` so a reference to a future `10-…` / `12-…` folder still triggers its path-conditioned rules. Strict superset — no existing match changes. This is what lets backlink-discipline's grows-with-the-vault scope actually fire on new numbered folders, and it benefits every path-rule.
+
+Docs: README + ROADMAP path-conditioned-rule counts 10 → 11; CAPABILITIES rules table and the marketing site's skills page updated to match. Deterministic suite: 23/23 green.
+
+---
+
 ## [0.17.0] - 2026-07-10
 
 ### Added
@@ -857,7 +869,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.18.0
 [0.11.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.11.0
 [0.10.2]: https://github.com/acunningham-ai/Charon/releases/tag/v0.10.2
 [0.10.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.10.1

@@ -119,7 +119,7 @@ def glob_match(pattern: str, path: str) -> bool:
 
 
 PATH_PATTERNS = [
-    re.compile(r"\b(0\d-[A-Za-z][\w\-]*/[\w\-./]+)"),
+    re.compile(r"\b(\d\d-[A-Za-z][\w\-]*/[\w\-./]+)"),
     re.compile(r"`([^`\n]+\.(?:md|json|py|js|ts|sh|bat|yaml|yml))`"),
     re.compile(r"(?<![\w/])([\w\-]+/[\w\-/.]+\.(?:md|json|py|js|ts|sh|bat|yaml|yml))"),
 ]

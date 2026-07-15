@@ -193,7 +193,7 @@ Full walkthrough: [`INSTALL.md`](INSTALL.md).
 | Layer | What |
 |---|---|
 | **Always-fire rules** | 4 rules — no-assumptions, save-on-mention, session-start-ritual, confidence-tags |
-| **Path-conditioned rules** | 10 rules — auto-injected on path/keyword match: board-reporting, ai-governance, secure-code, captures, quarterly-report, voice-content, skill-authoring, verdict-vocabulary, versioning, design |
+| **Path-conditioned rules** | 11 rules — auto-injected on path/keyword match: board-reporting, ai-governance, secure-code, captures, quarterly-report, voice-content, skill-authoring, verdict-vocabulary, versioning, design, backlink-discipline |
 | **Slash commands** | 39 commands across reporting + governance, security review, the research→compose pipeline (`/prometheus`, `/calliope`, `/forum-agenda`), the knowledge-graph build (`/graph-backfill`, `/vault-query`), workflow, hygiene, and the 5-command Cerberus suite — full catalogue with fire conditions in [`CAPABILITIES.md`](CAPABILITIES.md) |
 | **Hooks** | 10 hooks — load-rules (rule injection), save-on-mention (two-stage Haiku-classified), deny-destructive, validate-write-path, validate-memory-frontmatter, voice-anchor-ralph-loop, skill-usage-log, ssh-recovery, notification-toast, check-reauth-flag — plus `on-error.py`, invoked by scheduled runners on failure |
 | **MCP servers** | 3 local stdio servers — `vault-readonly` (keyword + semantic search, unit context, initiatives), `vault-ops` (patch_note, frontmatter_query, manage_tags), and `vault-graph` (entity / relationship queries, networkx-backed, read-only) |
