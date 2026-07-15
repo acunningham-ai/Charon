@@ -1,3 +1,4 @@
+<img width="1248" height="832" alt="Charon" src="https://github.com/user-attachments/assets/80e36751-9a90-4d45-9696-7a6368a4bf1d" />
 # Charon
 
 *Pronounced "KAIR-ən" (/ˈkɛərən/) — the anglicised ferryman; Χάρων, "KHAH-rawn" (/ˈkʰarɔːn/), in the original Greek.*
