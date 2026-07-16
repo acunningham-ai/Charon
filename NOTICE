@@ -51,3 +51,22 @@ no upstream code was executed during extraction. The upstream's Google-Fonts
 catalogue, native-app-stack tables, and Chinese-language design.csv were
 excluded as out-of-scope for web-surface work. Per the MIT licence, the
 copyright and permission notice are preserved at the path noted above.
+
+### nexu-io/open-design — design-contract (DESIGN.md) schema
+
+Location:   07-References/design-contract-template.md
+Source:     https://github.com/nexu-io/open-design
+Copyright:  © 2026 nexu-io / open-design contributors
+Licence:    Apache License, Version 2.0 (see LICENSE-cisco-apache-2.0 for the
+            Apache-2.0 text; the licence body is identical)
+
+The structure of the design-contract template
+(07-References/design-contract-template.md) — a per-surface "brand contract"
+organised into sections for theme/intent, colour roles, typography, components,
+layout, elevation, motion, do's-and-don'ts, and an agent prompt guide — is
+adapted from the DESIGN.md schema used by the open-design project. Only the
+document schema/structure was borrowed; no source code, bundled design systems,
+or other content from the upstream project were copied, and no upstream code was
+executed. The WCAG accessibility floor, the design-dials intake, and the CSV
+cross-references are harness additions, not from the upstream. Per Apache-2.0
+§4, this attribution is the canonical record of the borrow.

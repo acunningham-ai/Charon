@@ -35,6 +35,25 @@ distilled always-apply rules so you don't have to grep CSVs mid-build.
    (design-calibrated HTML/CSS) and **`artifact-design`** (loaded before any Artifact). Workflow
    habits — reference images first, clarify-before-build — live in `feedback_visual_design_workflow`
    (memory template). This file feeds *those*; it doesn't replace them.
+5. **Adding motion?** Reach for [`motion-presets.md`](motion-presets.md) — zero-dependency,
+   copy-ready CSS transitions keyed by interaction (modal, dropdown, toast…), reduced-motion baked
+   in. The plain-CSS counterpart to `motion.csv` (GSAP).
+6. **Committing to one look for a real surface?** This file is the **selection layer** (*how to
+   choose*). Once chosen, pin it into a **brand contract** with
+   [`design-contract-template.md`](design-contract-template.md) — a `DESIGN.md`-style file (9-section
+   schema adapted from nexu-io/open-design, Apache-2.0) that an agent renders to without re-choosing.
+   Flow: **choose here → pin in the contract → hand the contract to the build.** One surface = one contract.
+
+### Design dials — optional intake shorthand
+
+A cheap way to *state* a look at brief-time so the build isn't guessed. Not a review layer —
+`frontend-design` already critiques before building. Just three 1–10 knobs to set in the brief:
+
+- **DESIGN_VARIANCE** (1 = safe/conventional → 10 = bold/experimental). Exec/board surfaces sit low; marketing can push higher.
+- **MOTION_INTENSITY** (1 = near-static → 10 = lively). Dashboards low; landing pages mid. Caps which `motion-presets` are appropriate.
+- **VISUAL_DENSITY** (1 = airy/whitespace → 10 = dense/data-rich). Data dashboards high; marketing low.
+
+Set them explicitly when the look matters; skip when it doesn't.
 
 ---
 
@@ -149,3 +168,5 @@ for bespoke.
 - `frontend-design` skill — the actual HTML/CSS build tool (design-calibrated)
 - `artifact-design` skill — load before any Claude Artifact
 - `07-References/design-system-data/` — the raw CSVs (exhaustive detail behind this interface)
+- [`motion-presets.md`](motion-presets.md) — zero-dependency CSS transitions keyed by interaction
+- [`design-contract-template.md`](design-contract-template.md) — the brand-contract (commitment) layer; fill one per surface, chosen using this reference
