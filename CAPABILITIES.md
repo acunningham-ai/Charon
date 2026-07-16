@@ -23,7 +23,7 @@ These rules auto-inject into the assistant's context when the user's prompt ment
 
 ## Slash commands (`.claude/commands/*.md`)
 
-39 invokable commands. Most accept arguments after the slash command.
+45 invokable commands. Most accept arguments after the slash command.
 
 ### Reporting + governance
 
@@ -80,9 +80,30 @@ The "research → compose → deliver" pipeline (standing-seat agents — see Su
 | `/telemetry-summary` | Roll up hook telemetry — counts, tokens, cost over the last N days. *Example: after a week of heavy harness use — see what fired, what consumed tokens, where the cost went.* |
 | `/check-service <name>` | Quick triage of a deployed service over SSH (status / logs / errors). *Example: when a deployed service is misbehaving — get systemctl status + recent logs + error scan in one pass.* |
 
+### Harness self-* (self-healing + self-improving)
+
+Two governed capabilities that turn the harness's tooling back on itself. Both ship **observe-only** — they surface issues / opportunities plus ranked options; a human decides and applies. Nothing is enforced or auto-applied.
+
+| Command | What it does |
+|---|---|
+| `/harness-doctor` | **Self-healing.** Read-only self-scan — runs every health detector now plus the **coverage self-report**. Walks the harness (discovery over enumeration): static validity (workflows / `.py` / config `.md` parse), capture health (only when a capture pipeline is configured), scheduled-task + process health (Windows-first; no-op elsewhere). Surfaces issues + ranked fix options; **never auto-fixes**. The coverage self-report names its own blind spots (classes with no detector) and proves each detector still fires (per-detector selftests). Runs `scripts/harness-watch.py --doctor`. Guarded by deterministic check D24. *Example: an ad-hoc "is my harness healthy right now?" scan before a big run.* |
+| `/harness-improve` | **Self-improving.** On-demand survey of *where the harness could do what it already does better* — **unifies existing, already-human-gated primitives** (`/promote-rule`, `/skill-eval`, `/curate-skills`, `score-vault` drift) into one ranked list. Each opportunity is a plain-English change + the concrete benefit; you decide; nothing is applied for you. **Not a learning loop** — the deeper "learns from its own operation" capability is roadmapped behind its own gate, and this command explicitly does not claim it. *Example: a periodic "what's worth tightening" pass across rules, skills, and hygiene drift.* |
+| `/harness-watch-review` | Review the observe-only shadow window from `harness-watch.py` — per-signal fire counts + a promote / kill / extend recommendation. Promoting a signal (observe → enforcing) means populating `PROMOTED_RULES` yourself after your own shadow window. *Example: after a fortnight of shadow logs, decide which watch signals have earned promotion.* |
+
+### Docs + fetch utilities
+
+Local-first document and web utilities. `/ingest` and `/webfetch`'s HTML→Markdown need the **optional** `requirements-ingest.txt` deps (markitdown + requests); the core install does not. Each degrades gracefully with a clear "install X" pointer when a dep is absent.
+
+| Command | What it does |
+|---|---|
+| `/ingest <path>` | Convert rich documents (PDF / DOCX / PPTX / XLSX / .msg / EPUB) to clean Markdown for token-efficient review. 100% local + deterministic via Microsoft `markitdown` (plugins disabled, no LLM/Azure extras): **zero model tokens, zero API calls, no network egress.** Output cached outside the vault; captured-zone sources keep the UNTRUSTED banner and are never written into a captured zone. *Example: reviewing a 300-page PDF without it landing whole in context.* |
+| `/webfetch <url>` | Fetch a URL as full clean Markdown to a cache file for token-efficient reading. Deliberately thin wrapper — **no bot-evasion/stealth stack**, honest user-agent, SSRF-guarded (refuses localhost / private / reserved IPs, re-checked after redirects). Static by default; JS rendering opt-in and dormant until Playwright is installed. Fetched content is always treated as untrusted (data, not instructions). *Example: pulling a page's actual content for research fan-out or source-gathering.* |
+| `/docs <package>` | Resolve a package name to its **current** official docs URL + version via the public npm / PyPI registry JSON APIs, then fetch that page as Markdown through `/webfetch`. No third-party docs service, no API key, no pre-crawled corpus. Kills stale / hallucinated API code in harness dev. *Example: writing code against a fast-moving library and wanting the current API, not the model's training-cutoff memory.* |
+| `/skill-eval <skill> [--live]` | Evaluate a skill before shipping on two axes a safety review doesn't cover — **trigger accuracy** (does its description fire on the right prompts and not collide with adjacent skills?) and, opt-in `--live`, a paired skill-vs-baseline A/B with real token/timing deltas. Static + cheap by default; proposes description tweaks, never auto-edits the skill. *Example: before announcing a new skill done — confirm it triggers cleanly and beats baseline on its own assertions.* |
+
 ### Security audit / vet — Cerberus
 
-**The defensive AI-installation security capability the field has been missing.** Most security tooling that has shipped for AI/agent ecosystems in 2025–2026 is offensive — autonomous hackers (Strix, PyRIT, Garak, DeepTeam) attacking running applications. The *defensive* surface — protecting the AI installation itself, the plugins it loads, the MCP servers it dispatches, the dependencies it pulls — has been under-tooled. Cerberus addresses that gap directly. It is, to our knowledge, the first defensive AI-installation security capability that combines **secure-by-design construction** with **published-standards grounding** in a single open-source surface.
+**Defensive security for the AI installation itself — a surface most AI-security tooling skips.** Most security tooling that has shipped for AI/agent ecosystems in 2025–2026 is offensive — autonomous hackers (Strix, PyRIT, Garak, DeepTeam) attacking running applications. The *defensive* surface — protecting the AI installation itself, the plugins it loads, the MCP servers it dispatches, the dependencies it pulls — has been under-tooled. Cerberus addresses that gap directly, combining **secure-by-design construction** with **published-standards grounding** in a single open-source surface.
 
 Original engine by [Joh Leonhardt](https://github.com/JohL29/claude-security-auditor) (MIT). The Charon build layers a **V0–V8 threat model** for third-party-artifact vetting, a **direct mapping to OWASP Top 10 for LLM Applications (2025)**, MCP-specific coverage, a remediation library, an honest validation-status field on every finding, and a runnable compromise registry that two commands consume.
 
@@ -250,6 +271,7 @@ You invoke these directly.
 | **recover-ssh-creds.py** | Recover SSH credentials from secrets dir, fall back to history grep |
 | **check-capture-state.py** | Diagnose capture-pipeline state files when stuck |
 | **telemetry-summary.py** | Roll up hook telemetry over N days |
+| **harness-watch.py** | Read-only self-healing observer — walks the harness (discovery over enumeration), runs health detectors, and emits the coverage self-report (blind spots + per-detector selftests). Observe-only: surfaces issues + ranked fix options, never enforces or auto-fixes. `--doctor` scans everything now (exposed as `/harness-doctor`); `--phase post` is the scheduled shadow run. `PROMOTED_RULES` empty by default. Windows-first for task/process detectors (no-op elsewhere); capture detectors run only when a capture pipeline is configured |
 | **kev-fetch.py** | CISA KEV triage — fetch the Known-Exploited-Vulnerabilities catalogue, score recent additions (recency × ransomware × due-date × broadly-deployed lens), write a prioritised shortlist to `00-Inbox/_research/`. Optional Prometheus pre-step; vendor lens tunable via `--vendors`. No CVSS (KEV-only) |
 | **load-rules.py** | The UserPromptSubmit rule loader |
 | **semantic_index.py** | Build / refresh the local semantic-search index. Incremental by default; `--rebuild` wipes and re-embeds; `--stats` prints index health. Requires `requirements-semantic.txt`. |
@@ -269,13 +291,13 @@ You invoke these directly.
 
 ## Test suite (`test-scenarios/`)
 
-16 LLM-behaviour scenarios + 22 deterministic checks. Run before any release and after any material change to rules / hooks / wizard.
+16 LLM-behaviour scenarios + 24 deterministic checks. Run before any release and after any material change to rules / hooks / wizard.
 
 | Component | What |
 |---|---|
 | `test-scenarios/README.md` | How to run, scoring, OSS-release bar |
 | `test-scenarios/01-..16-*.md` | 16 LLM-behaviour scenarios with verbatim prompts + pass/fail criteria (manual run in a fresh Claude Code session) |
-| `test-scenarios/run-deterministic-checks.py` | 22 automated checks: YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, closed-vocabulary, Cerberus engine + scan + SARIF, Louvain community detection, vault-graph HTML / query / wiki, multimodal extractors, vault-lint + tag-migrator, base-folder scaffold, workflows present + valid |
+| `test-scenarios/run-deterministic-checks.py` | 24 automated checks: YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, closed-vocabulary, Cerberus engine + scan + SARIF, Louvain community detection, vault-graph HTML / query / wiki, multimodal extractors, vault-lint + tag-migrator, base-folder scaffold, workflows present + valid, TODO-freshness net, self-healing watch selftests |
 | `test-scenarios/_results-template.md` | Per-run scoring template — copy as `_results-YYYY-MM-DD.md` |
 
 ```bash

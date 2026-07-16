@@ -71,6 +71,7 @@ STANDALONE_HOOKS = {
     "_verdict.py",       # imported by hooks adopting the verdict layer, not invoked directly
     "_jsonl_append.py",  # imported by _verdict.py and _telemetry.py for safe append
     "_poisoning.py",     # detector module imported by poisoning-scan.py, not invoked directly
+    "route-binary-doc-read.py",  # opt-in PreToolUse(Read) router for /ingest; unwired by default (depends on optional ingest deps) — wire per its header when markitdown is installed
 }
 
 # Personal-content patterns — must NOT appear in any Charon file.
@@ -940,6 +941,53 @@ def check_todo_freshness_hook() -> CheckResult:
     return CheckResult(name, "PASS", "wired under SessionStart; stale->banner, fresh->silent")
 
 
+def check_harness_watch_selftests() -> CheckResult:
+    """harness-watch.py runs and every shipped detector proves it can still fire.
+
+    The self-healing watch's anti-silent-rot guarantee: each detector has a pure
+    `_judge` + a selftest that fires it against a known-bad fixture. This check
+    runs the watch --dry-run in an isolated temp vault (empty capture root, so the
+    capture-gated detectors correctly stand down) and asserts the coverage
+    self-report shows N/N verified with no DEAD / ERROR / unverified detector."""
+    import tempfile
+
+    name = "Harness watch selftests"
+    script = REPO_ROOT / "scripts" / "harness-watch.py"
+    if not script.exists():
+        return CheckResult(name, "FAIL", "scripts/harness-watch.py missing")
+
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            vault = Path(td) / "vault"
+            vault.mkdir(parents=True)
+            env = dict(os.environ,
+                       HARNESS_VAULT_ROOT=str(vault),
+                       HARNESS_CAPTURE_ROOT=str(Path(td) / "no-capture"))  # absent -> capture detectors gate off
+            r = subprocess.run([sys.executable, str(script), "--dry-run"], env=env,
+                               capture_output=True, encoding="utf-8", errors="replace", timeout=60)
+            if r.returncode != 0:
+                return CheckResult(name, "FAIL", f"watch --dry-run exited {r.returncode}",
+                                   [(r.stderr or r.stdout or "")[:300]])
+            out = r.stdout or ""
+            m = re.search(r"selftests:\s*(\d+)/(\d+)\s+verified", out)
+            if not m:
+                return CheckResult(name, "FAIL", "no coverage self-report line in output", [out[:300]])
+            verified, total = int(m.group(1)), int(m.group(2))
+            if total < 1:
+                return CheckResult(name, "FAIL", "watch registered zero detectors")
+            if verified != total:
+                return CheckResult(name, "FAIL",
+                                   f"{total - verified} detector(s) not fire-capable ({verified}/{total})",
+                                   [ln for ln in out.splitlines() if ln.strip().startswith(("DEAD", "ERROR", "unverified"))])
+            if re.search(r"\b(DEAD|ERROR|unverified)\b", out):
+                return CheckResult(name, "FAIL", "a detector is dead/errored/unverified",
+                                   [ln for ln in out.splitlines() if re.search(r"\b(DEAD|ERROR|unverified)\b", ln)])
+    except Exception as exc:
+        return CheckResult(name, "FAIL", f"watch selftest smoke errored: {exc}")
+
+    return CheckResult(name, "PASS", f"watch runs; {verified}/{total} detectors proven fire-capable")
+
+
 # ---------- Output ----------
 
 CHECKS = [
@@ -966,6 +1014,7 @@ CHECKS = [
     ("D21", check_scaffold_only),
     ("D22", check_workflows_present),
     ("D23", check_todo_freshness_hook),
+    ("D24", check_harness_watch_selftests),
 ]
 
 

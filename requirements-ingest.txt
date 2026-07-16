@@ -1,0 +1,27 @@
+# Document ingestion + web-fetch — clean-Markdown conversion for token-efficient
+# review.
+#
+# Install:    pip install -r requirements-ingest.txt
+#
+# What ships when this is installed:
+#   - Rich-document -> Markdown conversion  (scripts/ingest/markitdown_ingest.py, /ingest)
+#   - URL -> clean Markdown fetch           (scripts/fetch/web_fetch_md.py, /webfetch)
+#   - Package -> official docs URL + version (scripts/fetch/docs_resolve.py, /docs)
+#
+# Without these installed, each script prints a clear "missing dep" message and
+# exits non-zero; the rest of the harness is unaffected, and the auto-Read
+# routing hook fails open (a normal Read proceeds).
+
+# markitdown — Microsoft's local, deterministic rich-doc -> Markdown converter.
+# Plugins are disabled at call time and no Azure/LLM extras are installed, so
+# conversion is fully local (zero API calls, no network egress).
+markitdown>=0.0.1a2
+
+# requests — used by the web fetcher and the docs registry resolver.
+requests>=2.31
+
+# OPTIONAL, for /webfetch --render (JS pages). Dormant until installed; the
+# fetcher degrades to static and prints the install command otherwise.
+# Install separately when needed:
+#   pip install playwright && python -m playwright install chromium
+# playwright>=1.40

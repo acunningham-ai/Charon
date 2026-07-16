@@ -108,11 +108,16 @@ def emit_verdict(
     reason: str,
     context: dict = None,
     session_id: str = "",
+    enforce: bool = False,
 ) -> str:
     """Log a verdict and return the effective verdict.
 
     In production mode, effective == declared.
-    In monitor mode, ask/deny are downgraded to observe (logged, not enforced).
+    In monitor mode, ask/deny are downgraded to observe (logged, not enforced)
+    UNLESS `enforce=True` — the per-rule promotion override. A rule that has
+    cleared its own shadow window via /harness-watch-review can be promoted to
+    fire at full strength even while the rest of its automation stays in monitor
+    mode. Default False leaves every existing caller unchanged.
 
     Never raises. Returns the effective verdict so callers can map to exit
     codes even if audit logging fails.
@@ -127,7 +132,7 @@ def emit_verdict(
 
     mode = current_mode()
     effective = verdict
-    if mode == MONITOR_MODE and verdict in ("ask", "deny"):
+    if mode == MONITOR_MODE and verdict in ("ask", "deny") and not enforce:
         effective = "observe"
 
     try:
@@ -139,6 +144,7 @@ def emit_verdict(
             "declared": verdict,
             "effective": effective,
             "mode": mode,
+            "enforced": bool(enforce),
             "reason": reason,
             "session_id": session_id or "",
             "context": context or {},
