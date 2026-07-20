@@ -988,6 +988,83 @@ def check_harness_watch_selftests() -> CheckResult:
     return CheckResult(name, "PASS", f"watch runs; {verified}/{total} detectors proven fire-capable")
 
 
+def check_self_improving_postcheck() -> CheckResult:
+    """The self-improving learning loop's KEYSTONE — vault-hygiene-postcheck.py —
+    discriminates outcomes deterministically. Writes a synthetic ledger (3 before +
+    3 after snapshots, split on an apply-date) and three applied proposals, then
+    asserts the post-check verdicts: a class whose count drops to 0 after apply →
+    'resolved'; a flat class → 'no_change'; a class that rises after apply →
+    'worse'. Zero model self-assessment — pure ledger maths."""
+    import tempfile
+
+    name = "Self-improving post-check"
+    script = REPO_ROOT / "scripts" / "vault-hygiene-postcheck.py"
+    if not script.exists():
+        return CheckResult(name, "FAIL", "scripts/vault-hygiene-postcheck.py missing")
+
+    apply_date = "2026-07-10"
+    before_dates = ["2026-07-05", "2026-07-06", "2026-07-07"]  # < apply_date
+    after_dates = ["2026-07-10", "2026-07-11", "2026-07-12"]   # >= apply_date
+
+    # Per-category counts: (before, after). resolved→0 after; flat unchanged; worse rises.
+    profile = {"res": (3, 0), "flat": (2, 2), "worse": (1, 3)}
+
+    def snapshot(date: str, phase: str) -> dict:
+        idx = 0 if phase == "before" else 1
+        counts = {cat: vals[idx] for cat, vals in profile.items()}
+        return {
+            "date": date,
+            "score": 100,
+            "finding_count": sum(counts.values()),
+            "category_counts": {c: n for c, n in counts.items() if n > 0},
+            "findings": [
+                {"severity": "MEDIUM", "category": c, "message": f"{c} drift", "file": f"{c}.md"}
+                for c, n in counts.items() for _ in range(n)
+            ],
+        }
+
+    expected = {"res": "resolved", "flat": "no_change", "worse": "worse"}
+
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            ledger = Path(td) / "ledger.jsonl"
+            proposals = Path(td) / "proposals.jsonl"
+            snaps = [snapshot(d, "before") for d in before_dates] + \
+                    [snapshot(d, "after") for d in after_dates]
+            ledger.write_text(
+                "".join(json.dumps(s) + "\n" for s in snaps), encoding="utf-8")
+            props = [
+                {"id": f"vh-{cat}", "status": "applied", "applied_date": apply_date,
+                 "target_kind": "category", "target_key": cat,
+                 "change": f"structural guard for {cat}"}
+                for cat in expected
+            ]
+            proposals.write_text(
+                "".join(json.dumps(p) + "\n" for p in props), encoding="utf-8")
+
+            r = subprocess.run(
+                [sys.executable, str(script), "--json",
+                 "--ledger", str(ledger), "--proposals", str(proposals)],
+                capture_output=True, encoding="utf-8", errors="replace", timeout=30)
+            if r.returncode != 0:
+                return CheckResult(name, "FAIL", f"post-check exited {r.returncode}",
+                                   [(r.stderr or r.stdout or "")[:300]])
+            data = json.loads(r.stdout)
+            got = {res["target_key"]: res["verdict"] for res in data.get("results", [])}
+            findings = []
+            for cat, want in expected.items():
+                if got.get(cat) != want:
+                    findings.append(f"{cat}: expected '{want}', got '{got.get(cat)}'")
+            if findings:
+                return CheckResult(name, "FAIL",
+                                   f"{len(findings)} verdict mismatch(es)", findings)
+    except Exception as exc:
+        return CheckResult(name, "FAIL", f"post-check smoke errored: {exc}")
+
+    return CheckResult(name, "PASS",
+                       "post-check discriminates resolved / no_change / worse deterministically")
+
+
 # ---------- Output ----------
 
 CHECKS = [
@@ -1015,6 +1092,7 @@ CHECKS = [
     ("D22", check_workflows_present),
     ("D23", check_todo_freshness_hook),
     ("D24", check_harness_watch_selftests),
+    ("D25", check_self_improving_postcheck),
 ]
 
 

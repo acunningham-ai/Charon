@@ -8,6 +8,15 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.21.0] - 2026-07-20
+
+### Added
+- **Self-improving harness gains a deterministic learning loop on the vault-hygiene signal (new capability).** Until now `/harness-improve` only *unified* existing human-gated primitives and explicitly disclaimed being a learning loop. Its hygiene-drift arm is now a genuine — but deliberately *narrow* — **deterministic learning loop**, four scripts wiring `score-vault` into a closed cycle: `scripts/vault-hygiene-ledger.py` appends a daily deterministic hygiene snapshot to an append-only ledger; `scripts/vault-hygiene-recurrence.py` derives, purely from that ledger, which finding-classes PERSIST / RISE / REAPPEAR (digit-normalised finding identity, so a drifting embedded count doesn't read as a new finding); `scripts/vault-hygiene-proposal.py` turns a recurring class into a tracked **structural-prevention proposal** (observe/propose-only — it never edits anything; the human supplies the change + benefit text and captures the class's baseline; `--apply` timestamps the fix with a `YYYY-MM-DD` guard); and the keystone `scripts/vault-hygiene-postcheck.py` asks the only question that matters — *did the recurrence actually fall after the fix?* — and answers it **deterministically from the ledger's own counts, with zero model self-assessment** (`--record` appends the verdict to an append-only outcome history, fenced to the state dir so a mistyped path can't clobber an authoritative file). *Why this dodges model collapse:* the loop is only ever allowed to conclude a change helped because a deterministic signal says recurrence dropped — never because a model graded its own work. A fix that didn't hold returns `no_change` / `worse`, surfaced honestly rather than buried. New deterministic check **D25** (`check_self_improving_postcheck`) writes a synthetic ledger + applied proposals and asserts the post-check discriminates resolved / no_change / worse correctly (suite → 25). *Honest ceiling, stated plainly:* it ships **propose-only / human-final-say** — nothing is auto-applied; it learns **only** from the deterministic ledger, never from its own output; it is proven on fixtures + the author's own harness, not at scale; and the broader "watches its own operation across the whole harness and learns which changes raised outcome quality" loop remains roadmapped behind its own clean-signal gate + shadow window + adversarial review. `/harness-improve`'s hygiene-drift arm and its roadmap note were rewritten to match this reality; the other three arms (promote-rule / skill-eval / curate-skills) are unchanged and still unify existing primitives.
+
+Docs: README + CAPABILITIES self-improving descriptions updated from "unifies existing primitives, not a learning loop" to "the deterministic learning loop now exists (recurrence → propose → apply → post-check)" at the honest ceiling above; deterministic checks 24 → **25** everywhere the count appears. Deterministic suite **25/25** green; personal-content scrub (D5) clean.
+
+---
+
 ## [0.20.0] - 2026-07-16
 
 ### Added

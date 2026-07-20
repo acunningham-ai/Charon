@@ -87,7 +87,7 @@ Two governed capabilities that turn the harness's tooling back on itself. Both s
 | Command | What it does |
 |---|---|
 | `/harness-doctor` | **Self-healing.** Read-only self-scan — runs every health detector now plus the **coverage self-report**. Walks the harness (discovery over enumeration): static validity (workflows / `.py` / config `.md` parse), capture health (only when a capture pipeline is configured), scheduled-task + process health (Windows-first; no-op elsewhere). Surfaces issues + ranked fix options; **never auto-fixes**. The coverage self-report names its own blind spots (classes with no detector) and proves each detector still fires (per-detector selftests). Runs `scripts/harness-watch.py --doctor`. Guarded by deterministic check D24. *Example: an ad-hoc "is my harness healthy right now?" scan before a big run.* |
-| `/harness-improve` | **Self-improving.** On-demand survey of *where the harness could do what it already does better* — **unifies existing, already-human-gated primitives** (`/promote-rule`, `/skill-eval`, `/curate-skills`, `score-vault` drift) into one ranked list. Each opportunity is a plain-English change + the concrete benefit; you decide; nothing is applied for you. **Not a learning loop** — the deeper "learns from its own operation" capability is roadmapped behind its own gate, and this command explicitly does not claim it. *Example: a periodic "what's worth tightening" pass across rules, skills, and hygiene drift.* |
+| `/harness-improve` | **Self-improving.** On-demand survey of *where the harness could do what it already does better* — **unifies existing, already-human-gated primitives** (`/promote-rule`, `/skill-eval`, `/curate-skills`) into one ranked list. Its hygiene-drift arm is now a genuine **deterministic learning loop** on the vault-hygiene signal: recurrence detection → structural-prevention proposal (observe/propose-only; you supply the fix) → you apply → a **deterministic post-check** measures whether the recurrence actually fell, with **zero model self-assessment**. Each opportunity is a plain-English change + the concrete benefit; you decide; nothing is applied for you. *Honest ceiling:* propose-only / human-final-say; it learns only from the deterministic ledger, never its own output; the broader "learns from its own operation across the whole harness" capability stays roadmapped behind its own gate. *Example: a recurring hygiene class that a structural guard finally kills — proven by the ledger, not a model's say-so.* |
 | `/harness-watch-review` | Review the observe-only shadow window from `harness-watch.py` — per-signal fire counts + a promote / kill / extend recommendation. Promoting a signal (observe → enforcing) means populating `PROMOTED_RULES` yourself after your own shadow window. *Example: after a fortnight of shadow logs, decide which watch signals have earned promotion.* |
 
 ### Docs + fetch utilities
@@ -291,13 +291,13 @@ You invoke these directly.
 
 ## Test suite (`test-scenarios/`)
 
-16 LLM-behaviour scenarios + 24 deterministic checks. Run before any release and after any material change to rules / hooks / wizard.
+16 LLM-behaviour scenarios + 25 deterministic checks. Run before any release and after any material change to rules / hooks / wizard.
 
 | Component | What |
 |---|---|
 | `test-scenarios/README.md` | How to run, scoring, OSS-release bar |
 | `test-scenarios/01-..16-*.md` | 16 LLM-behaviour scenarios with verbatim prompts + pass/fail criteria (manual run in a fresh Claude Code session) |
-| `test-scenarios/run-deterministic-checks.py` | 24 automated checks: YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, closed-vocabulary, Cerberus engine + scan + SARIF, Louvain community detection, vault-graph HTML / query / wiki, multimodal extractors, vault-lint + tag-migrator, base-folder scaffold, workflows present + valid, TODO-freshness net, self-healing watch selftests |
+| `test-scenarios/run-deterministic-checks.py` | 25 automated checks: YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, closed-vocabulary, Cerberus engine + scan + SARIF, Louvain community detection, vault-graph HTML / query / wiki, multimodal extractors, vault-lint + tag-migrator, base-folder scaffold, workflows present + valid, TODO-freshness net, self-healing watch selftests, self-improving post-check |
 | `test-scenarios/_results-template.md` | Per-run scoring template — copy as `_results-YYYY-MM-DD.md` |
 
 ```bash

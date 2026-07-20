@@ -103,7 +103,7 @@ A harness that reads your files and fires tools accumulates its own operational 
 
 **Self-healing — `/harness-doctor` + `scripts/harness-watch.py`.** A read-only observer that walks the harness (discovery, not a hard-coded list) and runs health detectors — static validity (every workflow/`.py`/config `.md` parses), capture health (only when a capture pipeline is configured), and scheduled-task / process health (Windows-first; a no-op elsewhere). It **surfaces issues plus ranked fix options and stops there** — nothing is enforced, nothing is auto-fixed; a human picks the fix. It ships with `PROMOTED_RULES` empty by default, so every signal is observe-only until *you* run your own shadow window and promote it via `/harness-watch-review`. The differentiator isn't the detectors — it's the **coverage self-report**: the watch names its own blind spots (classes it discovered but has no detector for) and proves each detector can still fire (per-detector selftests), so a detector that has silently rotted is flagged rather than trusted. A harness that names the limits of its own vision. Guarded by deterministic check D24.
 
-**Self-improving — `/harness-improve`.** The counterpart that asks *"where could the harness do what it already does better?"* It **unifies primitives that already ship and are already human-gated** — `/promote-rule` (doctrine that's earned promotion), `/skill-eval` (a skill triggering or performing better), `/curate-skills` (stale surface worth pruning), and `score-vault` drift (recurring hygiene classes) — into one survey. Each opportunity is stated as a plain-English change plus the concrete benefit; you decide; nothing is applied for you. It is **not a learning loop** — the deeper "watches its own operation and learns which changes raised outcome quality" capability is roadmapped behind its own clean-signal gate and shadow window, and this command explicitly does not claim it yet.
+**Self-improving — `/harness-improve`.** The counterpart that asks *"where could the harness do what it already does better?"* Most of its arms **unify primitives that already ship and are already human-gated** — `/promote-rule` (doctrine that's earned promotion), `/skill-eval` (a skill triggering or performing better), `/curate-skills` (stale surface worth pruning). Its hygiene-drift arm goes further: it is now a genuine **deterministic learning loop** on the vault-hygiene signal — recurrence detection over the score-vault ledger → a structural-prevention proposal (observe/propose-only; you supply the fix) → you apply → a **deterministic post-check** that measures whether the recurrence actually fell, with **zero model self-assessment** (which is what dodges model collapse: the loop learns only from the deterministic ledger, never from its own output). Each opportunity is stated as a plain-English change plus the concrete benefit; you decide; nothing is applied for you. Honest ceiling: it ships **propose-only / human-final-say**, no auto-apply; proven on fixtures and the author's own harness; and the broader "watches its own operation *across the whole harness* and learns which changes raised outcome quality" capability stays roadmapped behind its own clean-signal gate and shadow window — this command does not claim that yet.
 
 Same brakes on both: clean/verified signals only, human-final-say, and applying a proposal is always a separate deliberate step.
 
@@ -157,7 +157,7 @@ A working capture pipeline ships in `capture-pipeline/` — not a pattern, a run
 
 ### Tested, not just documented
 
-`test-scenarios/` ships with the harness — 16 LLM-behaviour scenarios + 24 automated deterministic checks. The same suite runs before any release and after any material change to rules / hooks / wizard. Pass-rate threshold is published; releases with a failing scenario must document it in known-limitations.
+`test-scenarios/` ships with the harness — 16 LLM-behaviour scenarios + 25 automated deterministic checks. The same suite runs before any release and after any material change to rules / hooks / wizard. Pass-rate threshold is published; releases with a failing scenario must document it in known-limitations.
 
 ```bash
 python test-scenarios/run-deterministic-checks.py    # PASS in ~3 seconds, CI-ready
@@ -216,7 +216,7 @@ Full walkthrough: [`INSTALL.md`](INSTALL.md).
 | **Doc + web ingestion** | `/ingest` (rich docs → Markdown, local + zero-egress via Microsoft `markitdown`), `/webfetch` (URL → clean Markdown, SSRF-guarded, own thin wrapper — no stealth stack), `/docs` (resolve a package to its current official docs via public npm/PyPI registries, then fetch). **Optional** install via `requirements-ingest.txt` (markitdown + requests); core install does not need it. `/ingest` and `/webfetch` degrade gracefully with a clear "install X" pointer when the deps are absent. |
 | **Capture pipeline** | Runnable Node.js reference impl — inbox + sent items via M365 (fully implemented), Gmail + IMAP (skeletons). `direction: inbound\|outbound` frontmatter, user-configurable schedule, prompt-injection wrapper on every capture, dedup by provider ID. See `EMAIL-PROVIDER-SETUP.md`. |
 | **First-run wizard** | YAML-defined questions (5 phases / 39 questions, ~25 always-asked + the rest conditional on your answers), state file resume on Ctrl+C, atomic write at the end, ANSI banner with optional ASCII trademark logo. The `engines` phase seeds the research ledger + forums so the pipeline isn't empty on day one. Scaffolds the full 00-09 base-folder skeleton (empty until you populate) so every capability has a home from day one; re-runnable idempotently via `--scaffold-only` |
-| **Test suite** | 16 LLM-behaviour scenarios + 24 deterministic checks (YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, Cerberus engine + SARIF, vault-graph pipeline, Louvain community detection, multimodal extractors, vault-lint + tag-migrator, base-folder scaffold, workflows present + valid, TODO-freshness net, self-healing watch selftests) |
+| **Test suite** | 16 LLM-behaviour scenarios + 25 deterministic checks (YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, Cerberus engine + SARIF, vault-graph pipeline, Louvain community detection, multimodal extractors, vault-lint + tag-migrator, base-folder scaffold, workflows present + valid, TODO-freshness net, self-healing watch selftests, self-improving post-check) |
 | **Utility scripts** | score-vault, vault-lint, migrate-tags, skill-curator, scheduled-audit, archive-captures, audit-unattended-run, recover-ssh-creds, check-capture-state, telemetry-summary, harness-watch (read-only self-healing observer, observe-only) |
 
 See [`CAPABILITIES.md`](CAPABILITIES.md) for the full catalogue with descriptions, fire conditions, and outputs.
@@ -231,7 +231,7 @@ Honest about the gaps. Charon's current bet is opinionated discipline + security
 - **No vision capture beyond opaque VLM input.** `/capture-screenshot` exists but doesn't structure-extract (no OCR / table / chart parsing yet — VLM-based extraction patterns like DeepSeek-OCR are on the roadmap).
 - **No observability + replay layer.** `skill-usage-log.py` writes events but there's no tamper-evident ledger, session trace, or replay capability (Langfuse-style self-hosted observability is on the roadmap; relevant to EU AI Act Article 19 audit-trail retention).
 - **Not in a plugin marketplace yet.** Installable via clone + bootstrap, not via a single `claude install` command. Marketplace packaging is near-term.
-- **Test suite is single-shot, not adversarial.** 16 LLM-behaviour scenarios + 24 deterministic checks; no automated adversarial validation yet — **Artemis**, the offensive/adversarial-validation seat (the counterpart to the defensive Cerberus), is on the roadmap, RoE-gated.
+- **Test suite is single-shot, not adversarial.** 16 LLM-behaviour scenarios + 25 deterministic checks; no automated adversarial validation yet — **Artemis**, the offensive/adversarial-validation seat (the counterpart to the defensive Cerberus), is on the roadmap, RoE-gated.
 - **Gmail and IMAP capture-pipeline providers are skeleton-only.** M365 ships fully working (device-code OAuth, inbox + sent, cursor-based incremental). Gmail and IMAP have the interface defined and setup docs written, but the `auth() / fetchInbox() / fetchSent()` methods throw `NOT_IMPLEMENTED` until a contributor (you, or an upstream PR) fills them in. Estimated half-day per provider.
 
 See [`ROADMAP.md`](ROADMAP.md) for what's coming next and what won't ship.
@@ -295,7 +295,7 @@ Full setup walkthrough: [`INSTALL.md`](INSTALL.md) → [`FIRST-RUN.md`](FIRST-RU
 | [`ROADMAP.md`](ROADMAP.md) | What's coming next + what won't ship |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | License, PR process, skill-authoring standard |
 | [`CHANGELOG.md`](CHANGELOG.md) | Version history |
-| `test-scenarios/` | Pre-release reliability checks — 16 LLM scenarios + 24 automated checks |
+| `test-scenarios/` | Pre-release reliability checks — 16 LLM scenarios + 25 automated checks |
 
 ---
 
@@ -308,7 +308,7 @@ Full setup walkthrough: [`INSTALL.md`](INSTALL.md) → [`FIRST-RUN.md`](FIRST-RU
 | Public release (MIT) | ✓ live |
 | Credential scrub before publish | ✓ |
 | First-run wizard | ✓ |
-| Test suite (16 scenarios + 24 checks) | ✓ |
+| Test suite (16 scenarios + 25 checks) | ✓ |
 | Internal-cohort validation | ongoing |
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.

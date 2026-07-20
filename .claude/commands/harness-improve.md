@@ -21,9 +21,10 @@ plain English with the concrete benefit, then leaves the decision to you.**
   change*, in one plain sentence, and (b) *what you get out of it* — the concrete
   quality or efficiency gain. No jargon, no "optimise the pipeline."
 - **Clean signal only.** Only surface improvements grounded in a deterministic or
-  human-verified signal (usage counts, filesystem facts, trigger collisions) —
-  never a model's unverified hunch. A loop that learns from its own noise
-  degrades; this one reads facts and proposes.
+  human-verified signal (usage counts, filesystem facts, trigger collisions,
+  recurrence in `score-vault` / the vault-hygiene ledger) — never a model's
+  unverified hunch. A loop that learns from its own noise degrades; this one
+  reads facts and proposes.
 - **Surface, don't act.** Applying a proposal is a separate, deliberate step you
   take by running the named command.
 
@@ -43,10 +44,27 @@ Run each, collect the candidates, and present them together — ranked by benefi
 3. **Stale surface worth pruning** — run `/curate-skills`. *Change:* "archive
    dormant skill W." *You get:* "a smaller, sharper command surface — less noise
    when Claude picks a tool."
-4. **Recurring hygiene drift** — run `python scripts/score-vault.py --json` and look
-   for a finding *category* that keeps recurring. *Change:* "add a structural
-   guard for recurring issue class C." *You get:* "that whole class stops coming
-   back, and your hygiene score stops sagging."
+4. **Recurring hygiene drift → the closed learning loop.** This arm is a full
+   propose→apply→measure cycle, not just a survey line — it's the one part that
+   actually *learns*, grounded end-to-end on a deterministic signal:
+   - `python scripts/vault-hygiene-recurrence.py` — the signal: which score-vault
+     finding-classes PERSIST / RISE / REAPPEAR across the ledger's history (pure
+     ledger maths, never the model's say-so — no autophagy).
+   - `python scripts/vault-hygiene-proposal.py --targets` — the classes worth a
+     STRUCTURAL fix; `--open --kind <category|finding> --key <key> --change "…"
+     --benefit "…"` records a proposal and captures the class's baseline. You
+     supply the fix text; it's observe/propose-only, nothing is applied.
+     *Change:* "a structural guard so recurring class C can't come back."
+     *You get:* "the whole class stops recurring; the hygiene score stops sagging."
+   - You apply the fix, then `--apply <id>` timestamps it (YYYY-MM-DD validated).
+   - `python scripts/vault-hygiene-postcheck.py` — the KEYSTONE: did that class's
+     recurrence actually FALL after the fix? Deterministic, zero model
+     self-assessment; `--record` appends the verdict to the proposal's
+     append-only history. A fix that didn't hold returns `no_change`/`worse` —
+     surface that honestly, don't bury it.
+   The proposal→outcome history is what the loop learns from: which structural
+   fixes genuinely reduced recurrence. Human-final-say at every step; the
+   deterministic post-check is the ONLY thing allowed to conclude "it worked."
 
 Skip any source whose primitive isn't present/applicable; say so rather than
 inventing an opportunity.
@@ -81,11 +99,18 @@ Ranked improvement opportunities (nothing applied — you choose):
 
 ## Roadmap note (honest ceiling)
 
-Today this **unifies primitives that already exist** — each is human-gated and
-surface-only. The deeper capability — a loop that watches its own operation and
-*learns* which changes raised outcome quality — is a separate, gated build (its
-own clean-signal proof + shadow window + adversarial review) before it earns a
-place here. This command will host it when it ships; it does not claim it yet.
+Most arms here **unify primitives that already exist** — each human-gated and
+surface-only. The exception is arm 4: the vault-hygiene loop is a genuine
+**deterministic learning loop**, but a *narrow* one — it learns only which
+structural fixes reduced recurrence of a `score-vault` finding-class, and only
+from the deterministic ledger (recurrence → propose → apply → post-check), never
+from its own output. The broader capability — a loop that watches its own
+operation *across the whole harness* and learns which changes raised outcome
+quality — is a separate, gated build (its own clean-signal proof + shadow window
++ adversarial review) before it earns a place here. This command hosts that when
+it ships; it does not claim it yet. It ships propose-only / human-final-say: the
+deterministic post-check is the only thing allowed to conclude "it worked," and
+nothing is ever auto-applied.
 
 ## See also
 
