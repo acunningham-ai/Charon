@@ -1065,6 +1065,46 @@ def check_self_improving_postcheck() -> CheckResult:
                        "post-check discriminates resolved / no_change / worse deterministically")
 
 
+def check_recall_smoke() -> CheckResult:
+    """/recall backend ranks a matching note above a non-matching one over a
+    tiny temp corpus — proves the dependency-free hybrid (body+title BM25 / RRF)
+    retrieval works end-to-end and emits path + matched-by provenance."""
+    import tempfile
+    name = "Recall hybrid retrieval"
+    script = REPO_ROOT / "scripts" / "recall.py"
+    if not script.exists():
+        return CheckResult(name, "FAIL", "missing: scripts/recall.py")
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "01-Daily").mkdir()
+            (root / "01-Daily" / "kubernetes-migration.md").write_text(
+                "# Kubernetes migration plan\n\nMigrate the cluster to kubernetes "
+                "with a blue-green rollout.\n", encoding="utf-8")
+            (root / "01-Daily" / "coffee-order.md").write_text(
+                "# Coffee order\n\nOat flat white, no sugar.\n", encoding="utf-8")
+            r = subprocess.run(
+                [sys.executable, str(script), "kubernetes rollout",
+                 "--root", str(root), "--json"],
+                capture_output=True, encoding="utf-8", errors="replace", timeout=20)
+            if r.returncode != 0:
+                return CheckResult(name, "FAIL", f"recall exited {r.returncode}",
+                                   [(r.stderr or r.stdout or "")[:300]])
+            hits = json.loads(r.stdout)
+            if not hits:
+                return CheckResult(name, "FAIL", "no hits returned for a matching query")
+            top = hits[0].get("path", "")
+            if "kubernetes-migration" not in top:
+                return CheckResult(name, "FAIL",
+                                   f"expected the kubernetes note top-ranked, got {top!r}")
+            if "body" not in hits[0].get("matched_by", []):
+                return CheckResult(name, "FAIL", "matched_by provenance missing the 'body' arm")
+    except Exception as exc:
+        return CheckResult(name, "FAIL", f"recall smoke errored: {exc}")
+    return CheckResult(name, "PASS",
+                       "matching note top-ranked; fused body+title BM25 works dependency-free")
+
+
 # ---------- Output ----------
 
 CHECKS = [
@@ -1093,6 +1133,7 @@ CHECKS = [
     ("D23", check_todo_freshness_hook),
     ("D24", check_harness_watch_selftests),
     ("D25", check_self_improving_postcheck),
+    ("D26", check_recall_smoke),
 ]
 
 

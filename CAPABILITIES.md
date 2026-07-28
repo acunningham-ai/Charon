@@ -20,10 +20,12 @@ These rules auto-inject into the assistant's context when the user's prompt ment
 | **voice-content.md** | LinkedIn / content-drafting paths | Voice anchors must be read, published posts immutable, chat-context ≠ post copy |
 | **skill-authoring.md** | `.claude/commands/`, `.claude/skills/`, MCP, hooks paths | Ten patterns for writing skills; frontmatter checklist; security-baseline reminders |
 | **backlink-discipline.md** | any authored `NN-Name` folder path + authoring keywords | Every substantial note earns ≥3 `[[backlinks]]`, ≥1 to the oldest ~20% of the vault (the anti-recency link); denylist scope grows with the vault |
+| **clean-room-port.md** | porting / vendoring / borrowing keywords + `scripts/cerberus/**` | Bring third-party code in safely — recon-as-data in an isolated sub-agent, re-author from spec, verify no verbatim copy (`scripts/verify_no_copy.py`), record provenance |
+| **thoroughness-over-false-efficiency.md** | efficiency / trim / condense / save-tokens keywords | Completeness before token/step "efficiency"; a saving is acceptable only if provably lossless (no directive, trigger, or check removed) |
 
 ## Slash commands (`.claude/commands/*.md`)
 
-45 invokable commands. Most accept arguments after the slash command.
+49 invokable commands. Most accept arguments after the slash command.
 
 ### Reporting + governance
 
@@ -68,6 +70,15 @@ The "research → compose → deliver" pipeline (standing-seat agents — see Su
 | `/prometheus` | Run the standing research analyst — read the ledger, scan the newsletter email beat, research top-K active threads, dedupe the same story across inputs, and write a **signal-ranked** prioritised daily digest with content angles. *Example: each morning, to advance your standing research beats and surface what's worth acting on or writing about — without sifting raw sources yourself.* |
 | `/calliope [mode] "<topic>"` | The writing seat — composes in your voice across modes (post / bulletin / tweet / email). Drafts only, never sends. *Example: turn a Prometheus angle or a raw topic into a draft post or a stakeholder bulletin — `/calliope bulletin "<issue>"` scaffolds the advisory + responses tracker for your sign-off.* |
 | `/forum-agenda [forum]` | Recurring-forum feed — scans captured email / chat / meetings / sessions over a window for items relevant to a forum's remit, surfaces candidate agenda items for triage. *Example: a week before a monthly governance forum, to build the agenda from what actually happened since it last met.* |
+
+### Knowledge, retrieval & session
+
+| Command | What it does |
+|---|---|
+| `/recall <query> [--k N]` | Dependency-free hybrid retrieval over your authored notes — body + title BM25 fused via Reciprocal Rank Fusion, **no embeddings / no vector DB / no network**. Prints path + which arm matched + a snippet. *Example: "find the note about the blue-green rollout" without standing up an embedding index.* |
+| `/find-tensions <topic>` | Surface CONTRADICTIONS across notes on a topic — writes one `type: tension` note per conflict citing both sources; never averages, never picks a winner, never edits the sources. *Example: after consolidating a topic, catch two notes that disagree on a date or verdict before it reaches a report.* |
+| `/grill [plan]` | Pressure-test a plan ONE question at a time, first grounding it against what the vault already decided (`06-Decisions/`, memory, `TODO.md`). Read-only; the consistency-with-the-record sibling to `/devils-advocate` + `/brainstorm`. *Example: before committing a plan, check it doesn't quietly reverse a settled decision.* |
+| `/handoff [project]` | Cross-session baton — writes a dated handoff note + a paste-ready next-session kickoff prompt, and proposes (never silent-writes) a `MEMORY.md` Pickups line. *Example: ending a session mid-project so the next one resumes without re-deriving.* |
 
 ### Hygiene
 
@@ -291,7 +302,7 @@ You invoke these directly.
 
 ## Test suite (`test-scenarios/`)
 
-16 LLM-behaviour scenarios + 25 deterministic checks. Run before any release and after any material change to rules / hooks / wizard.
+16 LLM-behaviour scenarios + 26 deterministic checks. Run before any release and after any material change to rules / hooks / wizard.
 
 | Component | What |
 |---|---|

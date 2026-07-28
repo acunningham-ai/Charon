@@ -8,6 +8,20 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.22.0] - 2026-07-29
+
+### Added — retrieval + hygiene tranche
+- **Local retrieval that fits the vault — `/recall` (new capability).** A dependency-free hybrid ranker over your authored notes: an Okapi BM25 body arm and a title arm fused by Reciprocal Rank Fusion (`scripts/recall.py` + `scripts/lib/fusion.py`), **no embeddings, no vector database, no network** (Claude Code only, by design). Finds the note you half-remember and prints path + which arm matched + a snippet; complements the vault-graph (*how things connect*) and `search_memory` (the harness memory dir). New deterministic check **D26** builds a tiny corpus and asserts the matching note ranks top (suite → 26).
+- **Catch where the vault disagrees with itself — `/find-tensions` (new capability).** Surfaces two notes asserting incompatible facts (a date, a number, a verdict, an owner) on a topic and writes one `type: tension` note per contradiction citing both sources side by side. It **surfaces, never resolves** — never averages, never picks a winner, never edits the sources; you adjudicate.
+- **Pressure-test a plan against your own record — `/grill` (new capability).** Interrogates a plan one question at a time, first grounding it against what the vault has already decided (`06-Decisions/`, memory, `TODO.md`) so you don't re-litigate settled ground or contradict a prior call. Read-only; the consistency-with-the-record sibling to `/devils-advocate` (adversarial) and `/brainstorm` (divergent).
+- **Cross-session baton — `/handoff` (new capability).** Writes a dated handoff note plus a paste-ready "next-session kickoff prompt" and proposes a one-line `MEMORY.md` Pickups update (shown for confirmation, never silent-written), so a thread resumes after `/clear` or days away without re-deriving.
+- **Clean-room port discipline + verifier (new rule + tool).** New path/keyword rule `.claude/rules/clean-room-port.md` — how to bring a third-party skill/agent/hook in safely (recon-as-data in an isolated sub-agent → red-flag gate → re-author from spec → verify → record provenance), plus `scripts/verify_no_copy.py`, which asserts a re-authored artifact shares no verbatim run ≥ N chars with its source (whitespace-normalised; import/comment boilerplate filtered). Protects against both prompt-injection contamination and verbatim-copy / licence exposure.
+- **`thoroughness-over-false-efficiency` (new rule).** Keyword-gated behavioural discipline: completeness and reliability come before token/step "efficiency"; a saving is acceptable only if provably lossless (no directive, trigger, or check removed).
+
+Docs: command count 45 → **49**, path-conditioned rules 11 → **13**, deterministic checks 25 → **26** across README / CAPABILITIES / ROADMAP. Deterministic suite **26/26** green. *Ported from the author's harness, proven there first, then genericised (no personal/Vela/BU content) — per the local-first-then-Charon rule.*
+
+---
+
 ## [0.21.0] - 2026-07-20
 
 ### Added
