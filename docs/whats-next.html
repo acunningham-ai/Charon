@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Charon — What's Next</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<nav>
+  <div class="wrap nav-in">
+    <a class="brand" href="index.html">
+      <span class="glyph" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 13c1.5 1 3 1 4.5 0S10.5 12 12 13s3 1 4.5 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4.5 9.5 10 3l5.5 6.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="7.5" r="1.1" fill="currentColor"/></svg></span>
+      Charon
+    </a>
+    <div class="nav-links">
+      <a href="memory.html" data-nav="memory">Memory</a>
+      <a href="capture.html" data-nav="capture">Capture</a>
+      <a href="security.html" data-nav="security">Security</a>
+      <a href="cerberus.html" data-nav="cerberus">Cerberus</a>
+      <a href="skills.html" data-nav="skills">Skills &amp; Hooks</a>
+      <a href="agents.html" data-nav="agents">Agents</a>
+      <a href="workflows.html" data-nav="workflows">Workflows</a>
+      <a href="whats-next.html" data-nav="whats-next" class="active">What's next</a>
+    </div>
+    <div class="nav-right">
+      <a class="nav-ghost" href="https://github.com/acunningham-ai/Charon">GitHub</a>
+      <a class="btn btn-dark" href="index.html#install">Get started</a>
+    </div>
+  </div>
+</nav>
+<header class="phero">
+  <div class="wrap">
+    <a class="back" href="index.html">← Back to overview</a>
+    <div class="eyebrow">Roadmap · what just shipped &amp; what's coming</div>
+    <h1 class="big">What's next for Charon</h1>
+    <p class="sub">Charon ships in tranches — each capability proven on the author's own vault first, then genericised. Here's the self-healing work coming next, and the retrieval tools that <b>just landed in v0.22</b>.</p>
+    <p class="asof">As of 29 Jul 2026 · v0.22 · the pills below move with each release.</p>
+  </div>
+</header>
+
+<section class="termscene">
+  <div class="wrap">
+    <div class="term" role="img" aria-label="Example of the auto-review engine turning a failure into ranked fixes">
+      <div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">charon — /harness-review</span><span class="mock-tag">illustrative · not a live run</span></div>
+      <div class="term-body">
+<div class="line"><span class="prompt">$ /harness-review --drain</span></div>
+<div class="line"><span class="dim">⟳ reviewing 1 logged failure — nightly-sync (exit 1)</span></div>
+<div class="line"><span class="dim">  reading: the failure queue · recent runs · the command that broke</span></div>
+<div class="line"><span class="ok">✎ wrote 00-Inbox/_harness/&lt;date&gt;-nightly-sync.md</span></div>
+<div class="line"><span class="dim">  root cause (likely): the fetch timed out mid-run with no retry</span></div>
+<div class="line"><span class="dim">  ranked fixes:</span></div>
+<div class="line"><span class="amber">   1. wrap the fetch in a bounded retry</span><span class="dim">   ← pre-approved remediation</span></div>
+<div class="line"><span class="dim">   2. split the sync into smaller batched calls</span></div>
+<div class="line"><span class="dim">   3. skip this run, surface a stale-data flag instead</span></div>
+<div class="line"><span class="you">→ you pick. nothing was changed.</span></div>
+      </div>
+    </div>
+    <p class="term-cap">mock — a scripted illustration, not real output · the capability is in shadow on the author's harness, not yet in Charon</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">Coming next · the marquee</div>
+      <h2>A harness that reviews its own failures</h2>
+      <p>When an automation breaks, Charon will read the wreck for you — the failure, the recent runs, the command that broke — and hand you a ranked set of fixes. It <b>surfaces and stops</b>. You pick; a separate, gated step applies. It never quietly fixes itself.</p>
+    </div>
+    <div class="stages" aria-label="The self-healing flow">
+      <div class="stg"><div class="sn">01</div><h4>Failure</h4><p>A scheduled run exits with an error and logs it.</p></div>
+      <div class="stg"><div class="sn">02</div><h4>Auto-review</h4><p>A hardened, read-only pass finds the likely root cause.</p></div>
+      <div class="stg"><div class="sn">03</div><h4>Ranked options</h4><p>A decision-ready note: cause + fixes, most-likely first.</p></div>
+      <div class="stg verify"><div class="sn">04</div><h4>You pick</h4><p>The human gate. Nothing has changed up to here.</p></div>
+      <div class="stg"><div class="sn">05</div><h4>Gated apply</h4><p>A separate, allow-listed step makes the reversible fix.</p></div>
+      <div class="stg"><div class="sn">06</div><h4>Monitor</h4><p>A deterministic check confirms the problem actually fell.</p></div>
+    </div>
+    <p class="honest-beat"><b>Why it's built this way.</b> The review reads; it cannot act. The apply step is a closed allow-list of reversible fixes, each needing your say-so. The "did it work?" check answers from deterministic counts, not the model grading its own homework — so the loop can't talk itself into a win.</p>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">Just shipped · v0.22</div>
+      <h2>Four ways to get more out of your own vault — now live</h2>
+      <p>These landed in the latest release. Small, read-only tools for the moments a growing second brain starts to strain — finding, reconciling, pressure-testing, and handing off.</p>
+    </div>
+    <div class="cards two">
+      <div class="card">
+        <div class="ctop"><span class="cmd">/recall</span><span class="pill ok">shipped · v0.22</span></div>
+        <h4>Find the note you half-remember</h4>
+        <p>Hybrid keyword retrieval over everything you've authored — body and title ranked together — with zero setup and <b>no vector database</b> to stand up.</p>
+        <p class="out">Outcome: the right note in one query, on a plain install.</p>
+      </div>
+      <div class="card">
+        <div class="ctop"><span class="cmd">/find-tensions</span><span class="pill ok">shipped · v0.22</span></div>
+        <h4>Catch where your vault disagrees with itself</h4>
+        <p>Surfaces two notes asserting incompatible facts — a date, a number, a verdict — and records each pair side by side. It never averages and never picks a winner.</p>
+        <p class="out">Outcome: stale contradictions caught before they reach a report.</p>
+      </div>
+      <div class="card">
+        <div class="ctop"><span class="cmd">/grill</span><span class="pill ok">shipped · v0.22</span></div>
+        <h4>Pressure-test a plan against your own record</h4>
+        <p>Interrogates a plan one question at a time, first checking it against what you've <b>already decided</b> — so you don't re-litigate settled ground or contradict a past call.</p>
+        <p class="out">Outcome: a consistency check no fresh brainstorm can give you.</p>
+      </div>
+      <div class="card">
+        <div class="ctop"><span class="cmd">/handoff</span><span class="pill ok">shipped · v0.22</span></div>
+        <h4>Put a thread down and pick it back up</h4>
+        <p>Writes a dated handoff note and a paste-ready kickoff prompt for the next session, wired into your front-of-mind list.</p>
+        <p class="out">Outcome: resume after days away without re-deriving where you were.</p>
+      </div>
+    </div>
+    <div class="explore"><a href="index.html#install">Install Charon to use these →</a></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">The full queue</div>
+      <h2>Where each capability stands</h2>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Capability</th><th>What it gives you</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td><span class="v">/harness-review</span></td><td class="cwhat">Reviews a logged failure into a ranked-fix note; you pick, a gated step applies.</td><td><span class="pill shadow">in shadow</span></td></tr>
+          <tr><td><span class="v">/harness-heal</span></td><td class="cwhat">Applies a pre-approved, reversible fix — the gated apply step, on its own high bar.</td><td><span class="pill plan">planned</span></td></tr>
+          <tr><td><span class="v">/recall</span></td><td class="cwhat">Hybrid keyword retrieval over authored notes — no embeddings, no vector DB.</td><td><span class="pill ok">shipped · v0.22</span></td></tr>
+          <tr><td><span class="v">/find-tensions</span></td><td class="cwhat">Surfaces contradictions across notes; records both sources, resolves nothing.</td><td><span class="pill ok">shipped · v0.22</span></td></tr>
+          <tr><td><span class="v">/grill</span></td><td class="cwhat">One-question-at-a-time plan interrogation, grounded in your prior decisions.</td><td><span class="pill ok">shipped · v0.22</span></td></tr>
+          <tr><td><span class="v">/handoff</span></td><td class="cwhat">Cross-session baton: dated handoff note + a paste-ready kickoff prompt.</td><td><span class="pill ok">shipped · v0.22</span></td></tr>
+          <tr><td><span class="v">Clean-room porting</span></td><td class="cwhat">Discipline + verifier for bringing outside tools in safely — re-author from spec, never copy.</td><td><span class="pill ok">shipped · v0.22</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="tbl-note"><b>shipped · v0.22</b> = live now, <code>git pull</code> to get it · <b>in shadow</b> = running silently on a real vault while it earns trust · <b>planned</b> = designed, gated on the highest bar because it can change files.</p>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">How anything gets here</div>
+      <h2>Proven first, then shipped</h2>
+    </div>
+    <div class="ceiling">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2 3 6v6c0 5 3.8 8.5 9 10 5.2-1.5 9-5 9-10V6l-9-4Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <p><b>Nothing lands in Charon until it's run for weeks on a real, working vault.</b> The v0.22 tools above shipped that way — used daily on the author's own vault first, then genericised. The in-shadow and planned items are still proving out: a shadow window to catch false alarms, an adversarial security review on anything that can touch files, and a plain honest status until it clears. The rule holds hardest for the file-changing pieces — those carry the highest bar of all.</p>
+    </div>
+    <div class="road">
+      <p>Want the detail on what's already shipped? The <b>deep-dive pages</b> cover today's capabilities — memory, capture, security, the agents, the workflows.</p>
+    </div>
+    <div class="explore"><a href="index.html">Back to the overview →</a></div>
+  </div>
+</section>
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="index.html"><span class="glyph" style="color:var(--accent)" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 13c1.5 1 3 1 4.5 0S10.5 12 12 13s3 1 4.5 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4.5 9.5 10 3l5.5 6.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="7.5" r="1.1" fill="currentColor"/></svg></span> Charon</a>
+        <p>The ferryman carried what had to survive the crossing. This one carries your context.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Product</h4>
+        <a href="memory.html">Memory</a>
+        <a href="capture.html">Capture</a>
+        <a href="security.html">Security</a>
+        <a href="cerberus.html">Cerberus</a>
+        <a href="skills.html">Skills &amp; Hooks</a>
+        <a href="agents.html">Agents</a>
+        <a href="workflows.html">Workflows</a>
+        <a href="whats-next.html">What's next</a>
+        <a href="install.html">Install</a>
+      </div>
+      <div class="foot-col">
+        <h4>Project</h4>
+        <a href="https://github.com/acunningham-ai/Charon">GitHub</a>
+        <a href="https://github.com/acunningham-ai/Charon">License · MIT</a>
+      </div>
+    </div>
+    <div class="foot-base">
+      <span>Open source · MIT · built by a practising CISO</span>
+      <span class="mono">Charon · KAIR-ən · Χάρων</span>
+    </div>
+  </div>
+</footer>
+<script>
+(function(){
+  var reduce=window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var st=document.createElement('style');
+  st.textContent='.tw-cursor{display:inline-block;width:8px;height:15px;background:var(--t-teal,#4CC7BC);vertical-align:-2px;margin-left:1px;animation:twblink 1.05s step-end infinite}@keyframes twblink{50%{opacity:0}}@media (prefers-reduced-motion:reduce){.tw-cursor{display:none}}';
+  (document.head||document.documentElement).appendChild(st);
+  var blocks=[].slice.call(document.querySelectorAll('.term-body, .code-mini, .code-full pre'));
+  function snap(el){
+    var lns=el.querySelectorAll('.line');
+    if(lns.length) return {mode:'line',lines:[].slice.call(lns).map(function(ln){return [].slice.call(ln.childNodes).map(function(n){return {cls:(n.nodeType===1?n.className:''),text:n.textContent};});})};
+    return {mode:'flat',segs:[].slice.call(el.childNodes).map(function(n){return {cls:(n.nodeType===1?n.className:''),text:n.textContent};})};
+  }
+  function typeFlat(el,segs){
+    el.textContent=''; var cur=document.createElement('span'); cur.className='tw-cursor'; el.appendChild(cur);
+    var si=0,ci=0,tx=null;
+    function ns(){var s=segs[si],h=document.createElement('span');if(s&&s.cls)h.className=s.cls;tx=document.createTextNode('');h.appendChild(tx);el.insertBefore(h,cur);ci=0;}
+    function tk(){ if(si>=segs.length)return; var s=segs[si]; if(ci<s.text.length){var c=s.text.charAt(ci++);tx.nodeValue+=c;setTimeout(tk,(c===' '||c==='\n')?6:14);} else {si++; if(si<segs.length){ns();setTimeout(tk,0);} else el.appendChild(cur);} }
+    if(segs.length){ns();setTimeout(tk,250);}
+  }
+  function typeLines(el,lines){
+    el.textContent=''; var cur=document.createElement('span'); cur.className='tw-cursor';
+    var li=0,si=0,ci=0,ln=null,tx=null;
+    function nl(){ln=document.createElement('div');ln.className='line';el.appendChild(ln);ln.appendChild(cur);si=0;ns();}
+    function ns(){var s=lines[li][si],h=document.createElement('span');if(s&&s.cls)h.className=s.cls;tx=document.createTextNode('');h.appendChild(tx);ln.insertBefore(h,cur);ci=0;}
+    function dn(){if(ln)ln.appendChild(cur);}
+    function tk(){ if(li>=lines.length)return; var sg=lines[li]; if(!sg.length){li++; if(li<lines.length){nl();setTimeout(tk,120);}else dn(); return;} var s=sg[si]; if(ci<s.text.length){var c=s.text.charAt(ci++);tx.nodeValue+=c;setTimeout(tk,c===' '?7:15);} else if(++si<sg.length){ns();tk();} else {li++; if(li<lines.length){nl();setTimeout(tk,160);}else dn();} }
+    if(lines.length){nl();setTimeout(tk,300);}
+  }
+  blocks.forEach(function(el){
+    var s=snap(el);
+    if(reduce) return;
+    var started=false;
+    function go(){if(started)return;started=true; if(s.mode==='line')typeLines(el,s.lines); else typeFlat(el,s.segs);}
+    if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){io.disconnect();go();}});},{threshold:.3});io.observe(el);}
+    else go();
+  });
+  document.querySelectorAll('.copy2').forEach(function(b){
+    b.addEventListener('click',function(){
+      var pre=document.getElementById(b.getAttribute('data-target'));
+      if(!pre)return;
+      var t=pre.innerText.replace(/^\$ /gm,'').replace(/^#.*$/gm,'').replace(/\n{2,}/g,'\n').trim();
+      if(navigator.clipboard)navigator.clipboard.writeText(t).then(function(){b.textContent='Copied';setTimeout(function(){b.textContent='Copy';},1400);});
+    });
+  });
+})();
+</script>
+</body>
+</html>

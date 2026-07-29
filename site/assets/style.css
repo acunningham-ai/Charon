@@ -346,3 +346,17 @@ footer{border-top:1px solid var(--line);background:var(--bg-2);padding:56px 0 40
 .foot-col a:hover{color:var(--accent-ink)}
 .foot-base{border-top:1px solid var(--line);margin-top:40px;padding-top:22px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;font-size:13px;color:var(--faint)}
 .foot-base .mono{font-family:var(--mono)}
+
+/* ---------- what's-next / roadmap page ---------- */
+.asof{margin-top:16px;font-family:var(--mono);font-size:13px;color:var(--faint);letter-spacing:.01em}
+.cards.two{grid-template-columns:repeat(2,1fr)}
+@media(max-width:860px){.cards.two{grid-template-columns:1fr}}
+.card .ctop{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.card .ctop .cmd{font-family:var(--mono);font-size:12.5px;color:var(--accent-ink);background:var(--accent-weak);border-radius:6px;padding:3px 9px;font-weight:600}
+.card .out{color:var(--muted);font-size:13.5px;margin-top:12px;padding-left:14px;border-left:2px solid var(--line-2)}
+.mock-tag{margin-left:auto;font-family:var(--mono);font-size:11px;font-weight:600;color:var(--t-amber);border:1px solid var(--t-line);border-radius:5px;padding:2px 8px;letter-spacing:.02em}
+.pill.shadow{color:var(--muted);background:var(--bg-3)}
+.pill.plan{color:var(--accent-ink);background:var(--accent-weak)}
+.road{max-width:720px;margin:34px auto 0;text-align:center}
+.road p{color:var(--muted);font-size:16px;line-height:1.6}
+.road b{color:var(--ink-2)}

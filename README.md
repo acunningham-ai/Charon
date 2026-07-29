@@ -231,10 +231,22 @@ Honest about the gaps. Charon's current bet is opinionated discipline + security
 - **No vision capture beyond opaque VLM input.** `/capture-screenshot` exists but doesn't structure-extract (no OCR / table / chart parsing yet — VLM-based extraction patterns like DeepSeek-OCR are on the roadmap).
 - **No observability + replay layer.** `skill-usage-log.py` writes events but there's no tamper-evident ledger, session trace, or replay capability (Langfuse-style self-hosted observability is on the roadmap; relevant to EU AI Act Article 19 audit-trail retention).
 - **Not in a plugin marketplace yet.** Installable via clone + bootstrap, not via a single `claude install` command. Marketplace packaging is near-term.
-- **Test suite is single-shot, not adversarial.** 16 LLM-behaviour scenarios + 25 deterministic checks; no automated adversarial validation yet — **Artemis**, the offensive/adversarial-validation seat (the counterpart to the defensive Cerberus), is on the roadmap, RoE-gated.
+- **Test suite is single-shot, not adversarial.** 16 LLM-behaviour scenarios + 26 deterministic checks; no automated adversarial validation yet — **Artemis**, the offensive/adversarial-validation seat (the counterpart to the defensive Cerberus), is on the roadmap, RoE-gated.
 - **Gmail and IMAP capture-pipeline providers are skeleton-only.** M365 ships fully working (device-code OAuth, inbox + sent, cursor-based incremental). Gmail and IMAP have the interface defined and setup docs written, but the `auth() / fetchInbox() / fetchSent()` methods throw `NOT_IMPLEMENTED` until a contributor (you, or an upstream PR) fills them in. Estimated half-day per provider.
 
 See [`ROADMAP.md`](ROADMAP.md) for what's coming next and what won't ship.
+
+---
+
+## What's next
+
+Charon ships in tranches, each proven on the author's own vault before it lands here. Live roadmap page: <https://acunningham-ai.github.io/Charon/whats-next.html>.
+
+**Just shipped (v0.22):** `/recall` (dependency-free hybrid BM25 retrieval — no embeddings, no vector DB), `/find-tensions` (surface contradictions across your notes), `/grill` (pressure-test a plan against your own prior decisions), `/handoff` (cross-session baton note + kickoff prompt), plus a clean-room port discipline + `scripts/verify_no_copy.py`.
+
+**Coming next — self-healing that surfaces, never acts alone.** `/harness-review` turns a logged automation failure into a ranked-fix note: *event → auto-review → you pick → gated apply → monitor*. The review reads; it cannot act — a separate, allow-listed step applies a reversible fix only on your say-so, and a deterministic check (not the model grading itself) confirms it worked. Currently **in shadow** on the author's harness; it ships to Charon once its proof window closes. The gated apply step (`/harness-heal`) is designed and **planned**, carrying the highest bar because it can change files.
+
+The rule of the road: nothing lands until it's run for weeks on a real, working vault, with an adversarial security review on anything that can touch files.
 
 ---
 

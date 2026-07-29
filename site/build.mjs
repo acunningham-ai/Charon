@@ -22,6 +22,7 @@ const PAGES = [
   { name: 'skills',    title: 'Charon — Skills & Hooks',  active: 'skills'    },
   { name: 'agents',    title: 'Charon — Agents',          active: 'agents'    },
   { name: 'workflows', title: 'Charon — Workflows',       active: 'workflows' },
+  { name: 'whats-next',title: "Charon — What's Next",      active: 'whats-next'},
   { name: 'install',   title: 'Charon — Install',         active: ''          },
 ];
 
