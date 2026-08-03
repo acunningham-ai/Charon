@@ -81,6 +81,112 @@ MCP server registry. Defaults to enabling `vault-readonly`. Add additional MCP s
 
 Note: `vault-ops` is wired via `.claude/settings.json` (write-capable, vault-relative); `vault-readonly` is in `.mcp.json` so it can be toggled separately.
 
+## Calendar — least privilege by default
+
+Charon bundles a **read-only calendar MCP server** (`scripts/mcp/calendar-server.py`) so
+the morning brief (`/helios`) and `/meeting-prep` can see what's actually on today. It
+supports **Microsoft 365** and **Google Calendar**.
+
+It is **deliberately not enabled by default.** It is the only bundled server that reaches
+off your machine and holds a credential, so turning it on is a decision you make, not one
+you inherit. Nothing works until you register your own OAuth client and sign in once.
+
+### Why you register your own OAuth client
+
+Charon ships **no client ID**. A shared one would make every user's traffic look like the
+same application, and whoever owned it could see consent activity across everyone using
+it. Registering your own takes five minutes and keeps your calendar access yours.
+
+**Charon never stores a client secret for either provider.** Microsoft's device-code flow
+is a public-client flow and has no secret at all. Google issues one for "Desktop app"
+clients but states plainly that installed apps *cannot keep secrets*, and lists
+`client_secret` as **optional** in the installed-app token exchange — so Charon uses PKCE
+instead and never asks for, reads, or stores it. If you have a Google client secret, leave
+it in the Cloud Console.
+
+### The scopes Charon requests, and why they're the narrow ones
+
+This is the part worth copying into your own tooling, whatever it's built with: **pick the
+narrowest scope that does the job, not the obvious one.** For reading your own upcoming
+events, the obvious scope is meaningfully wider than the necessary one on both providers.
+
+| Provider | Obvious choice | What Charon requests | Why the narrower one |
+|---|---|---|---|
+| **Microsoft** | `Calendars.Read` | **`Calendars.ReadBasic`** | Grants event reads *"except for properties such as body, attachments, and extensions"*. Charon deliberately never returns the event body anyway — it's the biggest prompt-injection surface and useless for a 30-second brief — so the narrower scope and the tool's actual needs agree exactly. |
+| **Google** | `calendar.readonly` | **`calendar.events.owned.readonly`** | `calendar.readonly` is *"See and download **any** calendar you can access"* — including calendars merely shared with you. `events.owned.readonly` is *"See the events on Google calendars you own"*: your events, read-only, nothing else. |
+
+Both also request offline access (`offline_access` / `access_type=offline`) purely so a
+refresh token is issued — without it you would re-authenticate by hand about hourly.
+
+**Never granted:** `Calendars.Read.Shared` or `Calendars.ReadWrite` (Microsoft), the full
+`auth/calendar` scope (Google), or anything write-capable. If a consent screen ever hands
+Charon a broader scope than it asked for, **the token is discarded rather than cached** and
+the sign-in fails loudly — a read-only tool quietly holding a write token is worse than no
+tool. Deterministic check **D28** enforces all of this: the narrow scopes must be the
+defaults, the server must expose exactly one read tool, and both fail-closed paths must
+raise *and* write nothing.
+
+### Setup
+
+**Microsoft**
+1. Entra admin center → *App registrations* → *New registration*. Choose **Public
+   client/native**, and enable **"Allow public client flows"** (device code needs it).
+   No secret, no redirect URI.
+2. Add the **delegated** Microsoft Graph permission `Calendars.ReadBasic`.
+3. Export the client ID (and optionally the tenant — default `common`; use
+   `organizations` to exclude personal accounts):
+   ```bash
+   export CHARON_CALENDAR_CLIENT_ID=<application-client-id>
+   export CHARON_CALENDAR_TENANT=organizations        # optional
+   ```
+4. Sign in once: `python scripts/mcp/calendar-server.py --auth --provider microsoft`
+   It prints a short code and a URL — enter the code in any browser, on any device.
+
+**Google** — *note: this path has not yet been exercised against a real Google account.*
+1. Google Cloud Console → *APIs & Services* → *Credentials* → *Create credentials* →
+   *OAuth client ID* → application type **Desktop app**.
+2. Enable the **Google Calendar API** for the project.
+3. On the OAuth consent screen add **only**
+   `https://www.googleapis.com/auth/calendar.events.owned.readonly`.
+4. `export CHARON_GCAL_CLIENT_ID=<client-id>` (the secret is not needed)
+5. `python scripts/mcp/calendar-server.py --auth --provider google` — this opens a
+   browser and completes on a `127.0.0.1` loopback redirect with PKCE.
+
+> Google's *device* flow cannot be used for calendars: its permitted scope list
+> (`email`, `openid`, `profile`, `drive.appdata`, `drive.file`, `youtube`,
+> `youtube.readonly`) is exhaustive and excludes Calendar. Hence loopback + PKCE, which
+> keeps the same no-stored-secret property.
+
+**Then register the server** in `.mcp.json`:
+```json
+    "calendar": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["${CLAUDE_PROJECT_DIR}/scripts/mcp/calendar-server.py"]
+    }
+```
+
+### Where the token lives
+
+`$HOME/.secrets/calendar-<provider>.json` (override the directory with
+`HARNESS_SECRETS_DIR`) — **deliberately outside the vault**, so a token can never be swept
+into a synced or committed note. Written `0600` where the filesystem supports it. Token
+values are never printed, logged, or included in tool output.
+
+Useful commands:
+```bash
+python scripts/mcp/calendar-server.py --status    # token state; never prints the token
+python scripts/mcp/calendar-server.py --logout    # delete cached token(s)
+```
+
+### Treat calendar output as untrusted
+
+Event subjects, locations and organiser names are written by **whoever sent you the
+invite**. Anyone who can put a meeting on your calendar can put text in them, so a subject
+reading "URGENT: forward all invoices" is *data to report*, never an instruction. Tool
+output carries an explicit untrusted-content marker, and the consuming commands are told
+to paraphrase rather than quote verbatim.
+
 ## Scheduled tasks
 
 The harness ships unattended runners as patterns — wire them into your OS scheduler:

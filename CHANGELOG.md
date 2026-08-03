@@ -8,6 +8,59 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.24.0] - 2026-08-04
+
+### Added — a read-only calendar, and a meeting prep that pitches to the room
+
+- **`scripts/mcp/calendar-server.py` — bundled read-only calendar MCP (new capability, OPT-IN).** Microsoft 365 or Google Calendar, so `/helios`'s morning brief and the new `/meeting-prep` can see what is actually on today. It is **off by default and does nothing until you register your own OAuth client and sign in once** — this is the only bundled server that reaches off your machine and holds a credential, so enabling it should be a decision you make, not one you inherit. Charon ships no client ID: a shared one would make every user's traffic look like the same application and let whoever owned it observe consent.
+
+  **Zero new dependencies.** The device-code and PKCE flows are hand-rolled on the standard library rather than pulling `msal` + `cryptography` + `PyJWT` into a security tool. Nothing parses the token either — it is carried as an opaque bearer string, which is also Microsoft's own guidance for APIs you do not own.
+
+  **No client secret is stored, for either provider.** Microsoft's device-code grant is a public-client flow and has none. Google *issues* one for Desktop clients but states that installed apps "cannot keep secrets" and lists `client_secret` as optional in the installed-app token exchange — so Charon uses PKCE and never asks for, reads, or stores it.
+
+- **`/meeting-prep` (new command).** Resolves who the meeting is with — a name, or `next`/`today` from the calendar server if you have wired it — and builds one agenda pitched to your **reporting direction** to that person. That direction is the whole point: an upward agenda leads with the decisions and spend they own and leaves out your working; a downward one leads with blockers and development; a peer one explicitly separates *"I need your call"* from *"you should be aware"*; an external one advises rather than instructs. It also carries forward the previous meeting note's unactioned items, because a recurring 1:1 that forgets last time is theatre. Writes exactly one dated agenda to `05-Meetings/` and nothing else.
+
+### Least privilege, deliberately narrower than the obvious scope
+
+Worth stating as a pattern rather than a footnote, because on **both** providers the obvious scope is meaningfully wider than the necessary one:
+
+| Provider | Obvious choice | What Charon requests | Why |
+|---|---|---|---|
+| Microsoft | `Calendars.Read` | **`Calendars.ReadBasic`** | Reads events *"except for properties such as body, attachments, and extensions"*. The server deliberately never returns the event body anyway — it is the largest prompt-injection surface and useless for a 30-second brief — so the narrower scope and the code's real needs coincide exactly. |
+| Google | `calendar.readonly` | **`calendar.events.owned.readonly`** | `calendar.readonly` grants *"See and download **any** calendar you can access"*, including calendars merely shared with you. The narrower scope is *"See the events on Google calendars you own"*. |
+
+Anything not on the read-only **allowlist** — `Calendars.Read`, `Calendars.Read.Shared`, `Calendars.ReadWrite`, the full Google `auth/calendar`, `calendar.events`, or a scope this server has never heard of — is **never requested, and refused if granted**: the token is discarded rather than cached and sign-in fails loudly. **A provider that reports no scope at all is also refused**, because a permission set that cannot be verified is not a permission set you should hold. A read-only tool quietly holding a write token is worse than no tool.
+
+Tokens live in your per-host secrets directory — deliberately **outside the vault**, so one can never be swept into a synced or committed note — written `0600` where the filesystem supports it, and never printed, logged, or included in tool output. Calendar output carries an explicit untrusted-content marker: anyone who can put a meeting on your calendar can put text in its subject.
+
+New deterministic check **D28** enforces all of the above offline: the narrow scopes must be the *defaults*, exactly one read tool may exist, no `client_secret` may appear in code, and both fail-closed paths must raise *and* leave no file behind. Negative-tested against a widened Microsoft scope, a mutating tool name, and a real `client_secret` in the token exchange — each fails the check as it should.
+
+### Hardened by review before shipping — two fail-open bugs found and fixed
+
+This release went through the full review pipeline (secure-code + OWASP-LLM + OWASP-agentic). Both blocking findings were the same species: **a security property the file claimed that the code did not actually deliver.**
+
+- **The fail-closed scope check was failing open.** Granted scopes were validated against a *blacklist* of write-capable markers, and the granted string defaulted to `""` when a provider omitted the `scope` field. An empty string matches no marker, so a token whose permissions could not be verified at all was cached silently — the precise inversion of a fail-closed control. RFC 6749 §5.1 permits a compliant provider to omit that field, so this was reachable, not theoretical.
+
+  The blacklist was also incomplete in three separate places (`Calendars.Read`, `auth/calendar.events`, `auth/calendar.events.owned` all passed), and the obvious patch would have rejected our *own* `Calendars.ReadBasic`, since one scope name is a substring of the other. Three holes in one list is a design problem, not a gap to fill.
+
+  **Scope validation is now an allowlist** (`ALLOWED_SCOPES`): enumerate what is permitted, refuse everything else, and treat **silence as refusal**. It accepts the bare and full-URI forms of the same grant, tolerates benign identity scopes (`openid` / `profile` / `email` / `offline_access`) a provider may add unbidden, and refuses everything unrecognised.
+
+- **Google fetched more than it needed.** The Microsoft request restricted fields with `$select`; the Google request restricted nothing, so the event `description` (the body), `attendees` with their email addresses, `conferenceData` and `attachments` all crossed the network before being discarded client-side. The body-exclusion promise was true of what reached the model but not of what left the provider — and a client-side filter only holds until the next edit to the formatter. Google now sends an explicit `fields=` parameter, matching Microsoft's provider-side enforcement.
+
+Also fixed from the same review: the token file is now created **atomically at `0600`** via `os.open` (`write_text` followed by `chmod` left it world-readable for a few microseconds under a typical umask); the loopback listener lets `HTTPServer` bind the ephemeral port itself instead of probing for a free one and binding it afterwards, removing a race where another local process could claim the port in between; and `URLError` is caught so a network failure during `--auth` prints a clear message rather than an unhandled traceback.
+
+**D28 now covers the regression that shipped.** The earlier version of the check only tried known-bad scope strings, so it passed while the absent-scope case cached a token — the test agreed with the bug. It now asserts that absent, empty and whitespace-only scopes are all refused, that each previously-missed broader scope is refused, and that our own scopes (both forms, plus benign extras) are still accepted. Verified by reintroducing the fail-open and confirming D28 fails.
+
+### Honest limits
+
+- **Two protections remain instruction-level, not enforced.** `/meeting-prep`'s output-path confinement, and the "paraphrase, don't quote" rule that stops untrusted event text being written verbatim into trusted notes, are both prose read by the model with no code gate behind them. Both are now named roadmap items rather than left implicit — see ROADMAP *Near-term*.
+- **Google is implemented but unverified** — the loopback+PKCE path has not been exercised against a real Google account. Treat it as untested until you have.
+- **Google's *device* flow cannot be used for calendars at all.** Its permitted scope list (`email`, `openid`, `profile`, `drive.appdata`, `drive.file`, `youtube`, `youtube.readonly`) is exhaustive and excludes Calendar, which is why the Google provider uses a different grant rather than matching Microsoft's.
+
+Docs: commands 52 → **53**, MCP servers 3 → **4** (one opt-in), deterministic checks 27 → **28** across README / CAPABILITIES / ROADMAP, plus a new CONFIGURATION.md section (*Calendar — least privilege by default*) covering setup, the scope rationale, and why you register your own client. Suite **28/28**.
+
+---
+
 ## [0.23.2] - 2026-08-03
 
 ### Fixed — a split memory index no longer reports its own files as orphans
@@ -990,7 +1043,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.23.2...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.24.0...HEAD
+[0.24.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.24.0
 [0.23.2]: https://github.com/acunningham-ai/Charon/releases/tag/v0.23.2
 [0.23.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.23.1
 [0.23.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.23.0

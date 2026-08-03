@@ -26,7 +26,7 @@ These rules auto-inject into the assistant's context when the user's prompt ment
 
 ## Slash commands (`.claude/commands/*.md`)
 
-52 invokable commands. Most accept arguments after the slash command.
+53 invokable commands. Most accept arguments after the slash command.
 
 ### Front-door seats (start here if you don't know which command you want)
 
@@ -35,7 +35,7 @@ Three seats route a plain-language ask to the right verb below and add synthesis
 | Command | What it does |
 |---|---|
 | `/athena "<what you're trying to do>"` | Knowledge seat — one door to your own vault. Picks the mode from your phrasing: `find` (`/recall`) · `relate` (`/vault-query`) · `tension` (`/find-tensions`) · `gather` (`/knowledge-consolidate`) · `connect` (`/graph-backfill`) · `remember` (`/save-feedback` · `/push-fact` · `/promote-rule`). Defaults to `find` — cheapest, and its hits tell you whether to go deeper. **Memory writes are proposed, never silent.** *Example: "where's my note on the migration rollout?" or "do my notes clash on the Q3 baseline?"* |
-| `/helios [morning\|evening\|weekly]` | Daily-cadence seat — the **morning brief** (default): what changed · today · owed & open · *"today in a sentence"* + the first thing to do. `evening` → `/eod-reflect`; `weekly` → `/weekly-checkin`. Offers `/refresh-todo`, never silently rewrites `TODO.md`. Calendar is optional + user-configured (read-scoped only). *Example: "what's my day?" at the start of a session.* |
+| `/helios [morning\|evening\|weekly]` | Daily-cadence seat — the **morning brief** (default): what changed · today · owed & open · *"today in a sentence"* + the first thing to do. `evening` → `/eod-reflect`; `weekly` → `/weekly-checkin`. Offers `/refresh-todo`, never silently rewrites `TODO.md`. Uses the bundled read-only calendar server if you've opted in (see MCP servers). *Example: "what's my day?" at the start of a session.* |
 | `/hephaestus [tune-up\|health\|hygiene\|improve\|curate\|telemetry\|watch-review]` | Tune-up seat — the **tune-up** (default) runs the health + hygiene detectors and returns ONE prioritised broken / messy / could-improve report with the command to fix each, ending on the single highest-value fix. Single-mode asks delegate straight to the verb. **Surfaces + proposes; never auto-fixes.** *Example: "give the harness a tune-up" before a big run.* |
 
 ### Reporting + governance
@@ -62,6 +62,7 @@ Three seats route a plain-language ask to the right verb below and add synthesis
 | Command | What it does |
 |---|---|
 | `/refresh-todo` | Run capture pipeline, triage diff vs TODO, propose updates. *Example: each morning, or after a heavy capture day, to turn new inbox content into prioritised TODO entries.* |
+| `/meeting-prep [person\|next\|today]` | 1:1 / stakeholder agenda builder — resolves who the meeting is with (a name, or `next`/`today` from the calendar server if wired), works out your **reporting direction** to them, then pulls live threads from memory / TODO / project notes / in-window captures **and carries forward the previous meeting's unactioned items**. Writes ONE dated agenda to `05-Meetings/`. The direction is the point: an upward agenda leads with decisions and spend, a downward one with blockers and development, a peer one separates *"I need your call"* from *"you should be aware"*. *Example: before a recurring 1:1, so it stops losing its own thread.* |
 | `/triage-inbox` | Surface actionable items from captures, ignore noise. *Example: when the inbox is full and you want only the actionable items lifted without re-categorising the whole folder.* |
 | `/weekly-checkin` | Weekly cross-domain pattern synthesis. *Example: Friday afternoon — pattern-spot across the week's captures, TODOs, and memory writes.* |
 | `/eod-reflect` | End-of-day reflection — productivity / stress / delegation / day rating / carry-forward. *Example: end of any work day, to log how it went and what carries forward to tomorrow.* |
@@ -223,6 +224,26 @@ The graph also feeds the notes themselves: `/graph-backfill` (final stage of the
 | `query_graph(cypher, limit)` | Read-only Cypher query. Write keywords (CREATE/MERGE/DELETE/etc.) rejected |
 | `stats()` | Node + edge counts |
 
+### `calendar` — read-only, OPT-IN (off by default)
+
+Microsoft 365 or Google Calendar, so `/helios` and `/meeting-prep` can see what's actually on today. **Not enabled until you register your own OAuth client and sign in once** — it is the only bundled server that reaches off your machine and holds a credential, so switching it on is a decision you make rather than one you inherit. Setup + the full scope rationale: `CONFIGURATION.md` → *Calendar — least privilege by default*.
+
+| Tool | What it does |
+|---|---|
+| `list_calendar_events(days?, start_date?, provider?)` | Events in a window: subject, start/end, location, organiser, all-day flag. |
+
+Safety properties, all machine-enforced by deterministic check **D28**:
+
+- **Read-only by construction** — one tool; there is no create/update/delete/respond tool to talk it into using.
+- **Least privilege, not the obvious scope** — `Calendars.ReadBasic` on Microsoft (excludes body/attachments/extensions) and `calendar.events.owned.readonly` on Google (your own calendars only, not everything merely shared with you). The narrow scopes are the *defaults*, and D28 fails if they are widened.
+- **No client secret is stored for either provider** — Microsoft device-code is a public-client flow; Google's is optional for installed apps, so Charon uses PKCE and never reads it.
+- **Fails closed on scope escalation** — handed a broader scope than requested, the token is discarded rather than cached.
+- **Token outside the vault** — under your per-host secrets directory, `0600` where supported, never printed or logged.
+- **Never authenticates interactively while serving** — sign-in is a separate `--auth` command, because a stdio server that stopped to prompt would hang the client with nowhere to show the prompt.
+- **Output is untrusted** — invite subjects are attacker-controllable, so responses carry an explicit untrusted marker and the event *body* is never retrieved at all.
+
+*Google note: implemented but not yet exercised against a real Google account.*
+
 ## Agents (`.claude/agents/*.md`)
 
 Ten agents in three categories. **Review / synthesis subagents** are dispatched in parallel by parent skills for heavyweight tasks — each gets its own context window + minimum tool permissions. **Standing seats** are named functional roles invoked via their own slash command, steered across sessions by a persistent artefact (not parallel-review subagents, and not roleplay of your identity). **Front-door seats** route a plain-language ask to the right existing verb and add synthesis on top. Full capability + intent for each in `.claude/agents/README.md`.
@@ -327,13 +348,13 @@ You invoke these directly.
 
 ## Test suite (`test-scenarios/`)
 
-16 LLM-behaviour scenarios + 27 deterministic checks. Run before any release and after any material change to rules / hooks / wizard.
+16 LLM-behaviour scenarios + 28 deterministic checks. Run before any release and after any material change to rules / hooks / wizard.
 
 | Component | What |
 |---|---|
 | `test-scenarios/README.md` | How to run, scoring, OSS-release bar |
 | `test-scenarios/01-..16-*.md` | 16 LLM-behaviour scenarios with verbatim prompts + pass/fail criteria (manual run in a fresh Claude Code session) |
-| `test-scenarios/run-deterministic-checks.py` | 27 automated checks: YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, closed-vocabulary, Cerberus engine + scan + SARIF, Louvain community detection, vault-graph HTML / query / wiki, multimodal extractors, vault-lint + tag-migrator, base-folder scaffold, workflows present + valid, TODO-freshness net, self-healing watch selftests, self-improving post-check, recall hybrid retrieval, seat routing integrity |
+| `test-scenarios/run-deterministic-checks.py` | 28 automated checks: YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, closed-vocabulary, Cerberus engine + scan + SARIF, Louvain community detection, vault-graph HTML / query / wiki, multimodal extractors, vault-lint + tag-migrator, base-folder scaffold, workflows present + valid, TODO-freshness net, self-healing watch selftests, self-improving post-check, recall hybrid retrieval, seat routing integrity, calendar server read-only |
 | `test-scenarios/_results-template.md` | Per-run scoring template — copy as `_results-YYYY-MM-DD.md` |
 
 ```bash

@@ -1178,6 +1178,156 @@ def check_seat_routing_integrity() -> CheckResult:
                        f"({len(available)} commands/workflows available)")
 
 
+def check_calendar_server_readonly() -> CheckResult:
+    """The calendar MCP server must stay read-only and secret-free.
+
+    This is the only bundled server that reaches outside the machine and holds a
+    credential, so its safety properties are asserted mechanically rather than
+    trusted to review: exactly one tool, no write/respond verb anywhere in the
+    tool surface, no client_secret concept, tokens under the configured secrets
+    dir (never the vault), and fail-CLOSED behaviour if the identity provider
+    ever returns a write-capable scope. Offline — no network, no real sign-in."""
+    import importlib.util
+    import tempfile
+    name = "Calendar server read-only"
+    path = REPO_ROOT / "scripts" / "mcp" / "calendar-server.py"
+    if not path.exists():
+        return CheckResult(name, "FAIL", "missing: scripts/mcp/calendar-server.py")
+
+    src = path.read_text(encoding="utf-8", errors="replace")
+    findings: list[str] = []
+
+    # 1. No client-secret in the CODE. Deliberately excludes docstrings and
+    #    comments: the server's header *explains* that Google issues a secret and
+    #    that we refuse to use it, and that explanation must not trip the check
+    #    that enforces it. (Matching documentation instead of code is the same
+    #    false-positive class fixed in score-vault.py — don't reintroduce it.)
+    def _code_only(text: str) -> str:
+        try:
+            import ast as _ast
+            tree = _ast.parse(text)
+            doc = _ast.get_docstring(tree) or ""
+        except SyntaxError:
+            doc = ""
+        out = []
+        for line in text.splitlines():
+            stripped = line.split("#", 1)[0]  # drop comments (no '#' in real code here)
+            out.append(stripped)
+        body = "\n".join(out)
+        return body.replace(doc, "") if doc else body
+
+    if "client_secret" in _code_only(src):
+        findings.append("CODE references client_secret — both flows must be secret-free "
+                        "(device-code is a public client; Google uses PKCE instead)")
+
+    # 2. Tool surface must be read-only. Look at declared MCP tool names only.
+    tool_names = re.findall(r'types\.Tool\(\s*name="([^"]+)"', src)
+    if len(tool_names) != 1:
+        findings.append(f"expected exactly 1 tool, found {len(tool_names)}: {tool_names}")
+    for t in tool_names:
+        if re.search(r"create|update|delete|respond|send|write|accept|decline", t, re.I):
+            findings.append(f"tool '{t}' has a mutating verb in its name")
+
+    # 3. Behavioural asserts against the real module.
+    try:
+        spec = importlib.util.spec_from_file_location("_cal_check", path)
+        mod = importlib.util.module_from_spec(spec)
+        with tempfile.TemporaryDirectory() as td:
+            prev = os.environ.get("HARNESS_SECRETS_DIR")
+            os.environ["HARNESS_SECRETS_DIR"] = td
+            try:
+                spec.loader.exec_module(mod)
+                tdir = Path(td).resolve()
+                # 3a. least-privilege scopes must be the DEFAULTS, not just available.
+                if "Calendars.ReadBasic" not in getattr(mod, "MS_SCOPES", ""):
+                    findings.append("Microsoft default scope is not the least-privilege "
+                                    "Calendars.ReadBasic")
+                if "calendar.events.owned.readonly" not in getattr(mod, "GOOGLE_SCOPES", ""):
+                    findings.append("Google default scope is not the least-privilege "
+                                    "calendar.events.owned.readonly")
+                # 3b. Scope validation must be an ALLOWLIST that fails closed on
+                #     the unknown. The earlier version of this check only tried
+                #     known-bad strings, so it passed while an ABSENT scope was
+                #     silently cached — the test agreed with the bug. Cover that
+                #     case explicitly and permanently.
+                for prov, good in (("microsoft", mod.MS_SCOPES),
+                                   ("google", mod.GOOGLE_SCOPES)):
+                    if mod._scope_violation(prov, good) is not None:
+                        findings.append(f"{prov}: own default scope wrongly rejected: {good}")
+                # benign identity scopes a provider may add unbidden must not trip it
+                if mod._scope_violation("microsoft",
+                                        "Calendars.ReadBasic openid profile email offline_access"):
+                    findings.append("microsoft: benign identity scopes wrongly rejected")
+                # full-URI form of the same grant must be accepted
+                if mod._scope_violation("microsoft",
+                                        "https://graph.microsoft.com/Calendars.ReadBasic"):
+                    findings.append("microsoft: full-URI form of own scope wrongly rejected")
+                # broader / write / unknown scopes must ALL be refused
+                for prov, bad in (
+                    ("microsoft", "Calendars.ReadWrite"),
+                    ("microsoft", "Calendars.Read"),            # broader read — was a blacklist hole
+                    ("microsoft", "Calendars.Read.Shared"),
+                    ("microsoft", "Mail.Send"),
+                    ("google", "https://www.googleapis.com/auth/calendar"),
+                    ("google", "https://www.googleapis.com/auth/calendar.readonly"),
+                    ("google", "https://www.googleapis.com/auth/calendar.events"),        # was a hole
+                    ("google", "https://www.googleapis.com/auth/calendar.events.owned"),  # was a hole
+                ):
+                    if mod._scope_violation(prov, bad) is None:
+                        findings.append(f"{prov}: broader/unknown scope NOT refused: {bad}")
+                # THE REGRESSION THAT SHIPPED ONCE: no scope reported at all must refuse
+                for empty in ("", "   ", None):
+                    if mod._scope_violation("microsoft", empty) is None:
+                        findings.append(f"absent/empty scope ({empty!r}) NOT refused — "
+                                        "fail-closed control is failing open")
+                # 3c. fail CLOSED per provider: must raise AND write nothing.
+                #     `None` = the provider omitted `scope` entirely — the case
+                #     that previously cached a token with no validation at all.
+                for prov, bad, label in (
+                    ("microsoft", "Calendars.ReadWrite", "write scope"),
+                    ("microsoft", None, "ABSENT scope"),
+                    ("google", "https://www.googleapis.com/auth/calendar.readonly", "broad scope"),
+                    ("google", None, "ABSENT scope"),
+                ):
+                    payload = {"access_token": "x", "expires_in": 60}
+                    if bad is not None:
+                        payload["scope"] = bad
+                    raised = False
+                    try:
+                        mod._save_token(prov, payload)
+                    except SystemExit:
+                        raised = True
+                    except Exception as exc:
+                        findings.append(f"{prov}/{label}: raised {type(exc).__name__}, "
+                                        "expected SystemExit")
+                    if not raised:
+                        findings.append(f"{prov}/{label}: did NOT fail closed")
+                    if mod._token_path(prov).exists():
+                        findings.append(f"{prov}/{label}: token written despite refusal")
+                    # 3d. token must live under the secrets dir, never the vault
+                    if mod._token_path(prov).parent != tdir:
+                        findings.append(f"{prov}: token path "
+                                        f"{mod._token_path(prov).parent} is not the secrets dir")
+                    if REPO_ROOT.resolve() in mod._token_path(prov).parents:
+                        findings.append(f"{prov}: token path is inside the repo — must be outside")
+            finally:
+                if prev is None:
+                    os.environ.pop("HARNESS_SECRETS_DIR", None)
+                else:
+                    os.environ["HARNESS_SECRETS_DIR"] = prev
+    except ImportError as exc:
+        return CheckResult(name, "WARN",
+                           f"cannot import server (base dep missing?): {exc}")
+    except Exception as exc:
+        return CheckResult(name, "FAIL", f"calendar server check errored: {exc}")
+
+    if findings:
+        return CheckResult(name, "FAIL", f"{len(findings)} problem(s)", sorted(set(findings)))
+    return CheckResult(name, "PASS",
+                       f"1 read-only tool ({tool_names[0]}), no client_secret, "
+                       "fails closed on scope escalation, token outside the vault")
+
+
 # ---------- Output ----------
 
 CHECKS = [
@@ -1208,6 +1358,7 @@ CHECKS = [
     ("D25", check_self_improving_postcheck),
     ("D26", check_recall_smoke),
     ("D27", check_seat_routing_integrity),
+    ("D28", check_calendar_server_readonly),
 ]
 
 
