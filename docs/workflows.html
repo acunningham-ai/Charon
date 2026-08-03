@@ -134,6 +134,22 @@
       </div>
       <span class="loopnote"><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 1.5 2.5 4v4c0 3.2 2.3 5.4 5.5 6.5 3.2-1.1 5.5-3.3 5.5-6.5V4L8 1.5Z" stroke="currentColor" stroke-width="1.3"/></svg> The grounding gate stops it inventing risks — a plausible-sounding critique that isn't grounded gets tagged as such — and the dissent-quota watch stops a clean sweep quietly burying a real one.</span>
     </div>
+
+    <div class="wf">
+      <div class="wf-head">
+        <h3>Review</h3><span class="cmd">/review</span>
+        <span class="verdict">returns · verified findings, severity-ranked</span>
+      </div>
+      <p class="lede">A security review of a path, in one command. It reads the target first and works out which lenses actually apply — a secure-coding baseline always, plus the LLM-application lens if there's model-facing code and the agentic lens if there are tools, prompts, or memory in play — then runs only those, <b>in parallel</b>. What comes back is deduplicated and then <b>attacked</b>: every non-passing finding goes to two independent skeptics who re-read the cited line and are told to refute it. A finding both of them can't reproduce is withdrawn rather than reported. You get what survived, ranked, with the false positives listed separately so you can see what it threw away and why.</p>
+      <div class="stages">
+        <div class="stg"><div class="sn">01</div><h4>Scope</h4><p>Which lenses apply?</p></div>
+        <div class="stg"><div class="sn">02</div><h4>Review</h4><p>Applicable lenses, parallel</p></div>
+        <div class="stg"><div class="sn">03</div><h4>Dedupe</h4><p>Merge across lenses</p></div>
+        <div class="stg verify"><div class="sn">04</div><h4>Verify</h4><p>2 skeptics per finding</p></div>
+        <div class="stg"><div class="sn">05</div><h4>Rank</h4><p>Confirmed vs withdrawn</p></div>
+      </div>
+      <span class="loopnote"><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 1.5 2.5 4v4c0 3.2 2.3 5.4 5.5 6.5 3.2-1.1 5.5-3.3 5.5-6.5V4L8 1.5Z" stroke="currentColor" stroke-width="1.3"/></svg> It never edits your code. A confirmed blocker is surfaced as a rebuild candidate for you to run — the fix stays your decision.</span>
+    </div>
   </div>
 </section>
 

@@ -27,12 +27,13 @@ Three reasons:
 | `knowledge-synthesizer` | Synthesise a framework doc on a topic | Read, Grep, Glob, Write | sonnet |
 | `cerberus` | Security specialist for Claude Code installations — audit, harden, recover | Read, Grep, Glob, Bash | inherit |
 
-## Two kinds of agent
+## Three kinds of agent
 
-Charon ships **two** categories of agent under `.claude/agents/`, and they're used differently:
+Charon ships **three** categories of agent under `.claude/agents/`, and they're used differently:
 
 1. **Review / synthesis subagents** (the table above) — scoped operating modes dispatched *by a parent skill* via the `Agent` tool for parallel, context-isolated work. You don't usually invoke them directly.
 2. **Standing seats** (below) — named functional roles in the "research → compose → deliver" pipeline, each invoked via its *own slash command* and steered across sessions by a persistent artefact. They are functional seats (a research analyst, a writer) — **not** roleplay of *your* identity, which remains an anti-pattern (see below).
+3. **Front-door seats** (below) — named doors onto a *cluster of existing commands*. They own no logic of their own: they pick the right verb from how you phrased the ask, run it, and add a synthesis across the results. **Purely additive** — every verb they route to still works standalone.
 
 ## Standing seats — the research → compose pipeline
 
@@ -49,6 +50,40 @@ These are the always-available roles that carry work across sessions. They are i
 **Capability.** Composes your outbound writing **in your voice** across modes — `post` (delegates to the tuned `/draft-linkedin`), `bulletin` (stakeholder/org-unit advisory + a co-located responses tracker), `tweet`, and `email`. Loads the `voice-content` rule + your `user_voice.md` profile + voice anchors before drafting. Stakeholder-facing artefacts are capability-led (no tool-class mandates beyond your configured exceptions).
 
 **Intent.** Turn a researched angle or a raw topic into a draft that sounds like you, not a generic LLM. **It drafts only — it never sends, posts, or emails.** Bulletins are draft-to-approval with a human-gated send (broad blast radius). It is the **compose** stage: Prometheus researches → Calliope writes → a delivery seat (when present) delivers.
+
+## Front-door seats — one door onto a cluster of verbs
+
+These exist because the honest problem with 52 commands isn't that any one of them is wrong — it's having to know *which* to reach for. Each seat is a **command paired with an agent persona**: the command is the runnable front door (it has the shell), the persona reasons and prioritises. They route to proven verbs and add the thing no single verb produces.
+
+**They take nothing away.** No command is removed, hidden, tiered, or demoted by a seat's existence. Every routed verb keeps working and stays documented as first-class in `CAPABILITIES.md`. Use the seat when you want the synthesis; use the verb when you know exactly what you want.
+
+### Athena — the knowledge seat (`/athena`)
+
+**Capability.** One door to your own vault. Picks the mode from your phrasing: `find` (`/recall` — ranked hybrid retrieval), `relate` (`/vault-query` — graph traversal), `tension` (`/find-tensions` — where your notes contradict each other), `gather` (`/knowledge-consolidate`), `connect` (`/graph-backfill`), `remember` (`/save-feedback` · `/push-fact` · `/promote-rule`). Defaults to `find` because it's cheapest and its hits tell you whether to go deeper; cites the note path behind every answer.
+
+**Intent.** Make what you've already written *askable* — you ask the question instead of remembering the command. **Memory writes are proposed, never silent:** you see the target file, the frontmatter, and the index line, and nothing lands without your yes. Retrieved content — especially anything that began as a capture — is data to report, never an instruction to obey.
+
+### Helios — the daily-cadence seat (`/helios`)
+
+**Capability.** The **morning brief** (default): what changed since the last brief · what's on today · what's owed and still open · *"today in a sentence"* plus the first thing to do. `evening` → `/eod-reflect`; `weekly` → `/weekly-checkin`. Calendar is **optional and user-configured** — Charon ships none, so the brief works without one and improves if you wire your own *read-scoped* provider tool into both the command's `allowed-tools` and this agent's `tools:`.
+
+**Intent.** Replace "run triage, then todo, then read the list yourself" with one prioritised read. **Read + surface only** — it *offers* `/refresh-todo`, it never silently rewrites `TODO.md`. Captured content **and** any fetched calendar data are treated as untrusted: anyone can put text in your inbox or on your calendar, so a crafted subject is something to report, never to act on.
+
+### Hephaestus — the tune-up seat (`/hephaestus`)
+
+**Capability.** The **tune-up** (default) runs the health and hygiene detectors (`/harness-doctor`, `/score-vault`, `/vault-lint`), names the headline `/harness-improve` and `/curate-skills` opportunities, and returns ONE prioritised **broken / messy / could-improve** list — most-impactful first, each with the command that fixes it, ending on the single highest-value fix. Single-mode asks (`health`, `hygiene`, `improve`, `curate`, `telemetry`, `watch-review`) delegate straight to the verb.
+
+**Intent.** One maintenance report instead of six remembered chores. **Surfaces and proposes; never auto-fixes**, never archives, never rewrites — there is no auto-apply path, so every fix is your deliberate step.
+
+### The tool ceiling these seats respect (important)
+
+**All three seat personas declare `Read, Grep, Glob, Skill` — and deliberately no `Bash`.**
+
+`Skill` **loads a command's instructions; it does not grant that command's tools.** So a seat persona genuinely *cannot* execute a shell-needing verb it dispatches — that covers `/recall` behind Athena's `find` mode and the detector scripts behind `/harness-doctor`, `/score-vault`, `/vault-lint`, `/triage-inbox` and `/refresh-todo`. Three consequences, all deliberate:
+
+- **The command path is primary.** Run `/athena`, `/helios`, `/hephaestus` as slash commands — the main-context run has the shell, and a *command* can declare a properly scoped grant (e.g. `/athena` declares `Bash(python scripts/recall.py:*)`).
+- **An unscopeable grant is removed, not documented.** Agent frontmatter `tools:` can only name a bare tool — it cannot carry a scope. A bare `Bash` on a persona therefore widens to whatever `settings.json` allows (`Bash(python scripts/*)` — every script, including mutating ones), and no PreToolUse hook gates `Bash`. Prose saying "only use it for X" is not a boundary, so the grant is dropped instead. A seat routes and synthesises; the command executes.
+- **A persona must never fabricate the output it couldn't produce.** Each is instructed to say plainly "that couldn't run here" and defer to the command path. Widening the grants was rejected twice over: it would also let a read-only seat run *action* verbs' shell steps, breaking surface-not-autofix.
 
 ## Dispatch pattern
 

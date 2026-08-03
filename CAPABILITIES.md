@@ -22,10 +22,21 @@ These rules auto-inject into the assistant's context when the user's prompt ment
 | **backlink-discipline.md** | any authored `NN-Name` folder path + authoring keywords | Every substantial note earns ≥3 `[[backlinks]]`, ≥1 to the oldest ~20% of the vault (the anti-recency link); denylist scope grows with the vault |
 | **clean-room-port.md** | porting / vendoring / borrowing keywords + `scripts/cerberus/**` | Bring third-party code in safely — recon-as-data in an isolated sub-agent, re-author from spec, verify no verbatim copy (`scripts/verify_no_copy.py`), record provenance |
 | **thoroughness-over-false-efficiency.md** | efficiency / trim / condense / save-tokens keywords | Completeness before token/step "efficiency"; a saving is acceptable only if provably lossless (no directive, trigger, or check removed) |
+| **clean-signal-gate.md** | self-healing / self-improving / auto-heal / learning-loop / MAPE / agentic-loop keywords | **No loop runs on an unverified signal.** Self-healing needs idempotent + reversible actions confirmed by a deterministic post-check; self-improving may learn only from verified ground truth — never its own output (model collapse / autophagy). If the signal isn't verified, the work is "fix the signal", not "build the loop" |
 
 ## Slash commands (`.claude/commands/*.md`)
 
-49 invokable commands. Most accept arguments after the slash command.
+52 invokable commands. Most accept arguments after the slash command.
+
+### Front-door seats (start here if you don't know which command you want)
+
+Three seats route a plain-language ask to the right verb below and add synthesis on top. They are **additive**: every verb they route to still works standalone and is still listed in its own section — a seat is a shortcut, never a gate. Personas + tool grants in the Agents section.
+
+| Command | What it does |
+|---|---|
+| `/athena "<what you're trying to do>"` | Knowledge seat — one door to your own vault. Picks the mode from your phrasing: `find` (`/recall`) · `relate` (`/vault-query`) · `tension` (`/find-tensions`) · `gather` (`/knowledge-consolidate`) · `connect` (`/graph-backfill`) · `remember` (`/save-feedback` · `/push-fact` · `/promote-rule`). Defaults to `find` — cheapest, and its hits tell you whether to go deeper. **Memory writes are proposed, never silent.** *Example: "where's my note on the migration rollout?" or "do my notes clash on the Q3 baseline?"* |
+| `/helios [morning\|evening\|weekly]` | Daily-cadence seat — the **morning brief** (default): what changed · today · owed & open · *"today in a sentence"* + the first thing to do. `evening` → `/eod-reflect`; `weekly` → `/weekly-checkin`. Offers `/refresh-todo`, never silently rewrites `TODO.md`. Calendar is optional + user-configured (read-scoped only). *Example: "what's my day?" at the start of a session.* |
+| `/hephaestus [tune-up\|health\|hygiene\|improve\|curate\|telemetry\|watch-review]` | Tune-up seat — the **tune-up** (default) runs the health + hygiene detectors and returns ONE prioritised broken / messy / could-improve report with the command to fix each, ending on the single highest-value fix. Single-mode asks delegate straight to the verb. **Surfaces + proposes; never auto-fixes.** *Example: "give the harness a tune-up" before a big run.* |
 
 ### Reporting + governance
 
@@ -214,7 +225,9 @@ The graph also feeds the notes themselves: `/graph-backfill` (final stage of the
 
 ## Agents (`.claude/agents/*.md`)
 
-Seven agents in two categories. **Review / synthesis subagents** are dispatched in parallel by parent skills for heavyweight tasks — each gets its own context window + minimum tool permissions. **Standing seats** are named functional roles invoked via their own slash command, steered across sessions by a persistent artefact (not parallel-review subagents, and not roleplay of your identity). Full capability + intent for each in `.claude/agents/README.md`.
+Ten agents in three categories. **Review / synthesis subagents** are dispatched in parallel by parent skills for heavyweight tasks — each gets its own context window + minimum tool permissions. **Standing seats** are named functional roles invoked via their own slash command, steered across sessions by a persistent artefact (not parallel-review subagents, and not roleplay of your identity). **Front-door seats** route a plain-language ask to the right existing verb and add synthesis on top. Full capability + intent for each in `.claude/agents/README.md`.
+
+**On the seat pattern:** a seat is *additive*. It never removes, hides, or demotes a command — every verb a seat routes to keeps working standalone and is still documented here as a first-class capability. The seat exists because remembering *which* of six commands to reach for is friction, and because a good seat produces something none of its verbs produce alone (one synthesised brief instead of three dumps). If you prefer the verbs, use the verbs.
 
 ### Review / synthesis subagents
 
@@ -233,18 +246,30 @@ Seven agents in two categories. **Review / synthesis subagents** are dispatched 
 | `prometheus` | Research seat — standing analyst; ledger of beats + newsletter email beat → cross-source-deduped, signal-ranked daily digest with content angles. Read + write-note only (writes only to `00-Inbox/_research/`). | `/prometheus` | Read, Write, WebSearch, WebFetch, Skill, Glob, Grep |
 | `calliope` | Writing seat — composes in your voice across modes (post / bulletin / tweet / email). **Drafts only, never sends.** | `/calliope` | Read, Write, Edit, Glob, Grep, Skill |
 
+### Front-door seats (one door to a cluster of verbs)
+
+Each pairs a slash command (the runnable front door, which has the shell) with an agent persona (the reasoning/prioritising half). **The command path is primary** — an isolated sub-agent whose `tools:` exclude `Bash` cannot execute a Bash-needing verb it dispatches via `Skill` (`Skill` loads instructions; it does not grant tools), so each persona is instructed to say so and defer rather than infer output it couldn't produce.
+
+| Seat | What it does | Invoked by | Tools |
+|---|---|---|---|
+| `athena` | Knowledge seat — one door to your own vault: find a note, see how things relate, catch where notes disagree, pull a topic together, or record to memory. Routes to `/recall` · `/vault-query` · `/find-tensions` · `/knowledge-consolidate` · `/graph-backfill` · `/save-feedback` · `/push-fact` · `/promote-rule`. **Memory writes are proposed, never silent.** | `/athena` | Read, Grep, Glob, Skill |
+| `helios` | Daily-cadence seat — a morning **brief** that synthesises what changed + what's on today + what's owed into one 30-second read, plus evening + weekly cadences. Routes to `/triage-inbox` · `/refresh-todo` · `/eod-reflect` · `/weekly-checkin`. Read + surface: it *offers* `/refresh-todo`, never silently rewrites `TODO.md`. Calendar is **optional and user-configured** (see the command). | `/helios` | Read, Grep, Glob, Skill |
+| `hephaestus` | Tune-up seat — runs the health + hygiene detectors and synthesises ONE prioritised broken / messy / could-improve report with the command to fix each. Routes to `/harness-doctor` · `/score-vault` · `/vault-lint` · `/harness-improve` · `/curate-skills` · `/telemetry-summary` · `/harness-watch-review`. **Surfaces + proposes; never auto-fixes.** | `/hephaestus` | Read, Grep, Glob, Skill |
+
 See `.claude/agents/README.md` for the dispatch pattern + per-seat capability and intent.
 
 ## Workflows (`.claude/workflows/*.js`)
 
-Multi-agent **workflows** — deterministic orchestration scripts run by the Claude Code `Workflow` tool. Where a subagent is one worker and a command is one prompted routine, a workflow is a *harness*: it fans work out across many subagents and converges, with control flow (loops, fan-out, verify gates) in code, not model discretion. Both shipped workflows share an **adversarial self-verification** shape — a finding survives only if independent skeptics can't refute it. Discovered by the runtime at session start and invoked by name (`Workflow({name})` / the slash command); run a just-added workflow by `scriptPath` until the next session start registers it. Full class notes in `.claude/workflows/README.md`.
+Multi-agent **workflows** — deterministic orchestration scripts run by the Claude Code `Workflow` tool. Where a subagent is one worker and a command is one prompted routine, a workflow is a *harness*: it fans work out across many subagents and converges, with control flow (loops, fan-out, verify gates) in code, not model discretion. All three shipped workflows share an **adversarial self-verification** shape — a finding survives only if independent skeptics can't refute it. Discovered by the runtime at session start and invoked by name (`Workflow({name})` / the slash command); run a just-added workflow by `scriptPath` until the next session start registers it. Full class notes in `.claude/workflows/README.md`.
 
 | Workflow | What it does |
 |---|---|
 | `/deep-research "<question>"` | Self-verifying deep research — decompose into search angles → parallel web search → fetch + extract falsifiable claims → 3-vote adversarial verify with a re-queue-until-zero loop (evidence-handling rejects re-researched against a live source) → cited synthesis. *Example: a multi-source factual question where you want claims fact-checked and sourced, not a single-pass summary.* |
 | `/devils-advocate "<decision>"` | Adversarial pre-mortem for a hard-to-reverse **non-code** decision. **Framing gate** (a misframed + costly-to-reverse decision is bounced back to be sharpened first) → hostile lenses (Key Assumptions Check · Pre-Mortem · adapted-adversary · disappointed-counterparty · conditional Analysis of Competing Hypotheses) run alongside one **steelman counterweight** (the strongest honest case *for* the decision, feeding synthesis only) → consolidate → 3-vote adversarial verify + **dissent-quota watch** (a load-bearing risk killed 3-0 is re-read, not silently dropped) → **grounding gate** (each surviving risk tagged grounded / plausible / invented, checked against memory + the authored vault) → kill / proceed-with-fixes / proceed verdict. Draft-only. *Example: before committing to a hire, a launch, a policy line, or a big bet you can't easily walk back.* |
 
-Both are **read + reason only** — no writes, sends, or posts; caller input and any fetched/vault content is treated as data, not instructions (ASI01/ASI06). Workflows spawn many subagents — intended for hard questions / high-stakes calls, not quick asks.
+| `/review [path]` | One-command secure-code review **pipeline**. Scope the path (auto-detecting LLM and agentic surface) → fan out only the applicable lenses **in parallel** (`secure-code-reviewer` always; `owasp-llm-reviewer` if LLM surface; `owasp-agentic-reviewer` if agentic surface) → merge + dedupe by `file:line:category` → **adversarially FP-check every non-passing finding** (2 independent skeptics re-read the cited line and try to refute; 2/2 "does not reproduce" withdraws it) → severity-ranked verified list, with `/safe-rebuild` candidates flagged for you to run. Compound value over running the five verbs by hand: parallel, auto-verified, and remediation surfaced. *Example: before merging a new hook, skill, or unattended runner.* |
+
+All three are **read + reason only** — no writes, sends, or posts; caller input and any fetched/vault content is treated as data, not instructions (ASI01/ASI06). Workflows spawn many subagents — intended for hard questions / high-stakes calls, not quick asks. `/review` never edits code: `/safe-rebuild` is surfaced as a human-gated next step, never auto-run.
 
 ## Capture pipeline (`capture-pipeline/`)
 
@@ -302,13 +327,13 @@ You invoke these directly.
 
 ## Test suite (`test-scenarios/`)
 
-16 LLM-behaviour scenarios + 26 deterministic checks. Run before any release and after any material change to rules / hooks / wizard.
+16 LLM-behaviour scenarios + 27 deterministic checks. Run before any release and after any material change to rules / hooks / wizard.
 
 | Component | What |
 |---|---|
 | `test-scenarios/README.md` | How to run, scoring, OSS-release bar |
 | `test-scenarios/01-..16-*.md` | 16 LLM-behaviour scenarios with verbatim prompts + pass/fail criteria (manual run in a fresh Claude Code session) |
-| `test-scenarios/run-deterministic-checks.py` | 25 automated checks: YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, closed-vocabulary, Cerberus engine + scan + SARIF, Louvain community detection, vault-graph HTML / query / wiki, multimodal extractors, vault-lint + tag-migrator, base-folder scaffold, workflows present + valid, TODO-freshness net, self-healing watch selftests, self-improving post-check |
+| `test-scenarios/run-deterministic-checks.py` | 27 automated checks: YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, closed-vocabulary, Cerberus engine + scan + SARIF, Louvain community detection, vault-graph HTML / query / wiki, multimodal extractors, vault-lint + tag-migrator, base-folder scaffold, workflows present + valid, TODO-freshness net, self-healing watch selftests, self-improving post-check, recall hybrid retrieval, seat routing integrity |
 | `test-scenarios/_results-template.md` | Per-run scoring template — copy as `_results-YYYY-MM-DD.md` |
 
 ```bash

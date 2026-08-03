@@ -1105,6 +1105,79 @@ def check_recall_smoke() -> CheckResult:
                        "matching note top-ranked; fused body+title BM25 works dependency-free")
 
 
+def check_seat_routing_integrity() -> CheckResult:
+    """Seat front doors (Athena / Helios / Hephaestus) must exist as a command +
+    paired agent, declare their tool grants, and — the real drift risk — every
+    slash-verb they route to must actually exist in THIS repo as a command or a
+    workflow. A seat that advertises a capability the repo does not ship is a dead
+    end for the user, and it is exactly what goes wrong when a seat is ported from
+    a richer private harness."""
+    name = "Seat routing integrity"
+    cmd_dir = REPO_ROOT / ".claude" / "commands"
+    agent_dir = REPO_ROOT / ".claude" / "agents"
+    wf_dir = REPO_ROOT / ".claude" / "workflows"
+
+    available = {p.stem for p in cmd_dir.glob("*.md")} | {p.stem for p in wf_dir.glob("*.js")}
+    findings: list[str] = []
+
+    def frontmatter(path: Path) -> str:
+        """The `---`-delimited frontmatter block only. Declaring a tool grant is a
+        FRONTMATTER fact; searching the whole file would match prose that merely
+        mentions `tools:` and silently pass a missing grant."""
+        text = path.read_text(encoding="utf-8")
+        if not text.startswith("---"):
+            return ""
+        end = text.find("\n---", 3)
+        return text[3:end] if end != -1 else ""
+
+    def declares(block: str, key: str) -> bool:
+        return any(ln.strip().startswith(key) for ln in block.splitlines())
+
+    seats = ("athena", "helios", "hephaestus")
+    for seat in seats:
+        cmd = cmd_dir / f"{seat}.md"
+        if not cmd.exists():
+            findings.append(f"missing seat command: .claude/commands/{seat}.md")
+            continue
+        if not declares(frontmatter(cmd), "allowed-tools:"):
+            findings.append(f"{seat}.md: no allowed-tools in frontmatter (tool minimisation)")
+        ag = agent_dir / f"{seat}.md"
+        if not ag.exists():
+            findings.append(f"missing seat agent: .claude/agents/{seat}.md")
+        elif not declares(frontmatter(ag), "tools:"):
+            findings.append(f"agents/{seat}.md: no tools: list in frontmatter")
+
+    # /review is a workflow, not a command — assert it by its own path.
+    if not (wf_dir / "review.js").exists():
+        findings.append("missing workflow: .claude/workflows/review.js")
+
+    # Dangling-verb scan: every backticked `/verb` must resolve in this repo.
+    span = re.compile(r"`([^`\n]+)`")
+    scan = [cmd_dir / f"{s}.md" for s in seats] + [agent_dir / f"{s}.md" for s in seats]
+    scan += [cmd_dir / "prometheus.md", agent_dir / "prometheus.md"]
+    for path in scan:
+        if not path.exists():
+            continue
+        for code in span.findall(path.read_text(encoding="utf-8")):
+            code = code.strip()
+            if not code.startswith("/"):
+                continue
+            verb = re.split(r"[ <)]", code[1:])[0].strip().rstrip(".,:;")
+            if not re.fullmatch(r"[a-z][a-z0-9-]*", verb or ""):
+                continue
+            if verb not in available:
+                findings.append(
+                    f"{path.relative_to(REPO_ROOT).as_posix()}: routes to /{verb} "
+                    f"which is not a command or workflow in this repo")
+
+    if findings:
+        return CheckResult(name, "FAIL", f"{len(findings)} seat integrity problem(s)",
+                           sorted(set(findings)))
+    return CheckResult(name, "PASS",
+                       f"3 seats + /review present; all routed verbs resolve "
+                       f"({len(available)} commands/workflows available)")
+
+
 # ---------- Output ----------
 
 CHECKS = [
@@ -1134,6 +1207,7 @@ CHECKS = [
     ("D24", check_harness_watch_selftests),
     ("D25", check_self_improving_postcheck),
     ("D26", check_recall_smoke),
+    ("D27", check_seat_routing_integrity),
 ]
 
 

@@ -34,13 +34,11 @@ MEMORY_DIR = memory_root()
 
 SEVERITY_WEIGHTS = {"CRITICAL": 10, "HIGH": 5, "MEDIUM": 2, "LOW": 1}
 VALID_MEMORY_TYPES = {"user", "feedback", "project", "reference"}
-REQUIRED_FRONTMATTER = ("name", "description", "type")
 
-# Memory cross-reference pattern: reference_*.md / feedback_*.md / project_*.md /
-# user_*.md. Lowercase + underscores by convention.
-MEMORY_REF_RE = re.compile(
-    r"\b((?:reference|feedback|project|user)_[a-z0-9_]+\.md)\b"
-)
+# Memory cross-reference: a real markdown-link TARGET, e.g. `](some_note.md)`.
+# Deliberately NOT a bare-filename pattern — matching any `*_*.md` mentioned in
+# prose flagged descriptive mentions as broken links and buried the real findings.
+MEMORY_LINK_RE = re.compile(r"\]\(([A-Za-z0-9_.\-]+\.md)\)")
 
 # Vault-relative path in backticks, leading two-digit folder prefix.
 VAULT_PATH_RE = re.compile(r"`([0-9]{2}-[A-Za-z0-9_-]+(?:/[A-Za-z0-9_./-]+)?)`")
@@ -155,12 +153,23 @@ def check_memory_frontmatter(findings):
                 Finding("MEDIUM", "frontmatter", f"'{f.name}' has no frontmatter block", f.name)
             )
             continue
-        for field in REQUIRED_FRONTMATTER:
+        # `name` and `description` are top-level by convention. `type`, however,
+        # has TWO accepted forms: a flat top-level `type:`, and the graph-aware
+        # nested form under a `metadata:` block (`metadata:` → `node_type` +
+        # `type`) — which is the shape Claude Code's own memory-writing format
+        # produces. Accept either, or every nested-convention file false-flags as
+        # "missing field: type". `[ \t]*` (not `\s*`) keeps the leading-whitespace
+        # match on one line.
+        for field in ("name", "description"):
             if not re.search(rf"^{field}:", fm, re.MULTILINE):
                 findings.append(
                     Finding("LOW", "frontmatter", f"'{f.name}' missing field: {field}", f.name)
                 )
-        m_type = re.search(r"^type:\s*(\S+)", fm, re.MULTILINE)
+        if not re.search(r"^[ \t]*type:", fm, re.MULTILINE):
+            findings.append(
+                Finding("LOW", "frontmatter", f"'{f.name}' missing field: type", f.name)
+            )
+        m_type = re.search(r"^[ \t]*type:\s*(\S+)", fm, re.MULTILINE)
         if m_type and m_type.group(1).strip().lower() not in VALID_MEMORY_TYPES:
             findings.append(
                 Finding(
@@ -172,16 +181,45 @@ def check_memory_frontmatter(findings):
             )
 
 
+CODE_FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
+INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
+
+
+def _strip_code_spans(text):
+    """Remove fenced blocks and inline-code spans.
+
+    A markdown link written INSIDE code formatting is documentation of a link,
+    not a link. Without this, a note that documents link syntax — e.g. one
+    explaining this detector, containing `](name.md)` as an example — false-flags
+    its own example text as a broken cross-ref. Fences first, so a ``` block
+    containing backticks can't leave stray inline pairs behind."""
+    return INLINE_CODE_RE.sub("", CODE_FENCE_RE.sub("", text))
+
+
 def check_memory_cross_refs(findings):
-    """Memory files reference each other by basename — verify targets exist."""
+    """Memory files link to each other by basename via markdown links [text](name.md);
+    a link whose target is absent is real drift (especially in the MEMORY.md index).
+
+    Only markdown-link targets in PROSE are checked. Three exclusions, each a
+    false-positive class this detector has actually produced in practice:
+      1. bare or backticked filename MENTIONS — descriptive, not navigational. A
+         note that discusses another note by name is not linking to it.
+      2. dangling [[wikilinks]] — allowed forward-refs; an unresolved wikilink to
+         a real-but-unwritten idea is a legitimate authoring pattern.
+      3. a full `](name.md)` construct inside inline code or a fenced block —
+         documentation of link syntax, not a link.
+    Skipping these matters more than it sounds: a hygiene scorer that opens with a
+    wall of phantom findings teaches you to ignore it, which costs you the real
+    ones later."""
     actual = {f.name for f in MEMORY_DIR.glob("*.md")}
 
     for f in MEMORY_DIR.glob("*.md"):
-        text = _read(f)
+        text = _strip_code_spans(_read(f))
         seen = set()
-        for match in MEMORY_REF_RE.finditer(text):
+        for match in MEMORY_LINK_RE.finditer(text):
             target = match.group(1)
-            if target in seen:
+            # Only basename cross-refs into the memory dir (skip pathed/relative links).
+            if "/" in target or target in seen:
                 continue
             seen.add(target)
             if target not in actual:

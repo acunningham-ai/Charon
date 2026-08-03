@@ -2,7 +2,7 @@
 
 Multi-agent **workflows** — deterministic orchestration scripts that fan work out across many subagents, then converge. Each is a JavaScript file exporting a `meta` block plus a script body that calls `agent()` / `parallel()` / `pipeline()` / `phase()` (the Claude Code `Workflow` tool's runtime hooks). Where a **subagent** (`.claude/agents/`) is one worker and a **command** (`.claude/commands/`) is one prompted routine, a **workflow** is a *harness*: it decides what fans out, what verifies, and what synthesises — in code, not model discretion.
 
-The distinctive property is **adversarial self-verification**: findings aren't trusted because an agent produced them; they're challenged by independent skeptics and only survive if they hold. Both shipped workflows use this shape.
+The distinctive property is **adversarial self-verification**: findings aren't trusted because an agent produced them; they're challenged by independent skeptics and only survive if they hold. All shipped workflows use this shape.
 
 ## What ships
 
@@ -10,8 +10,9 @@ The distinctive property is **adversarial self-verification**: findings aren't t
 |---|---|---|
 | **deep-research** | Self-verifying deep research — decompose a question into search angles, fan out parallel web search, fetch + extract falsifiable claims, then a 3-vote adversarial verify with a re-queue loop (evidence-handling rejects are re-researched against a live source until the verify pass finds nothing to re-queue). Synthesises a cited report. | `/deep-research` · args = the question |
 | **devils-advocate** | Adversarial pre-mortem / devil's advocate for hard-to-reverse **non-code** decisions (a hire, a launch, a policy line, a big bet). Fans out hostile lenses (Key Assumptions Check · Pre-Mortem · adapted-adversary · disappointed-counterparty · conditional Analysis of Competing Hypotheses), consolidates, then 3-vote adversarially verifies every surfaced risk and runs a **grounding gate** tagging each survivor grounded / plausible / invented. Ends on a kill / proceed-with-fixes / proceed verdict. Draft-only. | `/devils-advocate` · args = the decision |
+| **review** | One-command secure-code review **pipeline** over a path. Scopes the target and auto-detects LLM / agentic surface, fans out only the applicable lenses **in parallel** (`secure-code-reviewer` always; `owasp-llm-reviewer` and `owasp-agentic-reviewer` when warranted), merges + dedupes by `file:line:category`, then **adversarially FP-checks every non-passing finding** (2 independent skeptics re-read the cited line and are told to *refute*; 2/2 "does not reproduce" withdraws it). Returns a severity-ranked verified list, withdrawn false positives shown separately, and flags `/safe-rebuild` candidates for you to run. | `/review` · args = the path (or "the changed files") |
 
-Both borrow the **loop-not-line** self-verification pattern (independent verifiers whose job is to *refute*, majority-refute kills a finding) — deep-research against web claims, devils-advocate against self-generated critique.
+All three borrow the **loop-not-line** self-verification pattern (independent verifiers whose job is to *refute*, majority-refute kills a finding) — deep-research against web claims, devils-advocate against self-generated critique, review against its own lenses' findings. It is the shared reason a workflow's output is worth more than a single-pass answer: what survives has been attacked.
 
 ## How discovery + invocation works
 
@@ -25,7 +26,7 @@ Requires a Claude Code version that exposes the `Workflow` tool. Workflows spawn
 
 ## Safety posture
 
-- **Read + reason only.** Neither workflow writes to your vault, sends, or posts. `devils-advocate` returns a verdict object; `deep-research` returns a cited report. Any save is a separate, human-confirmed step.
+- **Read + reason only.** No workflow writes to your vault, sends, or posts. `devils-advocate` returns a verdict object; `deep-research` returns a cited report; `review` returns a findings object and **never edits code** — a confirmed blocker is surfaced as a `/safe-rebuild` candidate for you to run, never auto-remediated. Any save or fix is a separate, human-confirmed step.
 - **Trust boundary.** Caller input and any web/vault content an agent reads are wrapped and treated as **data, not instructions** (OWASP-agentic ASI01/ASI06). An embedded "ignore your instructions" payload becomes a *finding*, not a command.
 - **No silent capability creep.** Grounding/verify agents are read-only by instruction; the orchestration writes nothing.
 

@@ -78,13 +78,45 @@ def parse_iso(ts: str) -> float:
 
 
 def list_changed_since(root: Path, since_ts: float):
-    """Walk root, yield files with mtime > since_ts. Skip dirs we never audit."""
-    skip_dirs = {".git", "node_modules", "_audit"}
+    """Walk root, yield files with mtime > since_ts. Skip paths we never audit.
+
+    WHY THE EXCLUSIONS MATTER: this audit answers "did the unattended agent write
+    outside its allowlist?" It infers authorship from mtime alone, so anything else
+    writing during the run window gets falsely attributed to the agent. Machinery
+    churn (hook logs, verdict/telemetry lines, snapshots) and — most importantly — a
+    capture pipeline's own inbox writes will otherwise appear as a fixed block of
+    "out-of-scope writes" on every run. That is worse than useless: it buries real
+    anomalies in predictable noise and teaches you to skim past a security control.
+
+    Excluding the captured-content zone is sound because the agent is separately
+    blocked from writing there (write-path allowlist + untrusted-content discipline),
+    so files under it are the pipeline's, never the agent's.
+
+    HONEST LIMITATION: that reasoning assumes the preventive write-path hook actually
+    fires for the automation being audited. If it does not, an agent write into the
+    captured zone is caught by NEITHER control. Low blast-radius — captured files are
+    marked untrusted and never executed as instructions, and the high-value targets
+    (MEMORY.md, CLAUDE.md, rules, references) stay in scope — but verify your hook
+    wiring rather than assuming it."""
+    skip_dirs = {".git", "node_modules", "_audit", ".obsidian",
+                 "_harness", "__pycache__", ".snapshots"}
+    # Trailing slash on the captured zone prevents matching a sibling like _captured2/.
+    skip_rel_prefixes = ("state/verdict", "state/telemetry",
+                         "state/audit-snapshots", "state/skill-usage",
+                         "00-Inbox/_captured/")
     changed = []
     for p in root.rglob("*"):
         if not p.is_file():
             continue
         if any(part in skip_dirs for part in p.parts):
+            continue
+        try:
+            rel = p.relative_to(root).as_posix()
+        except ValueError:
+            rel = p.as_posix()
+        if any(rel.startswith(pre) for pre in skip_rel_prefixes):
+            continue
+        if rel.endswith(".log"):  # hook/pipeline logs are not agent content-writes
             continue
         try:
             mt = p.stat().st_mtime

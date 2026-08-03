@@ -8,6 +8,56 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.23.0] - 2026-08-03
+
+### Added — the seat tranche (front doors, not fences)
+
+Charon has grown to 52 commands. That is a lot of surface to hold in your head, and the honest problem is not that any command is wrong — it is that you have to know *which one* to reach for. This tranche adds **three named front-door seats plus a review pipeline** that take a plain-language ask and route it to the proven verb, then add something none of the underlying verbs produce alone.
+
+**Seats are additive. Nothing is removed, hidden, tiered, or demoted.** Every verb a seat routes to keeps working exactly as before and stays documented as a first-class capability. If you prefer the verbs, use the verbs.
+
+- **`/athena` — the knowledge seat (new capability).** One door to your own vault: *find* a note you half-remember (`/recall`), see how things *relate* (`/vault-query`), catch where your notes *contradict* each other (`/find-tensions`), *gather* a topic into a framework (`/knowledge-consolidate`), materialise graph *links* (`/graph-backfill`), or *remember* something (`/save-feedback` · `/push-fact` · `/promote-rule`). Defaults to the cheapest move (`find`) and escalates only if the hits warrant it; cites the note path behind every answer. **Memory writes are proposed, never silent** — you see the target file, the frontmatter, and the index line, and nothing lands without your yes. Retrieved content is treated as data, never as instructions.
+- **`/helios` — the daily-cadence seat (new capability).** A morning **brief** rather than three commands run in a row: what changed since the last brief, what's on today, what's owed and still open, then *"today in a sentence"* plus the single first thing to do. Evening and weekly delegate to `/eod-reflect` and `/weekly-checkin`. Read + surface: it **offers** `/refresh-todo`, it never silently rewrites `TODO.md`. **Calendar is optional and user-configured** — Charon ships no calendar integration, so the brief works without one and gets better if you wire your own *read-scoped* calendar MCP tool into the command and agent (instructions in the command). Both captured content **and** any fetched calendar data are treated as untrusted — anyone can put text in your inbox or on your calendar, so a crafted subject is something to report, never to act on.
+- **`/hephaestus` — the tune-up seat (new capability).** One prioritised maintenance report instead of six separate chores: runs the health and hygiene detectors (`/harness-doctor`, `/score-vault`, `/vault-lint`), names the headline improvement and curation opportunities, and returns a single **broken / messy / could-improve** list — most-impactful first, with the exact command to fix each, ending on the one highest-value fix. **Surfaces and proposes; never auto-fixes**, never archives, never rewrites. There is no auto-apply path: every fix is your deliberate step.
+- **`/review` — the security-review pipeline (new workflow).** Folds five verbs into one door and adds what running them by hand cannot: it scopes the target and auto-detects whether LLM and agentic surface are present, fans out **only the applicable lenses in parallel** (`secure-code-reviewer` always, plus `owasp-llm-reviewer` and `owasp-agentic-reviewer` as warranted), merges and dedupes by `file:line:category`, then **adversarially false-positive-checks every non-passing finding** — two independent skeptics re-read the cited line and are instructed to *refute*; 2/2 "does not reproduce" withdraws the finding. Returns a verified, severity-ranked list with withdrawn false positives shown separately, and flags `/safe-rebuild` candidates **for you to run** — it never edits code.
+- **Prometheus reaches past search (enhancement).** The research seat is now taught when to use the deep-read utilities: `/docs` before any library/API/version claim (so a version fact comes from live official docs, not training data), `/ingest` for a rich PDF/DOCX advisory that `WebFetch` cannot read, and `/webfetch` for a full clean read of a JS-heavy page. Prompt-only — **no tool grant changed**; Prometheus stays no-Bash by design, and the persona is explicit that these run in the command path and that it must say what it couldn't read rather than fabricate a document's contents.
+- **`clean-signal-gate` (new rule).** The governance rule behind every self-\* capability, keyword-gated: **no loop runs on an unverified signal.** Self-healing requires idempotent, reversible actions confirmed by a *deterministic* post-check; self-improving may learn only from verified ground truth, never from its own output (model collapse / data autophagy). Includes a clean-vs-dirty signal table — if the signal isn't verified, the work in front of you is "fix the signal", not "build the loop".
+
+### Fixed — two detectors that cried wolf
+
+Both of these made a control *less* trustworthy by generating findings that were never real. A tool that opens with a wall of phantom problems teaches you to skim past it, which costs you the genuine finding later — so these are correctness fixes, not polish.
+
+- **`score-vault.py` — three false-positive classes in the vault-hygiene scorer.**
+  1. **Nested frontmatter `type:` was read as missing.** The check matched only a flat top-level `type:`, but the graph-aware nested form (`metadata:` → `node_type` + `type`) is what Claude Code's own memory-writing format produces. Every nested-convention memory file was flagged "missing field: type". Both shapes are now accepted.
+  2. **Filenames merely *mentioned* in prose were reported as broken cross-references.** The old pattern matched any bare `reference_*.md` / `feedback_*.md` / `project_*.md` / `user_*.md` token anywhere in a file, so a note that *discussed* another note by name was treated as linking to it. Only real markdown-link targets (`](name.md)`) are checked now, and pathed links are skipped.
+  3. **A note documenting link syntax flagged its own examples.** A `](name.md)` written inside inline code or a fenced block is documentation of a link, not a link. Fenced blocks and inline-code spans are now stripped before matching (fences first, so a fence containing backticks can't leave stray inline pairs).
+  Dangling `[[wikilinks]]` remain deliberately unflagged — an unresolved wikilink to a real-but-unwritten idea is a legitimate authoring pattern, not drift. The now-unused `MEMORY_REF_RE` and `REQUIRED_FRONTMATTER` constants were removed rather than left as dead code.
+
+- **`audit-unattended-run.py` (C-5 post-run audit) — stopped blaming the agent for other processes' writes.** The audit infers authorship from file mtime alone, so *anything* writing inside the run window was attributed to the unattended agent. It now excludes machinery churn (verdict/telemetry/skill-usage state, snapshots, `.log` files, harness notes) and the captured-content zone — the agent is separately blocked from writing there, so files under it belong to the capture pipeline. Without this, every run reported the same fixed block of "out-of-scope writes"; verified on a fixture where 6 such files were correctly excluded while a genuine out-of-scope write and a high-sensitivity `MEMORY.md` change were both still caught. The docstring states the residual limitation plainly: the exclusion assumes your preventive write-path hook actually fires, so verify that wiring rather than assuming it.
+
+### Hardened by the review pass before shipping
+
+This tranche was put through `/review` itself (all three lenses fired). Verdict: **0 blocking.** Three findings survived adversarial verification and were fixed rather than annotated:
+
+- **Seat personas now declare no `Bash` at all.** Athena originally carried a bare `Bash` grant with a comment explaining that agent frontmatter cannot express the `Bash(python scripts/recall.py:*)` scope its command declares. The comment was accurate and still wasn't a control: the effective grant widened to whatever `settings.json` permits (`Bash(python scripts/*)` — every script in `scripts/`, including mutating ones), and no PreToolUse hook gates `Bash`. Three independent lenses flagged it. **An unscopeable grant is now removed rather than documented** — all three seats are `Read, Grep, Glob, Skill`, `find` mode's retrieval backend runs in the `/athena` command path, and the persona defers honestly if it cannot execute. Least privilege is now enforced by the grant, not by prose.
+- **`/review` no longer truncates silently.** Findings beyond the `MAX_VERIFY` cap were absent from every output array with no signal to the caller, so a truncated review was indistinguishable from a clean one. The cap now reports what it dropped in the log, in a new `unverifiedDropped` array, and in the summary line.
+- **`/review`'s verify prompt now fences untrusted input.** Finding fields are produced by a lens agent that read the target code, so they can carry attacker-influenced text. They are now wrapped in explicit `BEGIN/END UNTRUSTED FINDING` markers with an instruction to treat the contents as a claim to test and never as a directive.
+
+Two of these were pre-existing in the author's own harness rather than port defects, and were fixed in both trees.
+
+The review's *withdrawn* findings are worth noting as evidence the verify stage earns its cost: a flagged calendar-injection risk was withdrawn because the ported Helios ships **no calendar tool at all** — the finding described the private harness, not this code; a demanded credential-redaction was withdrawn as a provable no-op; and a token-budget finding was withdrawn for invoking a control that governs a different execution path.
+
+### Honest notes on the seat pattern
+
+- **Where the tools actually run.** Each seat is a command (which has the shell) paired with an agent persona (which reasons and prioritises). A sub-agent whose `tools:` exclude `Bash` **cannot** execute a Bash-needing verb it dispatches via `Skill` — `Skill` loads a command's instructions, it does not grant tools. Rather than widening the grants (which would let a read-only seat run *action* verbs' shell steps), each persona is instructed to report plainly that a detector couldn't run and defer to the command path. **No persona may present inferred or hand-simulated output as detector output.**
+- **Not validated on cold users.** The seat pattern is intended to reduce "which command do I reach for" friction. That claim is reasoned, not measured against new users — treat the seats as an additive convenience, not a proven onboarding fix.
+
+New deterministic check **D27** (`check_seat_routing_integrity`) asserts each seat exists as a command plus paired agent, declares its tool grant **in frontmatter** (not merely mentioning `tools:` in prose), and — the real drift risk when porting from a richer private harness — that **every slash-verb a seat routes to actually exists in this repo** as a command or workflow. Proven discriminating against three distinct regressions: a dangling verb reference, a missing frontmatter tool grant, and a deleted seat file.
+
+Docs: command count 49 → **52**, agents 7 → **10**, workflows 2 → **3**, path-conditioned rules 13 → **14**, deterministic checks 26 → **27** across README / CAPABILITIES / ROADMAP (this pass also corrected pre-existing drift where two README rows and one CAPABILITIES row still read 25). Deterministic suite **27/27** green; personal-content scrub (D5) clean. *Ported from the author's harness, proven there first, then genericised — per the local-first-then-Charon rule.*
+
+---
+
 ## [0.22.0] - 2026-07-29
 
 ### Added — retrieval + hygiene tranche
@@ -915,7 +965,10 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.23.0...HEAD
+[0.23.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.23.0
+[0.22.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.22.0
+[0.21.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.21.0
 [0.20.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.20.0
 [0.19.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.19.0
 [0.18.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.18.0
