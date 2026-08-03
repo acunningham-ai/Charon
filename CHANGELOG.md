@@ -8,6 +8,32 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.24.2] - 2026-08-04
+
+### Added — D29: public count claims are now checked against reality
+
+`test-scenarios/run-deterministic-checks.py` gains **D29 `check_public_counts_match_reality`**. It counts what the repo actually ships — commands, rules, hooks, agents, workflows, MCP servers, deterministic checks, behaviour scenarios — then reads every `N <noun>` claim in the public docs (README, CAPABILITIES, SECURITY, CONFIGURATION, INSTALL) and every published page under `docs/`, and fails on any number that does not match.
+
+Two design choices worth stating, because they are what stops it being noise:
+
+- **Acceptable values are a set, not a number.** README legitimately states rules as *4 always-fire* + *14 path-conditioned* as well as *18* total, so the check accepts the total and the real breakdown, and rejects everything else. Sub-counts are computed (`always: true` in frontmatter), not hardcoded.
+- **`CHANGELOG.md` and `ROADMAP.md` are out of scope on purpose.** A changelog *should* keep its historical numbers, and the roadmap quotes other projects' inventories — including both would guarantee false positives, and a check that cries wolf gets ignored.
+- **Hooks are counted from what `settings.json` wires**, not from files in `scripts/hooks/`. An unwired script is not a hook; a wired one nobody documented is precisely the drift being hunted.
+
+It also fails if it finds *zero* claims to inspect — a checker that silently stops matching would otherwise pass vacuously forever.
+
+### Fixed — three surfaces were undercounting hooks
+
+README, ROADMAP and the site all advertised **10 hooks** (ROADMAP: 11) while `.claude/settings.json` wires **12**. `poisoning-scan.py` (untrusted-capture screen) and `check-todo-freshness.py` were both live and both unlisted. Now 12 everywhere, with the two missing names spelled out.
+
+This one undersold rather than oversold, which is why it survived several releases unnoticed — nobody audits a number that flatters them less than the truth. D29 does not care about the direction of the error, which is the point.
+
+### Fixed — `CAPABILITIES.md` check count
+
+Was 28; now tracks the suite (29). Found by D29 the moment `CAPABILITIES.md` came into its scope, which is a reasonable first witness for the check earning its place.
+
+---
+
 ## [0.24.1] - 2026-08-04
 
 ### Fixed — the website was left behind by v0.24.0
@@ -1053,7 +1079,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.24.1...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.24.2...HEAD
+[0.24.2]: https://github.com/acunningham-ai/Charon/releases/tag/v0.24.2
 [0.24.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.24.1
 [0.24.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.24.0
 [0.23.2]: https://github.com/acunningham-ai/Charon/releases/tag/v0.23.2

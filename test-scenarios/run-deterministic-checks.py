@@ -1328,6 +1328,115 @@ def check_calendar_server_readonly() -> CheckResult:
                        "fails closed on scope escalation, token outside the vault")
 
 
+def _surface_inventory() -> "dict[str, set[int]]":
+    """Count what the repo ACTUALLY ships, per public-facing noun.
+
+    Returns noun -> set of acceptable claim values. A set, not a single number,
+    because some nouns legitimately appear as a breakdown as well as a total
+    (README lists rules as "4 always-fire" + "14 path-conditioned" = 18). Any
+    claim outside the set is drift."""
+    claude = REPO_ROOT / ".claude"
+
+    def _has_frontmatter_name(p: pathlib.Path) -> bool:
+        head = p.read_text(encoding="utf-8", errors="replace")
+        return bool(re.match(r"^---\s*\n(.*?\n)?name:\s*\S", head, re.S))
+
+    rules = sorted(claude.joinpath("rules").glob("*.md"))
+    always = [
+        p for p in rules
+        if re.search(r"^always:\s*true\s*$",
+                     (re.match(r"^---\s*\n(.*?)\n---",
+                               p.read_text(encoding="utf-8", errors="replace"),
+                               re.S) or type("m", (), {"group": lambda s, i: ""})()).group(1),
+                     re.M | re.I)
+    ]
+
+    # Hooks: what settings.json actually WIRES, not what sits in scripts/hooks/.
+    # An unwired script is not a hook; a wired one that nobody documented is the
+    # exact drift this check exists to catch.
+    hook_scripts: set = set()
+    settings = claude / "settings.json"
+    if settings.exists():
+        try:
+            data = json.loads(settings.read_text(encoding="utf-8"))
+            for groups in (data.get("hooks") or {}).values():
+                for group in groups:
+                    for hook in group.get("hooks", []):
+                        hook_scripts.update(
+                            re.findall(r"([A-Za-z0-9_.-]+\.py)", hook.get("command", "")))
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    agents = [p for p in sorted(claude.joinpath("agents").glob("*.md"))
+              if _has_frontmatter_name(p)]
+    scenarios = [p for p in (REPO_ROOT / "test-scenarios").glob("*.md")
+                 if re.match(r"^\d\d-", p.name)]
+
+    return {
+        "commands": {len(list(claude.joinpath("commands").glob("*.md")))},
+        "rules": {len(rules), len(always), len(rules) - len(always)},
+        "hooks": {len(hook_scripts)},
+        "agents": {len(agents)},
+        "workflows": {len(list(claude.joinpath("workflows").glob("*.js")))},
+        "MCP servers": {len(list(REPO_ROOT.joinpath("scripts", "mcp").glob("*.py")))},
+        "deterministic checks": {len(CHECKS)},
+        "behaviour scenarios": {len(scenarios)},
+    }
+
+
+def check_public_counts_match_reality() -> CheckResult:
+    """Public numeric claims must match what the repo actually ships.
+
+    The published site and the README state specific capability counts. Those
+    numbers are a promise to a reader who cannot verify them, so a stale one is
+    not cosmetic — it is a misleading claim. History earns this check: three
+    releases running, repo docs were reconciled at release time and
+    docs/index.html was left behind, and separately both surfaces said "10
+    hooks" while settings.json wired 12.
+
+    Scope is the surfaces a stranger reads: the top-level public docs plus every
+    published site page. CHANGELOG.md is excluded because it is a point-in-time
+    record and SHOULD keep its historical numbers; ROADMAP.md is excluded
+    because it quotes OTHER projects' inventories, which would be a guaranteed
+    false positive."""
+    name = "Public counts match reality"
+    inventory = _surface_inventory()
+    nouns = "|".join(re.escape(n) for n in inventory)
+    pattern = re.compile(r"(\d+)\s+(" + nouns + r")\b")
+
+    public_docs = ["README.md", "CAPABILITIES.md", "SECURITY.md",
+                   "CONFIGURATION.md", "INSTALL.md"]
+    targets = [REPO_ROOT / d for d in public_docs]
+    targets += sorted((REPO_ROOT / "docs").glob("*.html"))
+    findings: list[str] = []
+    checked = 0
+    for target in targets:
+        if not target.exists():
+            continue
+        for lineno, line in enumerate(
+                target.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            for claimed, noun in pattern.findall(line):
+                checked += 1
+                acceptable = inventory[noun]
+                if int(claimed) not in acceptable:
+                    findings.append(
+                        f"{target.name}:{lineno} claims {claimed} {noun}; "
+                        f"actual {'/'.join(str(v) for v in sorted(acceptable))}")
+
+    if not checked:
+        return CheckResult(name, "FAIL",
+                           "found NO count claims to verify — the regex or the "
+                           "docs changed shape; a check that inspects nothing passes "
+                           "vacuously, so this is a failure")
+    if findings:
+        return CheckResult(name, "FAIL",
+                           f"{len(findings)} stale public claim(s) of {checked}",
+                           sorted(set(findings)))
+    return CheckResult(name, "PASS",
+                       f"{checked} count claim(s) across {len(targets)} public "
+                       "doc/site page(s) match the shipped inventory")
+
+
 # ---------- Output ----------
 
 CHECKS = [
@@ -1359,6 +1468,7 @@ CHECKS = [
     ("D26", check_recall_smoke),
     ("D27", check_seat_routing_integrity),
     ("D28", check_calendar_server_readonly),
+    ("D29", check_public_counts_match_reality),
 ]
 
 
