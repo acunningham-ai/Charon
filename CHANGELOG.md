@@ -8,6 +8,18 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.23.2] - 2026-08-03
+
+### Fixed — a split memory index no longer reports its own files as orphans
+
+`score-vault.py`'s memory-index check only ever read `MEMORY.md`, so it never followed **sub-indexes**. `MEMORY.md` is loaded every session and therefore has a real size ceiling; the way to stay under it is to split a domain out into its own `*_index.md` and link that from `MEMORY.md`. Every file reachable only through such a sub-index was being reported as *"exists on disk but not in MEMORY.md"* — a false positive that arrives precisely when your vault has finally grown enough to need the split, i.e. exactly when you least want to be told your index is broken.
+
+Indexed now means **linked from `MEMORY.md`, or from any reachable `*_index.md` it links**. Anchored to `MEMORY.md` so only *reachable* sub-indexes count, and generic on the `_index.md` suffix so new ones work with no code change. Broken links declared directly in `MEMORY.md` still raise a finding, and a genuine orphan — reachable from nothing — is still caught; verified with a fixture covering direct links, the sub-index itself, a file reachable only via the sub-index, and a true orphan.
+
+This also makes the "is this file indexed?" question a single named function (`indexed_memory_names`) rather than logic inlined in one check, so a future real-time enforcer and this periodic detector cannot drift apart on the definition.
+
+---
+
 ## [0.23.1] - 2026-08-03
 
 ### Fixed — two detectors that reported a problem every day on a healthy vault
@@ -978,7 +990,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.23.1...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.23.2...HEAD
+[0.23.2]: https://github.com/acunningham-ai/Charon/releases/tag/v0.23.2
 [0.23.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.23.1
 [0.23.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.23.0
 [0.22.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.22.0

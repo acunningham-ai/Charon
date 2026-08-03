@@ -86,8 +86,52 @@ def _is_deprecated(path):
     return bool(re.search(r"^status:\s*deprecated\b", fm, re.MULTILINE))
 
 
+def _extract_memory_links(text):
+    """Basenames of memory-file markdown links [text](name.md) in `text`,
+    skipping external / URL-encoded / parent-traversal targets — those are
+    intentional cross-vault pointers, not memory-index entries."""
+    out = set()
+    for raw in re.findall(r"\]\(([^)]+\.md)\)", text):
+        if raw.startswith(("http://", "https://", "..", "%")):
+            continue
+        if "%20" in raw or raw.startswith("/"):
+            continue
+        out.add(Path(raw).name)
+    return out
+
+
+def ondisk_memory_names():
+    """Basenames of real memory files on disk (excludes MEMORY.md itself)."""
+    return {f.name for f in MEMORY_DIR.glob("*.md") if f.name != "MEMORY.md"}
+
+
+def indexed_memory_names(index_text=None):
+    """The set of memory basenames considered INDEXED: linked directly from
+    MEMORY.md, **or** from any reachable `*_index.md` SUB-INDEX it links.
+
+    SINGLE SOURCE OF TRUTH for "is this memory file indexed?".
+
+    Why sub-indexes matter: MEMORY.md is loaded every session, so it has a real
+    size ceiling. The way to stay under it is to split a domain out into its own
+    `*_index.md` and link that from MEMORY.md. A file reachable only through such
+    a sub-index is still indexed — treating it as an orphan is a false positive,
+    and it is the false positive you hit precisely when your vault has grown
+    enough to need the split. Anchored to MEMORY.md so only *reachable*
+    sub-indexes count; generic on the `*_index.md` suffix so new ones work with
+    no code change."""
+    if index_text is None:
+        index_text = _read(MEMORY_DIR / "MEMORY.md")
+    actual = ondisk_memory_names()
+    memory_links = _extract_memory_links(index_text)
+    indexed = set(memory_links)
+    for sub in {n for n in memory_links if n.endswith("_index.md") and n in actual}:
+        indexed |= _extract_memory_links(_read(MEMORY_DIR / sub))
+    return indexed
+
+
 def check_memory_index(findings):
-    """MEMORY.md links must resolve; non-deprecated memory files must be indexed."""
+    """MEMORY.md links must resolve; non-deprecated memory files must be indexed
+    (directly, or via a reachable `*_index.md` sub-index)."""
     index_path = MEMORY_DIR / "MEMORY.md"
     if not index_path.exists():
         findings.append(
@@ -96,15 +140,12 @@ def check_memory_index(findings):
         return
 
     text = _read(index_path)
-    linked = set()
-    for raw in re.findall(r"\]\(([^)]+\.md)\)", text):
-        if raw.startswith(("http://", "https://", "..", "%")):
-            continue
-        if "%20" in raw or raw.startswith("/"):
-            continue
-        linked.add(Path(raw).name)
-
-    actual = {f.name for f in MEMORY_DIR.glob("*.md") if f.name != "MEMORY.md"}
+    actual = ondisk_memory_names()
+    # Links declared DIRECTLY in MEMORY.md — used for the broken-link check below,
+    # since a dangling link in the index itself is MEMORY.md's problem.
+    linked = _extract_memory_links(text)
+    # Indexed = direct links PLUS anything reachable through a sub-index.
+    indexed_names = indexed_memory_names(text)
 
     for name in linked:
         if name not in actual:
@@ -120,13 +161,13 @@ def check_memory_index(findings):
     for name in actual:
         fpath = MEMORY_DIR / name
         deprecated = _is_deprecated(fpath)
-        indexed = name in linked
+        indexed = name in indexed_names
         if deprecated and indexed:
             findings.append(
                 Finding(
                     "MEDIUM",
                     "memory-index",
-                    f"'{name}' is marked deprecated but still linked from MEMORY.md",
+                    f"'{name}' is marked deprecated but still linked from the index",
                     name,
                 )
             )
@@ -135,7 +176,8 @@ def check_memory_index(findings):
                 Finding(
                     "MEDIUM",
                     "memory-index",
-                    f"'{name}' exists on disk but not in MEMORY.md (and not marked deprecated)",
+                    f"'{name}' exists on disk but is not reachable from MEMORY.md "
+                    f"(directly or via a sub-index) and is not marked deprecated",
                     name,
                 )
             )
