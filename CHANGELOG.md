@@ -8,6 +8,16 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.24.1] - 2026-08-04
+
+### Fixed — the website was left behind by v0.24.0
+
+The v0.24.0 release reconciled the counts in README / CAPABILITIES / ROADMAP but not in the published site, so `docs/index.html` went on telling the public **52 commands, 3 MCP servers, 27 deterministic checks** while the repo shipped 53, 4 and 28. Now corrected, and the data-layer card mentions the opt-in calendar reader alongside the three vault servers.
+
+This is worth recording rather than quietly patching, because it is the *same* failure as the two-release site lag fixed earlier: the repo docs get updated at release time and the site is treated as a follow-up. It isn't one. If a capability count changes, the site changed — a page that states specific numbers to the public is either right or it is misleading, and being right in `README.md` does not help a reader who is looking at the homepage.
+
+---
+
 ## [0.24.0] - 2026-08-04
 
 ### Added — a read-only calendar, and a meeting prep that pitches to the room
@@ -1043,7 +1053,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.24.0...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.24.1...HEAD
+[0.24.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.24.1
 [0.24.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.24.0
 [0.23.2]: https://github.com/acunningham-ai/Charon/releases/tag/v0.23.2
 [0.23.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.23.1
