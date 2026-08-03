@@ -8,6 +8,19 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.23.1] - 2026-08-03
+
+### Fixed — two detectors that reported a problem every day on a healthy vault
+
+Both were false positives *by construction* rather than bugs that fire occasionally. That distinction matters: a detector which cries wolf on a fixed schedule trains you to ignore it, so it costs you the real finding later.
+
+- **`harness-watch.py` — the TODO-freshness detector false-fired every afternoon.** It compared `TODO.md`'s **mtime** against a 6-hour threshold at the post-run check. But `TODO.md` is regenerated once each morning, so by roughly 14:00 local its mtime is *always* over threshold — the detector reported "the daily refresh may not have completed" on a vault where it had completed perfectly. It now reads the **`generated:` frontmatter date** and stays silent when that is today, consulting mtime only when no `generated:` line exists. This also brings the watch detector in line with the SessionStart `check-todo-freshness.py` hook, which already decided staleness this way — the two surfaces had disagreed. A stale `generated:` date still raises the finding, and a missing file still raises it regardless.
+- **`audit-unattended-run.py` — skill-curator's own report was billed to the agent.** The C-5 audit infers authorship from mtime, so if the skill-curator runs on a schedule that overlaps an unattended run, its deterministic analyser output lands inside that run's audit window and appears as an "out-of-scope write". `00-Inbox/_reports/skill-curator/` is now excluded. It needed its own entry rather than riding on the `_captured/` rule, because curator output is analyser output, not untrusted capture.
+
+Detector selftests were extended alongside both fixes — including negative cases asserting a stale `generated:` date and a missing file still fire, so the fix cannot silently become a blind spot. Deterministic suite **27/27** (D24 still proves 8/8 detectors fire-capable); no capability counts changed, so README/CAPABILITIES/ROADMAP and the website are unaffected.
+
+---
+
 ## [0.23.0] - 2026-08-03
 
 ### Added — the seat tranche (front doors, not fences)
@@ -965,7 +978,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.23.0...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.23.1...HEAD
+[0.23.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.23.1
 [0.23.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.23.0
 [0.22.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.22.0
 [0.21.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.21.0

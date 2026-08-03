@@ -101,9 +101,15 @@ def list_changed_since(root: Path, since_ts: float):
     skip_dirs = {".git", "node_modules", "_audit", ".obsidian",
                  "_harness", "__pycache__", ".snapshots"}
     # Trailing slash on the captured zone prevents matching a sibling like _captured2/.
+    # `_reports/skill-curator/` is the skill-curator's own deterministic analyser
+    # output. If it runs on a schedule that can overlap an unattended run, its
+    # report lands in that run's audit window and gets billed to the agent — a
+    # standing false positive. Not `_captured/` by design (it is analyser output,
+    # not untrusted capture), so it needs its own entry.
     skip_rel_prefixes = ("state/verdict", "state/telemetry",
                          "state/audit-snapshots", "state/skill-usage",
-                         "00-Inbox/_captured/")
+                         "00-Inbox/_captured/",
+                         "00-Inbox/_reports/skill-curator/")
     changed = []
     for p in root.rglob("*"):
         if not p.is_file():

@@ -198,7 +198,8 @@ def check_todo_freshness(phase: str) -> Optional[dict]:
     path = vault_path("TODO.md")
     age = _mtime_age(path)
     age_hours = None if age is None else age.total_seconds() / 3600
-    return _judge_todo_age(age_hours, path.name)  # basename only — path not logged to the synced audit
+    # basename only — path not logged to the synced audit
+    return _judge_todo_age(age_hours, path.name, generated=_todo_generated_date(path))
 
 
 def check_error_log_recent() -> Optional[dict]:
@@ -471,14 +472,39 @@ def _judge_capture_age(age_hours, path_str):
     return None
 
 
-def _judge_todo_age(age_hours, path_str):
+def _todo_generated_date(path) -> Optional[str]:
+    """The `generated:` date (YYYY-MM-DD) from TODO.md frontmatter, or None.
+
+    CONTENT beats MTIME. A daily-refreshed TODO.md is several hours stale by every
+    afternoon, so an mtime-only test false-fires every day regardless of health.
+    The `generated:` line states when the content was actually produced — which is
+    already how the SessionStart `check-todo-freshness.py` hook decides staleness;
+    this brings the watch detector in line with it."""
+    try:
+        head = path.read_text(encoding="utf-8", errors="replace")[:2048]
+    except Exception:
+        return None
+    m = re.search(r"^generated:\s*(\d{4}-\d{2}-\d{2})", head, re.MULTILINE)
+    return m.group(1) if m else None
+
+
+def _judge_todo_age(age_hours, path_str, generated=None):
+    """Pure judge. mtime is the WEAKER signal and is only consulted when the
+    authoritative one (a same-day `generated:` date) is absent — otherwise this
+    detector reports a problem every afternoon on a perfectly healthy vault."""
     if age_hours is None:
         return {"rule": "todo-missing", "declared": "ask",
                 "reason": "TODO.md not found at expected path", "context": {"path": path_str}}
+    if generated == datetime.now().strftime("%Y-%m-%d"):
+        return None
     if age_hours > TODO_STALE_HOURS:
+        why = (f"`generated:` says {generated}, not today" if generated
+               else "no `generated:` date found in TODO.md")
         return {"rule": "todo-not-refreshed", "declared": "ask",
-                "reason": f"TODO.md mtime is {age_hours:.1f} hours old at post-run check (threshold {TODO_STALE_HOURS}h) — the daily refresh may not have completed",
-                "context": {"age_hours": round(age_hours, 1), "threshold_hours": TODO_STALE_HOURS}}
+                "reason": (f"TODO.md looks stale: mtime {age_hours:.1f}h (threshold "
+                           f"{TODO_STALE_HOURS}h) AND {why} — the daily refresh may not have completed"),
+                "context": {"age_hours": round(age_hours, 1), "threshold_hours": TODO_STALE_HOURS,
+                            "generated": generated}}
     return None
 
 
@@ -631,7 +657,19 @@ def _selftest_capture() -> bool:
 
 
 def _selftest_todo() -> bool:
-    return _judge_todo_age(12, "x") is not None and _judge_todo_age(1, "x") is None
+    today = datetime.now().strftime("%Y-%m-%d")
+    return (
+        # stale mtime, no corroborating freshness signal -> fires
+        _judge_todo_age(12, "x") is not None
+        # fresh mtime -> silent
+        and _judge_todo_age(1, "x") is None
+        # a same-day `generated:` date beats a stale mtime (the daily false positive)
+        and _judge_todo_age(12, "x", generated=today) is None
+        # a stale `generated:` date must NOT suppress the finding
+        and _judge_todo_age(12, "x", generated="2000-01-01") is not None
+        # missing file still fires regardless
+        and _judge_todo_age(None, "x", generated=today) is not None
+    )
 
 
 def _selftest_error_log() -> bool:
