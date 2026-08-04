@@ -34,13 +34,13 @@ Where Charon is going. Status, rationale, and what isn't on the list.
 - ✅ **Content-graph hygiene lint + workflow tools** (`v0.14.0`, 2026-07-01). `/vault-lint` (broken authored links + tag-taxonomy drift, read-only worklist) + `scripts/migrate-tags.py` (faceted-tag migrator, dry-run by default) + a user-owned faceted `07-References/tag-taxonomy.md` template (the engine reads it; ships no values). Plus `/brainstorm` (divergent→convergent idea generation) and `/systematic-debug` (hypothesis→test→eliminate). Guarded by a new D20 deterministic check; also fixed a latent D2 (the `_poisoning.py` standalone-hook allowlist, unflagged since v0.12.0). Ports proven in the author's harness first, then genericised.
 - ✅ **KEV/CVE triage beat** (`v0.13.0`, 2026-06-30). Optional Prometheus pre-step (`scripts/kev-fetch.py`) — fetches the CISA Known-Exploited-Vulnerabilities catalogue, scores recent additions (recency × ransomware × due-date × broadly-deployed-vendor lens; no CVSS — KEV-only), writes a prioritised shortlist to `00-Inbox/_research/` for the digest's bulletin-worthy line. Vendor lens tunable via `--vendors`. Pattern borrowed from hoodinformatik/OpenThreat (AGPL not vendored). Layer 1 (digest-only); bulletin drafting stays human-gated
 - ✅ **Runtime prompt-injection / poisoning detector** (`v0.12.0`, 2026-06-29). `UserPromptSubmit` hook (`poisoning-scan.py` + `_poisoning.py`) flags instruction-shaped attacks — override / role-switch / exfiltration / tool-coax / secret-solicit / encoded / special-token — at the choke point where untrusted pasted/fetched content enters. Hardened against confusable-homoglyph + base64/hex-encoded evasion. Observe-only (logs a verdict, never blocks). Closes the *runtime input* surface that the C-1..C-8 baseline (unattended runs) and the on-demand review skills don't cover. Patterns borrowed from microsoft/agent-governance-toolkit + sharma-open-source/opensentry (MIT)
-- ✅ 4 MCP servers (1 opt-in) (vault-readonly, vault-ops, vault-graph)
+- ✅ 4 MCP servers (1 opt-in) (vault-readonly, vault-ops, vault-graph, calendar)
 - ✅ 53 slash commands across reporting / security / the research→compose pipeline / retrieval (`/recall`, `/find-tensions`) / thinking (`/grill`, `/handoff`) / workflow / hygiene + the Cerberus suite
 - ✅ Security baseline framework (C-1..C-8)
 - ✅ OWASP LLM01-LLM10 + ASI01-ASI10 review skills + `/fp-check` false-positive verification gate
 - ✅ First-run wizard (`scripts/first-run.py`) — YAML-defined questions, 5 phases, 39 questions (~25 always-asked + conditional), state-file resume, atomic write
 - ✅ Bootstrap installers (`install.ps1` / `install.sh`) with auto/manual/skip per prereq
-- ✅ Test suite — 16 LLM-behaviour scenarios + 28 automated deterministic checks
+- ✅ Test suite — 16 LLM-behaviour scenarios + 29 automated deterministic checks
 - ✅ ASCII trademark logo banner with auto-detect by terminal width
 - ✅ **Local semantic search** — sentence-transformers + bge-micro-v2 (~80MB) + sqlite-vec; `semantic_search` MCP tool in `vault-readonly`; on-demand indexer at `scripts/semantic_index.py`
 - ✅ **Knowledge graph** — networkx-backed `vault-graph` MCP server (read-only) with `get_entity` / `stats` tools; Haiku-driven extraction at `scripts/extract_entities.py`; closed entity-type + relationship-type vocabulary (C-3.1)
@@ -71,7 +71,7 @@ Every layer here is prose. Options worth weighing: a lint that flags long verbat
 
 ### 🚧 R6: Internal-cohort validation
 
-Run the LLM-behaviour scenarios (`test-scenarios/01..10-*.md`) in a **fresh Claude Code session** on a populated install. Open question: who counts as "internals"? Currently undefined — likely some mix of trusted peer CISOs + a clean parallel install of Charon by the author. Target: 9/10 scenarios PASS minimum.
+Run the LLM-behaviour scenarios (`test-scenarios/01..16-*.md`) in a **fresh Claude Code session** on a populated install. Open question: who counts as "internals"? Currently undefined — likely some mix of trusted peer CISOs + a clean parallel install of Charon by the author. Target: 15/16 scenarios PASS minimum.
 
 ### ✅ R7: Gate 2 git-history credential scrub — DONE (2026-06-09)
 
