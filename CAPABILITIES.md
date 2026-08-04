@@ -348,7 +348,7 @@ You invoke these directly.
 
 ## Test suite (`test-scenarios/`)
 
-16 LLM-behaviour scenarios + 29 deterministic checks. Run before any release and after any material change to rules / hooks / wizard.
+16 LLM-behaviour scenarios + 30 deterministic checks. Run before any release and after any material change to rules / hooks / wizard.
 
 | Component | What |
 |---|---|

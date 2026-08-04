@@ -1,0 +1,35 @@
+# Line endings are a correctness concern here, not a style preference.
+#
+# WHY THIS FILE EXISTS: with no .gitattributes, the working-tree line endings of
+# a clone are decided by each user's `core.autocrlf`. On Git for Windows that
+# defaults to `true`, so a fresh clone rewrote every LF to CRLF — and the
+# Workflow tool refuses a script containing control characters, which CR
+# (U+000D) is. The result was that all three `.claude/workflows/*.js` scripts
+# were rejected at launch on the most common platform, while the committed blobs
+# were clean LF and every check passed. The repo looked correct and the
+# capability was dead on arrival.
+#
+# `eol=lf` below is authoritative and overrides core.autocrlf, so the working
+# tree matches the blob on every platform.
+#
+# EXISTING CLONES do not self-heal: git only rewrites files it checks out. After
+# pulling this, run `git add --renormalize . && git checkout -- .` (or simply
+# re-clone) if any working file still has CRLF. Guarded by deterministic check
+# D30, which fails on a CR in any file the Workflow tool parses.
+
+# Default: treat as text, detect binary automatically, and check out as LF.
+* text=auto eol=lf
+
+# Windows batch is the one exception. cmd.exe's parser can mis-handle labels and
+# goto targets with bare LF, so these stay CRLF on purpose.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Load-bearing: the Workflow tool rejects any script containing a control
+# character, and CR is one. Stated explicitly so the intent survives an edit to
+# the wildcard above.
+*.js text eol=lf
+*.mjs text eol=lf
+
+# Shell scripts must be LF or the shebang line breaks with a trailing CR.
+*.sh text eol=lf

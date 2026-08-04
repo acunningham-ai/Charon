@@ -8,6 +8,41 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.25.0] - 2026-08-04
+
+A minor bump rather than a fourth patch, deliberately: **every workflow was unlaunchable on Windows**, and burying that as `v0.24.4` would understate a release existing users need to take.
+
+### Fixed — all three workflows were dead on arrival on Windows (CRLF)
+
+`/review`, `/deep-research` and `/devils-advocate` could not launch from a fresh clone on Windows. The `Workflow` tool refuses a script containing control characters, and **CR (U+000D) is one**.
+
+The repo was not at fault in any way a normal check would see — the committed blobs were clean LF and stayed clean. The damage happened at **checkout**: with no `.gitattributes`, working-tree line endings are decided by each user's `core.autocrlf`, which defaults to `true` on Git for Windows. A fresh clone rewrote every LF to CRLF, and every workflow script became unlaunchable. Verified by cloning the public repo with `-c core.autocrlf=true`: **3 of 3 workflow scripts came down as CRLF.**
+
+This is the failure mode worth dwelling on. Every gate was green. The blob was right, the syntax was right, `node --check` passed, D22 confirmed the workflows were present and valid, and the capability was still broken for most users. Checking the artifact you committed says nothing about the artifact your user receives.
+
+**The fix is two-part, because either half alone is insufficient:**
+
+- **`.gitattributes`** pins `eol=lf` (authoritative over `core.autocrlf`), with `*.bat`/`*.cmd` kept CRLF on purpose — cmd.exe's parser can mis-handle labels and `goto` targets with bare LF.
+- **D30 `check_workflow_scripts_launchable`** fails on any control character in a workflow script *and* on a missing `eol=lf` pin. Cleaning the files without the pin would let the next checkout undo it; adding the pin without cleaning would leave existing clones broken. It reads the **working tree**, not the blob — reading the blob is precisely what would have missed this. It also fails if it finds no scripts at all, so it cannot pass vacuously.
+
+Negative-tested both ways: seeding 5 CRLF into `deep-research.js` fails it, and stripping the `eol=lf` directives fails it. The pin check ignores comments, because `.gitattributes` explains the CRLF problem at length and matching the explanation instead of the directive is the same false-positive class already fixed in `score-vault.py` and D28.
+
+**Existing clones do not self-heal** — git only rewrites files it checks out. After pulling, run `git add --renormalize . && git checkout -- .`, or re-clone.
+
+### The same bug reappeared in the commit that fixed it
+
+Worth recording rather than tidying away. The first attempt at this release put **CRLF into `CHANGELOG.md`** — because Python's `write_text` translates `\n` to `os.linesep` on Windows, and the release notes are written with a script. D30 passed it, because D30 as first written only inspected `.claude/workflows/*.js`.
+
+So the guard scoped to the three files that had already broken would have shipped a fresh instance of the same defect in the same commit. D30 now sweeps **every tracked text file** in the working tree for CR, not just the workflows. The authoring tooling reintroduces CR by default; a control that only watches the place it last went wrong is not a control.
+
+Two follow-on notes: `git ls-files --eol` reported the index as clean while the committed blob genuinely contained 1,181 CR bytes — it reports attribute intent, so `git cat-file` is the authority. And piping `git show` into a reader can itself translate line endings, so the measurement has to go to a file first.
+
+**How it was found:** `/review` failed to launch with *"script contains control characters."* The file had no character in any invisible Unicode category — because the scan excluded `	
+
+` as legitimate, which whitelisted the culprit. `devils-advocate.js` launching fine while `review.js` did not isolated it to a per-file property rather than the tool; raw-byte inspection then showed `review.js` was CRLF and the other two were LF. `read_text()` had hidden it throughout: universal-newline translation silently converts CRLF to LF, so every earlier measurement of line endings was invalid.
+
+---
+
 ## [0.24.3] - 2026-08-04
 
 ### Added — publishing is deterministic instead of hand-forced
@@ -1104,7 +1139,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.24.3...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.25.0...HEAD
+[0.25.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.25.0
 [0.24.3]: https://github.com/acunningham-ai/Charon/releases/tag/v0.24.3
 [0.24.2]: https://github.com/acunningham-ai/Charon/releases/tag/v0.24.2
 [0.24.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.24.1

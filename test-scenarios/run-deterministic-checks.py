@@ -1437,6 +1437,105 @@ def check_public_counts_match_reality() -> CheckResult:
                        "doc/site page(s) match the shipped inventory")
 
 
+def check_workflow_scripts_launchable() -> CheckResult:
+    """Workflow scripts must contain no control characters, and stay that way.
+
+    The `Workflow` tool refuses to run a script containing control characters —
+    and CR (U+000D) is one. With no `.gitattributes`, working-tree line endings
+    are decided by each user's `core.autocrlf`, which defaults to `true` on Git
+    for Windows. A fresh Windows clone therefore rewrote every LF to CRLF and
+    **all three workflows became unlaunchable**, while the committed blobs stayed
+    clean LF and every other check passed. The repo looked correct and a headline
+    capability was dead on arrival on the most common platform.
+
+    So this asserts both halves, because either alone is insufficient: the files
+    are clean *now*, and `.gitattributes` pins `eol=lf` so a checkout cannot
+    reintroduce CR. Reading the blob instead of the working tree would miss the
+    bug entirely — the defect only ever existed in the working tree."""
+    name = "Workflow scripts launchable"
+    findings: list[str] = []
+
+    wf_dir = REPO_ROOT / ".claude" / "workflows"
+    scripts = sorted(wf_dir.glob("*.js")) if wf_dir.is_dir() else []
+    if not scripts:
+        return CheckResult(name, "FAIL",
+                           "no .claude/workflows/*.js found — D22 covers presence, but a "
+                           "check that inspects nothing must not pass vacuously")
+
+    for p in scripts:
+        raw = p.read_bytes()
+        # Tab and LF are the only control characters legitimately in source.
+        bad = {b for b in raw if b < 0x20 and b not in (0x09, 0x0A)}
+        if bad:
+            names = ", ".join(
+                f"U+{b:04X}" + (" (CR — carriage return)" if b == 0x0D else "")
+                for b in sorted(bad))
+            findings.append(
+                f"{p.name}: contains control character(s) {names} — the Workflow "
+                f"tool will refuse to launch it ({raw.count(bytes([0x0D]))} CR byte(s))")
+
+    # The pin. Without it the files above get rewritten at the next checkout.
+    attrs = REPO_ROOT / ".gitattributes"
+    if not attrs.exists():
+        findings.append(
+            ".gitattributes is missing — without it core.autocrlf decides working-tree "
+            "line endings per machine, and a Windows clone reintroduces CR into every "
+            "workflow script")
+    else:
+        text = attrs.read_text(encoding="utf-8", errors="replace")
+        # Ignore comments: this file explains the CRLF problem at length, and matching
+        # the explanation instead of the directive is the same false-positive class
+        # already fixed in score-vault.py and D28.
+        directives = [ln.strip() for ln in text.splitlines()
+                      if ln.strip() and not ln.lstrip().startswith("#")]
+        js_pinned = any(
+            re.search(r"(^\*(\.js)?|\*\.js)\s.*\beol=lf\b", d) for d in directives)
+        if not js_pinned:
+            findings.append(
+                ".gitattributes exists but does not pin .js to eol=lf — a checkout on a "
+                "machine with core.autocrlf=true would put CR back into the workflow "
+                f"scripts (directives seen: {directives or 'none'})")
+
+    # Repo-wide CR sweep. Scoped wider than the workflows on purpose: within
+    # minutes of adding the pin, this very check suite's own release commit put
+    # CRLF into CHANGELOG.md, because Python's `write_text` emits os.linesep on
+    # Windows. A guard covering only the three files that had already broken
+    # would have passed that commit. The tooling that authors this repo
+    # reintroduces CR by default, so the sweep has to be the whole tree.
+    TEXT_SUFFIXES = {".js", ".mjs", ".py", ".sh", ".md", ".html", ".css", ".json",
+                     ".yaml", ".yml", ".toml", ".txt", ".csv", ".yara", ".ps1"}
+    CRLF_BY_DESIGN = {".bat", ".cmd"}   # cmd.exe label/goto parsing
+    dirty: list[str] = []
+    for p in REPO_ROOT.rglob("*"):
+        if not p.is_file():
+            continue
+        parts = set(p.parts)
+        if ".git" in parts or "node_modules" in parts or "__pycache__" in parts:
+            continue
+        if p.suffix in CRLF_BY_DESIGN or p.suffix not in TEXT_SUFFIXES:
+            continue
+        try:
+            if b"\r" in p.read_bytes():
+                dirty.append(str(p.relative_to(REPO_ROOT)).replace("\\", "/"))
+        except OSError:
+            continue
+    if dirty:
+        shown = ", ".join(sorted(dirty)[:8])
+        more = f" (+{len(dirty) - 8} more)" if len(dirty) > 8 else ""
+        findings.append(
+            f"{len(dirty)} tracked text file(s) contain CR despite .gitattributes "
+            f"declaring eol=lf: {shown}{more} — harmless in prose, but it means the "
+            "authoring tool is emitting CRLF, and the next such file to be a workflow "
+            "script or a shell script breaks")
+
+    if findings:
+        return CheckResult(name, "FAIL", f"{len(findings)} problem(s)", sorted(set(findings)))
+    return CheckResult(name, "PASS",
+                       f"{len(scripts)} workflow script(s) free of control characters, "
+                       ".gitattributes pins .js to eol=lf, and no tracked text file in "
+                       "the tree carries CR")
+
+
 # ---------- Output ----------
 
 CHECKS = [
@@ -1469,6 +1568,7 @@ CHECKS = [
     ("D27", check_seat_routing_integrity),
     ("D28", check_calendar_server_readonly),
     ("D29", check_public_counts_match_reality),
+    ("D30", check_workflow_scripts_launchable),
 ]
 
 
