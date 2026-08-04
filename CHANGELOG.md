@@ -8,6 +8,31 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.24.3] - 2026-08-04
+
+### Added — publishing is deterministic instead of hand-forced
+
+`.github/workflows/deploy-pages.yml`: checkout → verify `docs/index.html` exists → configure-pages → upload `docs/` → deploy-pages. A push touching the site is now a deploy, and a failed deploy is a red run rather than silence. `workflow_dispatch` replaces the old habit of forcing a build through the API.
+
+Legacy branch-based Pages (`main:/docs`) auto-published on **1 of 4** releases: v0.23.0 ✗, v0.24.0 ✗, v0.24.1 ✗, v0.24.2 ✓. Every failure looked like a success from the repo side — green push, tag on the remote, live site quietly serving an older commit. **Intermittent is worse than broken:** a consistent failure gets a step built around it; a 1-in-4 success trains you to assume it worked.
+
+Deliberate choices:
+
+- **Does not run `site/build.mjs`.** Generated pages are committed and `docs/index.html` is hand-maintained (`build.mjs` prints *"index.html left standalone"*), so building in CI could overwrite the homepage on every deploy. The artifact is the committed `docs/` tree exactly as reviewed.
+- **Actions pinned to full commit SHAs, not tags** — a tag is mutable, a SHA is not. Version numbers were resolved from the GitHub API rather than recalled; the recalled majors were stale (`actions/checkout` is v7, not v4).
+- **Refuses to publish without `docs/index.html`** — a deploy must not be able to succeed while serving an empty site.
+- **`cancel-in-progress: false`** — cancelling a Pages deploy mid-flight can leave the site half-published.
+
+Verified end-to-end: `workflow_dispatch` run green, deployment recorded at HEAD, all 10 site pages returning 200 with the corrected counts. **Limits:** the `on: push` trigger shares the same job but is unexercised until the next `docs/` change, and nothing gates deploy on the check suite yet.
+
+Requires the repo's Pages source set to **GitHub Actions** (`build_type=workflow`). Rollback if needed: set it back to `legacy` with source `main` / `/docs`; the published site stays up throughout either switch.
+
+### Fixed — ROADMAP undercounted path-conditioned rules
+
+Said 13; there are 14. Found by hand while editing the file — `ROADMAP.md` is deliberately outside D29's scope because it quotes other projects' inventories, so this class of drift stays manual here. Worth stating plainly rather than fixing quietly: the check does not cover everything, and pretending otherwise would be its own kind of stale claim.
+
+---
+
 ## [0.24.2] - 2026-08-04
 
 ### Added — D29: public count claims are now checked against reality
@@ -1079,7 +1104,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.24.2...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.24.3...HEAD
+[0.24.3]: https://github.com/acunningham-ai/Charon/releases/tag/v0.24.3
 [0.24.2]: https://github.com/acunningham-ai/Charon/releases/tag/v0.24.2
 [0.24.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.24.1
 [0.24.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.24.0
