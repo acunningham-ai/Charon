@@ -23,7 +23,7 @@ Deliberate choices:
 - **Refuses to publish without `docs/index.html`** — a deploy must not be able to succeed while serving an empty site.
 - **`cancel-in-progress: false`** — cancelling a Pages deploy mid-flight can leave the site half-published.
 
-Verified end-to-end: `workflow_dispatch` run green, deployment recorded at HEAD, all 10 site pages returning 200 with the corrected counts. **Limits:** the `on: push` trigger shares the same job but is unexercised until the next `docs/` change, and nothing gates deploy on the check suite yet.
+Verified in both directions rather than assumed: the `on: push` trigger **fired** on a commit touching the watched paths and correctly **did not fire** on a commit that changed no site file; the `workflow_dispatch` run went green with the deployment recorded at HEAD and all 10 site pages returning 200 with the corrected counts. So the trigger is proven to fire and the job is proven to deploy — what remains untested is only the two together, since the one push that matched the filter ran while Pages was still in legacy mode. **Real limit:** nothing gates deploy on the check suite yet, so a push that skipped the local gates could still publish.
 
 Requires the repo's Pages source set to **GitHub Actions** (`build_type=workflow`). Rollback if needed: set it back to `legacy` with source `main` / `/docs`; the published site stays up throughout either switch.
 
