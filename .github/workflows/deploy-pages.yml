@@ -1,0 +1,73 @@
+# Publish the site in docs/ to GitHub Pages.
+#
+# WHY THIS EXISTS: the repo previously used legacy branch-based Pages
+# (main:/docs). On three consecutive releases — v0.23.0, v0.24.0, v0.24.1 — the
+# push landed cleanly and the implicit pages-build-deployment never fired, so the
+# live site kept serving an older commit while the repo looked correct. Every
+# release then needed a manual `gh api -X POST .../pages/builds` to force it.
+# That is a documented manual gap, not a control. This workflow makes publishing
+# deterministic: a push that touches the site IS a deploy, and a failed deploy is
+# a visibly red run instead of silence.
+#
+# WHAT IT DOES NOT DO: it does not run site/build.mjs. The generated pages are
+# committed, and docs/index.html is hand-maintained (build.mjs prints "index.html
+# left standalone"). Building here would risk overwriting the homepage on every
+# deploy. The artifact is the committed docs/ tree exactly as reviewed.
+#
+# Third-party actions are pinned to full commit SHAs, not tags. A tag is mutable;
+# a SHA is not. Version comments are for humans — update both together.
+
+name: Deploy site to Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - ".github/workflows/deploy-pages.yml"
+  # Manual re-publish without an empty commit — the replacement for the old
+  # "force a build via the API" habit.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two deploys at once, and never cancel one mid-flight: cancelling a
+# Pages deploy can leave the site on a half-published state.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Fail loudly and early rather than publishing an empty site. A deploy that
+      # succeeds while serving nothing is the failure mode this workflow exists to
+      # remove, so an absent homepage is treated as a hard error.
+      - name: Verify the site directory is present
+        run: |
+          test -f docs/index.html || { echo "::error::docs/index.html is missing — refusing to publish an empty site"; exit 1; }
+          echo "docs/ contains $(find docs -name '*.html' | wc -l) HTML page(s)"
+
+      - name: Configure Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - name: Upload docs/ as the Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: docs
+
+      - name: Deploy to Pages
+        id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
