@@ -65,6 +65,25 @@ def slugify(text: str) -> str:
     return s[:80] or "voice-note"
 
 
+def unique_path(path: Path) -> Path:
+    """Return ``path``, or with a ``-N`` suffix if it already exists.
+
+    A repeat capture must never silently overwrite an earlier note or its audio.
+    Both filenames here can collide in ordinary use: the transcript name resolves
+    only to the minute (``%H%M``), and the ``.wav`` name is the bare slug with no
+    timestamp at all — so ``--slug "decision-on-deploy"`` twice in one day
+    overwrote the first recording outright. A voice note you cannot re-record is
+    not a recoverable loss, so this avoids the collision rather than reporting it."""
+    if not path.exists():
+        return path
+    n = 1
+    while True:
+        candidate = path.with_name(f"{path.stem}-{n}{path.suffix}")
+        if not candidate.exists():
+            return candidate
+        n += 1
+
+
 def record_audio(duration_s: int, sample_rate: int, interactive: bool):
     """Capture audio; returns numpy array. Interactive mode prints a countdown."""
     import sounddevice as sd
@@ -134,7 +153,7 @@ def write_transcript(
     time_str = now.strftime("%H%M")
     target_dir = vault / "00-Inbox" / "_captured" / "voice" / date_str
     target_dir.mkdir(parents=True, exist_ok=True)
-    target = target_dir / f"{date_str}_{time_str}_{slug}.md"
+    target = unique_path(target_dir / f"{date_str}_{time_str}_{slug}.md")
 
     frontmatter_lines = [
         "---",
@@ -192,7 +211,9 @@ def main() -> int:
     vault = vault_root()
     slug = slugify(args.slug) if args.slug else datetime.now().strftime("note-%H%M%S")
     wav_dir = vault / "00-Inbox" / "_captured" / "voice" / datetime.now().strftime("%Y-%m-%d") / "audio"
-    wav_path = wav_dir / f"{slug}.wav"
+    # save_wav() creates the parent dir; unique_path is safe on a not-yet-existing
+    # directory (nothing there means no collision).
+    wav_path = unique_path(wav_dir / f"{slug}.wav")
 
     audio = record_audio(args.duration, args.sample_rate, interactive)
     save_wav(audio, wav_path, args.sample_rate)

@@ -38,7 +38,8 @@ from lib.harness_paths import secrets_dir, vault_root  # noqa: E402
 
 HAIKU_MODEL = "claude-haiku-4-5-20251001"
 HAIKU_TIMEOUT_S = 30
-HAIKU_MAX_TOKENS = 1500
+HAIKU_MAX_TOKENS = 8000            # 1500 truncated entity-rich files; Haiku 4.5's output ceiling is far higher
+MAX_CHUNK_CHARS = 12000            # split larger files on heading boundaries (truncation-proofing)
 
 EXTRACTION_PROMPT = """You extract structured entities and relationships from a markdown file for storage in a knowledge graph.
 
@@ -94,9 +95,19 @@ def load_api_key() -> str | None:
 
 
 def call_haiku(file_content: str, api_key: str) -> dict:
-    """Return {entities: [...], relationships: [...]} or {} on failure."""
-    if len(file_content) > 30000:
-        file_content = file_content[:30000] + "\n\n[TRUNCATED]"
+    """One extraction call. Returns exactly one of:
+
+      {entities: [...], relationships: [...]}  — success
+      {"_truncated": True}                     — output hit max_tokens; caller should chunk
+      {"_error": "<reason>"}                   — hard failure
+
+    Truncation is reported rather than swallowed. Previously an over-long output
+    produced cut-off JSON, which surfaced as the misleading "haiku returned
+    non-JSON" — a fixable size problem disguised as a model fault.
+    """
+    # Chunking in extract_file keeps inputs bounded; this is only a final cap.
+    if len(file_content) > 40000:
+        file_content = file_content[:40000] + "\n\n[TRUNCATED]"
     body = json.dumps({
         "model": HAIKU_MODEL,
         "max_tokens": HAIKU_MAX_TOKENS,
@@ -118,6 +129,10 @@ def call_haiku(file_content: str, api_key: str) -> dict:
             payload = json.loads(resp.read().decode("utf-8"))
     except Exception as e:
         return {"_error": f"{type(e).__name__}: {e}"}
+    # Detect output truncation BEFORE parsing: cut-off JSON would otherwise be
+    # reported as a model formatting fault instead of a size problem to chunk.
+    if payload.get("stop_reason") == "max_tokens":
+        return {"_truncated": True}
     blocks = payload.get("content") or []
     text = "".join(b.get("text", "") for b in blocks if b.get("type") == "text").strip()
     # Strip markdown fences if Haiku added them
@@ -131,6 +146,106 @@ def call_haiku(file_content: str, api_key: str) -> dict:
     except json.JSONDecodeError:
         return {"_error": "haiku returned non-JSON"}
     return parsed
+
+
+def chunk_content(content: str) -> list[str]:
+    """Split a file into <=MAX_CHUNK_CHARS chunks at markdown heading boundaries.
+
+    Returns [content] unchanged when it already fits, so small files keep the
+    single-call fast path. A headingless section that overruns the cap is
+    hard-split, so one giant block cannot defeat chunking.
+
+    Note the effective ceiling is a soft ~1.5x MAX_CHUNK_CHARS, not a hard cap: a
+    chunk closes mid-section only once it passes that, which keeps related prose
+    together at the cost of overshoot — and up to ~2x on the hard-split path,
+    where whole cap-sized pieces are appended at once. `call_haiku`'s 40000-char
+    cap is the real backstop, which is why it is set well above this."""
+    if len(content) <= MAX_CHUNK_CHARS:
+        return [content]
+    chunks: list[str] = []
+    cur: list[str] = []
+    cur_len = 0
+    # Split overlong single lines first. Splitting only on "\n" meant a file with
+    # no newlines — a minified blob, an ingested one-paragraph transcript — came
+    # back as ONE oversized chunk, and the guarantee above was false. extract_file
+    # would still recover it via the truncation path, but only after spending a
+    # wasted API call to discover the problem.
+    lines: list[str] = []
+    for raw_line in content.split("\n"):
+        if len(raw_line) <= MAX_CHUNK_CHARS:
+            lines.append(raw_line)
+        else:
+            lines.extend(raw_line[i:i + MAX_CHUNK_CHARS]
+                         for i in range(0, len(raw_line), MAX_CHUNK_CHARS))
+    for line in lines:
+        is_heading = line.startswith("#")
+        if cur and is_heading and cur_len >= MAX_CHUNK_CHARS:
+            chunks.append("\n".join(cur))
+            cur, cur_len = [], 0
+        cur.append(line)
+        cur_len += len(line) + 1
+        if cur_len >= int(MAX_CHUNK_CHARS * 1.5) and not is_heading:
+            chunks.append("\n".join(cur))
+            cur, cur_len = [], 0
+    if cur:
+        chunks.append("\n".join(cur))
+    return chunks or [content]
+
+
+def extract_file(content: str, api_key: str) -> dict:
+    """Extract from one file, chunking when a single pass truncates on output.
+
+    Returns {entities, relationships} merged and deduped across chunks, or
+    {"_error": ...}. Never returns {"_truncated"} — truncation is resolved here
+    rather than passed to the caller.
+
+    A large note previously lost every entity past the input cap with no warning.
+    One bad chunk no longer fails the whole file; partial extraction beats none,
+    and the failed chunks are reported."""
+    chunks = chunk_content(content)
+    if len(chunks) == 1:
+        raw = call_haiku(chunks[0], api_key)
+        if not raw.get("_truncated"):
+            return raw  # success dict, or {"_error": ...}
+        # A single chunk that still truncated on output → force a hard split.
+        chunks = [content[i:i + MAX_CHUNK_CHARS]
+                  for i in range(0, len(content), MAX_CHUNK_CHARS)]
+
+    ents: list[dict] = []
+    rels: list[dict] = []
+    any_ok = False
+    errs: list[str] = []
+    for ch in chunks:
+        r = call_haiku(ch, api_key)
+        if r.get("_error") or r.get("_truncated"):
+            errs.append(r.get("_error") or "truncated")
+            continue  # skip the bad chunk; don't lose the whole file to one
+        any_ok = True
+        ents.extend(r.get("entities", []) or [])
+        rels.extend(r.get("relationships", []) or [])
+    if not any_ok:
+        return {"_error": "; ".join(errs) or "all chunks failed"}
+
+    # Dedup across chunks: the same entity legitimately appears in several.
+    seen_e: set = set()
+    uniq_e = []
+    for e in ents:
+        k = (e.get("name"), e.get("type"))
+        if k not in seen_e:
+            seen_e.add(k)
+            uniq_e.append(e)
+    seen_r: set = set()
+    uniq_r = []
+    for r in rels:
+        k = (r.get("from"), r.get("to"), r.get("type"))
+        if k not in seen_r:
+            seen_r.add(k)
+            uniq_r.append(r)
+    result = {"entities": uniq_e, "relationships": uniq_r}
+    if errs:
+        # Surface partial success rather than reporting a clean run.
+        result["_partial"] = f"{len(errs)} of {len(chunks)} chunk(s) failed: {'; '.join(errs[:3])}"
+    return result
 
 
 def sanitize_extraction(raw: dict) -> dict:
@@ -265,7 +380,10 @@ def cmd_extract(rebuild: bool, specific_paths: list[str] | None) -> int:
         if not content.strip() or len(content) < 100:
             continue
 
-        raw = call_haiku(content, api_key)
+        raw = extract_file(content, api_key)  # chunk-aware: resolves output truncation by splitting
+        if raw.get("_partial"):
+            # Report rather than silently bank a partial result as a clean one.
+            print(f"  [{i}/{len(files)}] {f.relative_to(vault).as_posix()} — PARTIAL: {raw['_partial']}")
         if raw.get("_error"):
             print(f"  [{i}/{len(files)}] {f.relative_to(vault).as_posix()} — extraction error: {raw['_error']}")
             failed += 1

@@ -8,6 +8,40 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.25.1] - 2026-08-05
+
+Clears the content-drift queue surfaced by the parity detector. Name-level parity had reported these files as matching; the drift detector compares function inventories, and three of the four findings turned out to be real defects rather than cosmetic divergence.
+
+### Added — write-path allowlist integrity check
+
+`scheduled-audit.py` gains `allowlist_integrity()`, reported as section 6. `validate-write-path.py` checks a write target *against* the allowlist; nothing checked the allowlist itself. A glob widened to `**/*.md` passes every hook while confining nothing — **the control reports healthy precisely when it has stopped working.** Now flagged: match-everything globs, globs with no directory anchor, globs targeting protected paths (`CLAUDE.md`, `MEMORY.md`, `settings`, `.secrets`, `.claude/rules`), malformed JSON, empty `write_globs`, and an `allowed_high_sensitivity` opt-in.
+
+Genericised on the way in: Charon ships no allowlists — you write your own and point `HARNESS_UNATTENDED_ALLOWLIST` at it — so this **discovers** `*.allowlist.json` across candidate roots rather than assuming one path, and stays quiet when you have none rather than claiming a pass it did not earn.
+
+A positive control also exposed a precedence bug: `**/CLAUDE.md` reported as "no directory anchor" when the accurate reason is "targets a protected path". Still caught, but the message would send you to fix the anchor and keep the protected target. Most-specific reason now wins.
+
+### Fixed — voice notes could silently overwrite each other
+
+`voice-capture.py` gains `unique_path()`, applied to both output paths. The transcript name resolves only to the minute (`%H%M`), and the `.wav` name was the bare slug with **no timestamp at all** — so `--slug "decision-on-deploy"` used twice in one day overwrote the first recording outright. A voice note you cannot re-record is not a recoverable loss, so this avoids the collision rather than detecting it.
+
+### Fixed — knowledge-graph extraction silently dropped content from large files
+
+Three compounding defects in `extract_entities.py`, all silent:
+
+- **`HAIKU_MAX_TOKENS` was still `1500`** — the value raised to `8000` upstream precisely because it truncated entity-rich files. Same function names, different constant: exactly the drift name-level parity cannot see.
+- **Input was truncated at 30,000 characters** with no warning. Every entity past that point was never extracted, and the run reported success.
+- **Output truncation was undetectable.** A cut-off response failed JSON parsing and surfaced as `"haiku returned non-JSON"` — a fixable size problem disguised as a model fault.
+
+Now: `chunk_content()` splits on heading boundaries, `call_haiku()` reports `stop_reason == max_tokens` as `{"_truncated": True}`, and `extract_file()` resolves truncation by re-splitting. One failed chunk no longer costs the whole file, and partial extraction is **reported** as `_partial` rather than banked as a clean run.
+
+Writing tests for the port found a further flaw in the original: `chunk_content` split only on `\n`, so a file with **no newlines** — a minified blob, an ingested one-paragraph transcript — came back as one oversized chunk and the docstring's hard-split guarantee was false. `extract_file` still recovered it via the truncation path, but only after spending a wasted API call to discover the problem. Overlong lines are now hard-split first. Fixed upstream too, so the two do not diverge again on this.
+
+### Recorded as accepted drift — `vault_query.py`
+
+Not every divergence is a gap, and porting churn has a cost. `_emit_explain` / `_emit_neighbours` / `_emit_path` are **refactor-only**: Charon's `main()` inlines the identical logic line-for-line (verified, not assumed). `run_saved` is harness-only — its saved-query shortcuts are hardcoded to personal names, and porting as-is would ship identity into a public repo. The generic form, user-defined saved queries read from config, is a real capability worth having and is roadmapped rather than improvised here.
+
+---
+
 ## [0.25.0] - 2026-08-04
 
 A minor bump rather than a fourth patch, deliberately: **every workflow was unlaunchable on Windows**, and burying that as `v0.24.4` would understate a release existing users need to take.
@@ -1139,7 +1173,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.25.0...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.25.1...HEAD
+[0.25.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.25.1
 [0.25.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.25.0
 [0.24.3]: https://github.com/acunningham-ai/Charon/releases/tag/v0.24.3
 [0.24.2]: https://github.com/acunningham-ai/Charon/releases/tag/v0.24.2

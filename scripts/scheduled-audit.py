@@ -176,6 +176,68 @@ def captured_zone_coverage() -> tuple[list[str], bool]:
     return subdirs, covered
 
 
+def allowlist_integrity() -> list[tuple[str, str]]:
+    """Flag over-broad or malformed write-path allowlists for unattended runs.
+
+    Every unattended `claude -p` run is bounded by a C-3 write-path allowlist
+    enforced by `scripts/hooks/validate-write-path.py`. That hook checks a target
+    against the allowlist; nothing checks the *allowlist itself*. A glob widened
+    to `**/*.md` still passes every hook while confining nothing, so the control
+    reports healthy precisely when it has stopped working.
+
+    Charon ships no allowlists — you write your own and point
+    `HARNESS_UNATTENDED_ALLOWLIST` at it — so this discovers `*.allowlist.json`
+    rather than assuming a location, and returns nothing when you have none."""
+    findings: list[tuple[str, str]] = []
+
+    # Discovery over enumeration: candidate roots, deduped, missing ones skipped.
+    roots = []
+    for cand in (VAULT / "capture-pipeline" / "prompts",
+                 VAULT.parent / "capture-pipeline" / "prompts",
+                 VAULT / "state",
+                 VAULT / ".claude"):
+        if cand.is_dir() and cand not in roots:
+            roots.append(cand)
+
+    seen: set = set()
+    for root in roots:
+        for path in sorted(root.rglob("*.allowlist.json")):
+            resolved = path.resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            try:
+                cfg = json.loads(path.read_text(encoding="utf-8"))
+            except Exception as e:
+                findings.append((path.name, f"unreadable/invalid JSON: {e}"))
+                continue
+            globs = cfg.get("write_globs")
+            if not isinstance(globs, list) or not globs:
+                findings.append((path.name, "no write_globs (fails closed, but review)"))
+                continue
+            for g in globs:
+                gs = str(g)
+                # A leading **/ is normal; what matters is whether what follows
+                # still anchors to a directory.
+                tail = gs[3:] if gs.startswith("**/") else gs
+                # Most-specific reason first. Ordering is load-bearing: a pattern
+                # like `**/CLAUDE.md` is BOTH unanchored and protected-path, and
+                # reporting only "no directory anchor" understates it — the reader
+                # fixes the anchor and keeps the protected target.
+                if any(p in gs for p in ("CLAUDE.md", "MEMORY.md", "settings",
+                                         ".secrets", ".claude/rules")):
+                    findings.append((path.name, f"targets a protected path: `{gs}`"))
+                elif gs in ("**", "**/*", "**/*.md", "*", "*.md"):
+                    findings.append((path.name, f"match-everything glob: `{gs}`"))
+                elif "/" not in tail:
+                    findings.append((path.name,
+                                     f"no directory anchor (matches every folder): `{gs}`"))
+            if cfg.get("allowed_high_sensitivity"):
+                findings.append((path.name,
+                                 "has allowed_high_sensitivity opt-in — confirm still intended"))
+    return findings
+
+
 def render_report(today: date,
                   score_vault_output: str,
                   stale_hits: list[tuple[str, str]],
@@ -183,7 +245,8 @@ def render_report(today: date,
                   perm_last: str | None,
                   unpinned: list[tuple[str, str]],
                   captured_subdirs: list[str],
-                  captured_covered: bool) -> str:
+                  captured_covered: bool,
+                  allowlist_findings: list[tuple[str, str]]) -> str:
     iso = today.strftime("%Y-%m-%d")
     lines: list[str] = []
     lines.append("---")
@@ -277,16 +340,39 @@ def render_report(today: date,
         )
     lines.append("")
 
+    lines.append("## 6. Write-path allowlist integrity")
+    lines.append("")
+    if not allowlist_findings:
+        lines.append(
+            "**No over-broad or malformed allowlists found.** (If you run no "
+            "unattended automations yet, there is nothing to check — this section "
+            "stays quiet rather than claiming a pass it didn't earn.)"
+        )
+    else:
+        lines.append(
+            f"Found {len(allowlist_findings)} allowlist issue(s). `validate-write-path.py` "
+            f"checks targets *against* the allowlist; nothing else checks the allowlist "
+            f"itself, so a glob widened to match everything would keep passing every hook "
+            f"while confining nothing:"
+        )
+        lines.append("")
+        lines.append("| Allowlist | Issue |")
+        lines.append("|---|---|")
+        for fname, issue in allowlist_findings[:40]:
+            lines.append(f"| `{fname}` | {issue.replace('|', chr(92) + '|')} |")
+    lines.append("")
+
     issues = (
         (1 if stale_hits else 0)
         + (1 if (perm_last is not None and perm_last != perm_current) else 0)
         + (1 if unpinned else 0)
         + (0 if captured_covered else 1)
+        + (1 if allowlist_findings else 0)
     )
     lines.append("## Summary")
     lines.append("")
     if issues == 0:
-        lines.append("All five deterministic checks **passed**.")
+        lines.append("All six deterministic checks **passed**.")
     else:
         lines.append(f"**{issues} check(s)** found drift or new issues. Detail above.")
     lines.append("")
@@ -322,9 +408,11 @@ def main() -> int:
     perm_current, perm_last = permission_drift()
     unpinned = unpinned_dependencies()
     captured_subdirs, captured_covered = captured_zone_coverage()
+    allowlist_findings = allowlist_integrity()
 
     report = render_report(today, score_output, stale_hits, perm_current,
-                           perm_last, unpinned, captured_subdirs, captured_covered)
+                           perm_last, unpinned, captured_subdirs, captured_covered,
+                           allowlist_findings)
 
     if args.dry_run:
         sys.stdout.write(report)
