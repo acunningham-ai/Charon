@@ -10,6 +10,14 @@ Where Charon is going. Status, rationale, and what isn't on the list.
 
 ## Done (recently shipped)
 
+- ✅ **Untrusted text can no longer be laundered into the trusted zone by being written down** (2026-08-05, `v0.27.0`, **shadow**). Captures and calendar events were already untrusted *in flight*. The residual was the write: a note assembled from a calendar event lands in `05-Meetings/`, which later sessions read as **authored and trusted**, so a crafted invite subject quoted verbatim crossed the trust boundary simply by being saved. Nothing about the untrusted origin survived the write. Every layer guarding it was prose.
+
+  Now a third layer on `validate-interactive-write.py`: commands declare `reads-untrusted: true` (eight do, each verified by reading the command — `vault-lint` and `safe-rebuild` were excluded because they name the captured zone only to say they never touch it), and a durable markdown note from one must carry **both** `trust: derived-untrusted` in frontmatter and a body line containing `DERIVED FROM UNTRUSTED INPUT`. The captures rule defines the vocabulary and what reading such a note obliges; `/meeting-prep`'s template carries both markers with the reason attached.
+
+  **Layer 3 runs before the scope verdict and independently of it** — a note can be perfectly in-scope and still launder text, so returning early on a scope match would have skipped the check. Only markdown is gated (a JSON state file needs no prose marker), the already-untrusted zones are exempt, and when a payload carries no full content the gate logs `provenance-unverifiable` rather than passing cleanly — an unverifiable case recorded as verified is how a control becomes a story about a control.
+
+  D31 extended to fail if an unmarked note does not fire, if a marked note does (a false positive disqualifies as surely as a miss), or if the declarations disappear. **Honest limits:** still in shadow; the content check assumes the `Write` payload carries `content`, which is unconfirmed against a live Charon session 🟡, hence the explicit unverifiable branch.
+
 - ✅ **Write-path confinement for interactive commands** (2026-08-05, `v0.26.0`, **ships in shadow**). `validate-write-path.py` only engages for unattended `claude -p` runs, so an interactive command's write path was governed by prose in its own definition and nothing else. `/meeting-prep` made it concrete: it derives an output filename from a person's name that **originated in a calendar event** — a string an attacker can influence by sending an invite. Its sanitisation rule is genuinely protective *if applied*, but that is model adherence, not a control.
 
   New hook **`validate-interactive-write.py`**, two layers that fail differently. **protected-zone** is always on and needs no knowledge of the running command: it catches writes resolving outside the project root (the `..`-traversal case) and writes to secrets, `settings.json`, `scripts/hooks/**` (a write there could disable the gates themselves), `.git/**` and `.gitattributes` (losing it re-breaks every workflow — see D30). **command-scope** confines a command to the `write-scope:` it declares in its own frontmatter, so the authority on where a command may write is the command definition rather than a table in a hook that drifts away from it.
@@ -89,12 +97,6 @@ Where Charon is going. Status, rationale, and what isn't on the list.
 ---
 
 ## Near-term
-
-### 📅 Stop untrusted text being laundered into the trusted zone by verbatim quoting
-
-Captured content and calendar events are correctly treated as untrusted **in flight** — an untrusted-content marker is applied server-side and three separate files tell the model to paraphrase rather than quote. The residual: if a crafted event subject is quoted *verbatim* into a note under `05-Meetings/`, that note becomes ordinary authored vault content, which later sessions treat as trusted. The hostile text has then crossed the trust boundary by being written down.
-
-Every layer here is prose. Options worth weighing: a lint that flags long verbatim spans in generated notes against their untrusted source, marking machine-generated notes with a `derived-from: untrusted` frontmatter flag that the session-start load respects, or simply refusing to write event subjects into durable notes at all. Surfaced by the OWASP-agentic lens in the v0.24.0 review (ASI06). 🟢
 
 
 > The repo is already **public** — items below are no longer gated on a "public flip" (that's happened). They remain the next tranche of work.

@@ -3,6 +3,7 @@ description: Run the Prometheus research analyst — read the ledger, scan the e
 argument-hint: "[optional: a specific thread to focus, or 'triage' to only triage candidates]"
 allowed-tools: Read, Write, Glob, Grep, WebSearch, WebFetch, Skill
 write-scope: ["00-Inbox/_research/**"]
+reads-untrusted: true
 ---
 
 # /prometheus — standing research run (forethought)

@@ -2,6 +2,7 @@
 description: Weekly cross-domain pattern synthesis across captures, TODOs, and memory — distinct from daily /refresh-todo
 argument-hint: "[optional: days-back integer (default 7) or focus domain]"
 allowed-tools: Bash, Read, Edit, Write, Glob, Grep
+reads-untrusted: true
 ---
 
 # /weekly-checkin — cross-domain pattern synthesis

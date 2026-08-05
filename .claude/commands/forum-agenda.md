@@ -3,6 +3,7 @@ description: "Recurring-forum feed — scans a window of captured emails / chats
 argument-hint: "[optional: forum name, and/or window e.g. 'since 2026-05-20']"
 allowed-tools: Read, Glob, Grep, Write
 write-scope: ["08-Projects/**"]
+reads-untrusted: true
 ---
 
 # /forum-agenda — recurring-forum feed

@@ -93,6 +93,29 @@ def command_write_scope(name: str) -> Optional[List[str]]:
     return None
 
 
+def command_reads_untrusted(name: str) -> bool:
+    """Whether the command declares ``reads-untrusted: true`` in its frontmatter.
+
+    Commands that read captures, calendar events or fetched pages take in text an
+    outsider can influence. What they *write* therefore needs a provenance marker,
+    or the untrusted text is laundered into trusted authored content simply by
+    being saved.
+    """
+    if not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", name or ""):
+        return False
+    cmd = project_root() / ".claude" / "commands" / f"{name}.md"
+    if not cmd.is_file():
+        return False
+    try:
+        text = cmd.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    m = re.match(r"^---\s*\n(.*?)\n---", text, re.S)
+    if not m:
+        return False
+    return re.search(r"^reads-untrusted:\s*true\s*$", m.group(1), re.M | re.I) is not None
+
+
 def record(name: str, session_id: str) -> bool:
     """Note that ``name`` is now running. Returns True if a scope was recorded."""
     scope = command_write_scope(name)
@@ -101,6 +124,7 @@ def record(name: str, session_id: str) -> bool:
         "session_id": session_id or "",
         "recorded_at": time.time(),
         "write_scope": scope,          # None => command declares no scope
+        "reads_untrusted": command_reads_untrusted(name),
     }
     try:
         p = state_path()

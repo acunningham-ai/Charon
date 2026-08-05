@@ -2,6 +2,7 @@
 description: End-of-day reflection — synthesise today's signal, surface patterns, propose Project Card updates
 argument-hint: "[optional: rating context, e.g. 'rough day - deploy issues' or 'good progress on governance']"
 allowed-tools: Bash, Read, Edit, Write, Glob, Grep
+reads-untrusted: true
 ---
 
 # /eod-reflect — end-of-day reflection

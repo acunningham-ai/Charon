@@ -2,6 +2,7 @@
 description: Topic-scoped synthesis — scattered captures/memory/projects → durable framework doc in 07-References/
 argument-hint: "<topic phrase> (required — e.g. 'AI vendor review process', 'IR runbook decisions')"
 allowed-tools: Bash, Read, Edit, Write, Glob, Grep
+reads-untrusted: true
 ---
 
 # /knowledge-consolidate — captures-to-framework distillation

@@ -8,6 +8,35 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.27.0] - 2026-08-05
+
+### Added — stop untrusted text being laundered into the trusted zone
+
+Captured content and calendar events were already treated as untrusted **in flight**: the source carries `trust: untrusted` and three separate files tell the model to paraphrase rather than quote. The residual was what happens when it is **written down**.
+
+A note assembled from a calendar event lands in `05-Meetings/` — outside the captured zone, in the part of the vault later sessions read as **authored and trusted**. Quote a crafted invite subject verbatim into it and the hostile text has crossed the trust boundary *by being saved*. Nothing about its untrusted origin survives the write, so a future session sees an ordinary authored note and may act on what it says. Every layer guarding this was prose.
+
+Now mechanical, as a third layer on `validate-interactive-write.py`:
+
+- Commands that read untrusted sources declare **`reads-untrusted: true`** in frontmatter. Eight do, each verified by reading the command: `meeting-prep`, `draft-linkedin`, `forum-agenda`, `prometheus`, `weekly-checkin`, `eod-reflect`, `refresh-todo`, `knowledge-consolidate`. `vault-lint` and `safe-rebuild` were **excluded** — they name the captured zone only to say they never touch it — and `capture-screenshot` writes *into* the captured zone, which the captures rule already governs.
+- A durable markdown note from such a command must carry **both** `trust: derived-untrusted` in frontmatter (machine-readable, so tooling can filter) **and** a body line containing `DERIVED FROM UNTRUSTED INPUT` (model-readable, at the point of reading — the one that actually changes behaviour). Missing either is an `ask`.
+- The captures rule gains a *"Writing untrusted content DOWN"* section defining the vocabulary and what reading such a note obliges, and `/meeting-prep`'s output template now carries both markers with the reason attached.
+
+Deliberate boundaries, so the gate stays usable rather than getting switched off:
+
+- **Layer 3 runs before the scope verdict and independently of it.** A note can be perfectly in-scope and still launder text; returning early on a scope match would have skipped this check entirely.
+- **Only markdown is gated.** A command may legitimately write a JSON state file, and demanding prose markers there would be noise.
+- **Writes into `00-Inbox/_captured/**` and `_harness/**` are exempt** — already governed.
+- **When the payload carries no full content** (an `Edit` sends a patch), the marker cannot be verified, so it logs `provenance-unverifiable` as `observe` rather than returning a clean pass. An unverifiable case recorded as verified is how a control becomes a story about a control.
+
+Guarded by the extended **D31**, which now also fails if `meeting-prep` stops declaring `reads-untrusted`, if an unmarked note does *not* fire, or if a correctly marked note *does* (a false positive is as disqualifying as a miss). Negative-tested by stripping every declaration: D31 reports *"layer 3 is inert"*.
+
+Still `SHADOW = True` — logs, blocks nothing, review window before enforcing.
+
+**Honest limit:** the content check depends on the `Write` payload carrying `content`. That holds for the documented tool shape and matches how `deny-destructive.py` already reads `old_string`/`new_string` for `Edit`, but it has not been confirmed against a live payload in a Charon-configured session 🟡 — hence the explicit `provenance-unverifiable` branch rather than an assumption that content is always inspectable.
+
+---
+
 ## [0.26.0] - 2026-08-05
 
 ### Added — write-path confinement for interactive commands (ships in shadow)
@@ -1204,7 +1233,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.26.0...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.27.0...HEAD
+[0.27.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.27.0
 [0.26.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.26.0
 [0.25.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.25.1
 [0.25.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.25.0
