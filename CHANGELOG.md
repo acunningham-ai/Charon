@@ -8,6 +8,37 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.26.0] - 2026-08-05
+
+### Added — write-path confinement for interactive commands (ships in shadow)
+
+`validate-write-path.py` only engages when `HARNESS_UNATTENDED_ALLOWLIST` is set, i.e. for scheduled `claude -p` runs. So an interactive command's write path was governed by prose in its own definition and nothing else.
+
+`/meeting-prep` makes the gap concrete: it derives an output filename from a person's name that **originated in a calendar event** — a string an attacker can influence by sending you an invite. Its stated rule (lower-case, strip to `[a-z0-9-]`, resolve under `05-Meetings/`) is genuinely protective *if applied*, and a hostile subject like `../../CLAUDE.md` does slug to something harmless. But that is **model adherence, not a control**: nothing failed closed if the model got it wrong.
+
+New hook `scripts/hooks/validate-interactive-write.py`, with two layers that fail differently:
+
+- **`protected-zone`** — always on, needs no knowledge of the running command. Catches writes resolving outside the project root (the `..`-traversal case) and writes to `.secrets/**`, `.claude/settings.json`, `scripts/hooks/**` (a write there could disable the gates themselves), `.git/**`, and `.gitattributes` (losing that re-breaks every workflow — see D30 in v0.25.0).
+- **`command-scope`** — confines a command to the `write-scope:` declared in **its own frontmatter**, so the authority on where a command may write is the command definition, not a table inside a hook that drifts away from it.
+
+**How it knows which command is running.** A PreToolUse payload contains no field naming the active slash command, so the obvious approach is to grep the prompt for `/name` on UserPromptSubmit. That is a guess — the word appears conversationally too — and a guess that *blocks a write* is a false positive with teeth. Claude Code invokes a typed command **through the `Skill` tool**, whose `tool_input` carries the name, so `skill-usage-log.py` records the invocation and the gate reads it. An observation, not an inference. The record is per-session and TTL-bounded (900s), so one session's scope cannot constrain another's writes, and an abandoned command stops constraining the rest of the session.
+
+**Verdict is `ask`, never `deny`.** Every one of these targets is something a person could legitimately mean to write; what is being prevented is a path the *model* derived wrongly. `ask` blocks and explains so you can confirm and retry.
+
+**The hook fails OPEN** — deliberately the opposite of its unattended sibling. That one guards runs nobody is watching, where crashing beats an unbounded write. This one runs interactively, where a bug in the gate itself would block a human's legitimate work with no route around it. Availability wins for the interactive layer; the unattended layer keeps failing closed.
+
+Guarded by **D31 `check_interactive_write_gate`**, which fires real payloads through the hook as a subprocess rather than reading it — a confinement control that is never fired is a claim, not a control. Because the hook ships in shadow, exit codes are 0 either way, so correctness is asserted on the **emitted verdict**. Negative-tested twice: removing a protected glob fails it, and stripping every `write-scope:` fails it with *"layer 2 is inert"*.
+
+**Coverage is partial, and reported as such: 5 of 24 write-capable commands declare a scope** (`meeting-prep`, `prometheus`, `draft-linkedin`, `forum-agenda`, `refresh-todo`). Those five state their output path unambiguously. Guessing the other nineteen would ship false positives into a confinement control, which is how confinement controls end up switched off. D31 prints the ratio on every run so the gap stays visible instead of reading as complete. An undeclared command is **unenforced, not permitted-by-default**, and logs `no-scope-declared`.
+
+**Ships in `SHADOW = True`** per shadow-before-enforce: it logs and blocks nothing until the flag is flipped after a review window. A brand-new confinement gate that blocks on day one turns every unanticipated write into a broken command.
+
+### Fixed — shadow mode was overstating enforcement in the audit log
+
+First cut emitted `verdict="ask"` and then returned 0 during shadow, so the audit log recorded `effective: ask` for calls that were never blocked. That is worse than no log: the review window that decides whether to enforce would have been reading fiction, and `declared`/`effective` diverging is reserved for monitor mode under the verdict vocabulary. Shadow now emits `observe` with the intended verdict in `context.would_be` and `enforced: false`.
+
+---
+
 ## [0.25.1] - 2026-08-05
 
 Clears the content-drift queue surfaced by the parity detector. Name-level parity had reported these files as matching; the drift detector compares function inventories, and three of the four findings turned out to be real defects rather than cosmetic divergence.
@@ -1173,7 +1204,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.25.1...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.26.0...HEAD
+[0.26.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.26.0
 [0.25.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.25.1
 [0.25.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.25.0
 [0.24.3]: https://github.com/acunningham-ai/Charon/releases/tag/v0.24.3

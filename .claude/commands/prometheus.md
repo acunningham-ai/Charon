@@ -2,6 +2,7 @@
 description: Run the Prometheus research analyst — read the ledger, scan the email beat, research top active threads, produce a prioritised digest with content candidates, then offer drafter handoff
 argument-hint: "[optional: a specific thread to focus, or 'triage' to only triage candidates]"
 allowed-tools: Read, Write, Glob, Grep, WebSearch, WebFetch, Skill
+write-scope: ["00-Inbox/_research/**"]
 ---
 
 # /prometheus — standing research run (forethought)

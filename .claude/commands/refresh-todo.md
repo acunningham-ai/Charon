@@ -2,6 +2,7 @@
 description: Run capture pipeline, triage diff vs current TODO, propose updates
 argument-hint: "[optional: focus area, e.g. 'ai-governance only']"
 allowed-tools: Bash, Read, Edit, Write, Glob, Grep
+write-scope: ["TODO.md"]
 ---
 
 # /refresh-todo — front-of-mind sweep

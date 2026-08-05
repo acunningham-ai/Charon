@@ -1,5 +1,5 @@
 {
-  "$schema_note": "Vault-level shared settings — checked into the repo, loaded for every user of this harness install. Per-user overrides live in .claude/settings.local.json (gitignored).",
+  "$schema_note": "Vault-level shared settings \u2014 checked into the repo, loaded for every user of this harness install. Per-user overrides live in .claude/settings.local.json (gitignored).",
   "$performance_note": "These four settings tune Claude Code for modern context windows. Defaults were calibrated for older smaller models and silently truncate things on this hardware. Adjust if your environment requires.",
   "autoCompactPercentageOverride": 75,
   "terminalOutputLimit": 150000,
@@ -44,6 +44,10 @@
           {
             "type": "command",
             "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/validate-write-path.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/validate-interactive-write.py\""
           }
         ]
       }

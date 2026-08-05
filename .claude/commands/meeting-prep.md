@@ -2,6 +2,7 @@
 description: "1:1 / stakeholder agenda builder — works out who the meeting is with (from your calendar, or a name you pass), loads their context and your reporting direction to them, pulls live threads from memory / TODO / project notes / recent captures / the last meeting note, and writes one audience-pitched agenda to 05-Meetings/ with an actions checklist. Read-and-assemble; writes only the dated agenda note."
 argument-hint: "[person or meeting, e.g. 'Alex', 'next', 'today'] — empty: ask which meeting"
 allowed-tools: Read, Glob, Grep, Write
+write-scope: ["05-Meetings/**"]
 ---
 
 # /meeting-prep — 1:1 / stakeholder agenda builder

@@ -28,6 +28,17 @@ except Exception:
     def log_event(*_args, **_kwargs):
         pass
 
+# Also record the invocation for write-path confinement. This hook is the only
+# place that reliably learns which slash command is running: the Skill tool's
+# input carries the name, whereas a PreToolUse write payload does not. Imported
+# fail-silent and kept separate from the telemetry write, so a confinement
+# problem can never cost us the usage log, or the reverse.
+try:
+    from _active_command import record as record_active_command
+except Exception:
+    def record_active_command(*_args, **_kwargs):  # type: ignore
+        return False
+
 
 def main() -> int:
     try:
@@ -55,6 +66,10 @@ def main() -> int:
         payload={"skill": skill},
         session_id=session_id,
     )
+    try:
+        record_active_command(skill, session_id)
+    except Exception:
+        pass  # confinement is best-effort here; never break the usage log
     return 0
 
 

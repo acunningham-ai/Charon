@@ -2,6 +2,7 @@
 description: "Recurring-forum feed — scans a window of captured emails / chats / meetings / sessions for signal relevant to a forum's remit and surfaces candidate agenda items for the user's triage. Read-and-surface only; never writes the live agenda."
 argument-hint: "[optional: forum name, and/or window e.g. 'since 2026-05-20']"
 allowed-tools: Read, Glob, Grep, Write
+write-scope: ["08-Projects/**"]
 ---
 
 # /forum-agenda — recurring-forum feed

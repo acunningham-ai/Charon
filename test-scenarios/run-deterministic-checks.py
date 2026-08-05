@@ -71,6 +71,7 @@ STANDALONE_HOOKS = {
     "_verdict.py",       # imported by hooks adopting the verdict layer, not invoked directly
     "_jsonl_append.py",  # imported by _verdict.py and _telemetry.py for safe append
     "_poisoning.py",     # detector module imported by poisoning-scan.py, not invoked directly
+    "_active_command.py",  # shared active-command state; imported by skill-usage-log.py (writer) and validate-interactive-write.py (reader)
     "route-binary-doc-read.py",  # opt-in PreToolUse(Read) router for /ingest; unwired by default (depends on optional ingest deps) — wire per its header when markitdown is installed
 }
 
@@ -1536,6 +1537,115 @@ def check_workflow_scripts_launchable() -> CheckResult:
                        "the tree carries CR")
 
 
+def check_interactive_write_gate() -> CheckResult:
+    """The interactive write gate must actually confine, and report its own coverage.
+
+    Exercises the hook as a subprocess with real payloads rather than trusting a
+    read of it: a confinement control that is never fired is a claim, not a
+    control. Because the hook ships in SHADOW, exit codes are 0 either way — so
+    correctness is asserted on the emitted VERDICT, which is what a shadow phase
+    is for. Also reports how many write-capable commands still lack a
+    `write-scope:` declaration, since an undeclared command is unenforced and a
+    partial control must not read as a complete one."""
+    from datetime import datetime, timezone
+    name = "Interactive write gate"
+    hook = REPO_ROOT / "scripts" / "hooks" / "validate-interactive-write.py"
+    if not hook.exists():
+        return CheckResult(name, "FAIL", "missing: scripts/hooks/validate-interactive-write.py")
+
+    findings: list[str] = []
+
+    def run(payload: dict, env_extra: dict | None = None) -> tuple[int, str]:
+        env = dict(os.environ)
+        env["CLAUDE_PROJECT_DIR"] = str(REPO_ROOT)
+        # Route the verdict log to a scratch dir? No: _verdict writes under
+        # <project>/state/verdict which is gitignored, and a real write here also
+        # proves the audit path works.
+        env.update(env_extra or {})
+        proc = subprocess.run([sys.executable, str(hook)], input=json.dumps(payload),
+                              capture_output=True, text=True, env=env, timeout=60)
+        return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
+
+    def verdicts_today() -> list[dict]:
+        day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        log = REPO_ROOT / "state" / "verdict" / f"{day}.jsonl"
+        out = []
+        if log.exists():
+            for line in log.read_text(encoding="utf-8", errors="replace").splitlines():
+                try:
+                    out.append(json.loads(line))
+                except Exception:
+                    continue
+        return [r for r in out if r.get("hook") == "validate-interactive-write"]
+
+    before = len(verdicts_today())
+
+    # 1. A traversal escape must be caught. This is the /meeting-prep case: a
+    #    filename derived from attacker-influenceable text.
+    rc, _ = run({"tool_name": "Write", "session_id": "d31",
+                 "tool_input": {"file_path": "05-Meetings/../../../etc/passwd"}})
+    if rc != 0:
+        findings.append(f"traversal payload returned {rc}; SHADOW must not block (expected 0)")
+
+    # 2. A protected zone must be caught.
+    rc, _ = run({"tool_name": "Write", "session_id": "d31",
+                 "tool_input": {"file_path": ".claude/settings.json"}})
+    if rc != 0:
+        findings.append(f"protected-zone payload returned {rc}; SHADOW must not block")
+
+    # 3. An ordinary in-vault write must stay silent — no verdict, no noise.
+    rc, _ = run({"tool_name": "Write", "session_id": "d31",
+                 "tool_input": {"file_path": "05-Meetings/2026-01-01-note.md"}})
+    if rc != 0:
+        findings.append(f"benign payload returned {rc}; expected 0")
+
+    # 4. Unattended runs belong to the other hook — this one must stand down.
+    rc, _ = run({"tool_name": "Write", "session_id": "d31",
+                 "tool_input": {"file_path": ".claude/settings.json"}},
+                env_extra={"HARNESS_UNATTENDED_ALLOWLIST": "/nonexistent.json"})
+    if rc != 0:
+        findings.append("hook did not stand down when HARNESS_UNATTENDED_ALLOWLIST is set")
+
+    fired = verdicts_today()[before:]
+    rules = {r.get("rule") for r in fired}
+    for expected in ("outside-project-root", "protected-zone"):
+        if expected not in rules:
+            findings.append(
+                f"rule '{expected}' did not fire — the gate cannot detect it "
+                f"(rules seen: {sorted(rules) or 'none'})")
+    # The benign write and the stood-down call must not have emitted anything.
+    if len(fired) > 2:
+        extra = [r.get("rule") for r in fired]
+        findings.append(f"expected exactly 2 verdicts, got {len(fired)}: {extra}")
+
+    # Coverage self-report: which write-capable commands are unenforced?
+    cmd_dir = REPO_ROOT / ".claude" / "commands"
+    writers, declared = [], []
+    for p in sorted(cmd_dir.glob("*.md")):
+        text = p.read_text(encoding="utf-8", errors="replace")
+        m = re.match(r"^---\s*\n(.*?)\n---", text, re.S)
+        if not m:
+            continue
+        fm = m.group(1)
+        tools = re.search(r"^allowed-tools:\s*(.+)$", fm, re.M)
+        if not (tools and re.search(r"\b(Write|Edit|MultiEdit|NotebookEdit)\b", tools.group(1))):
+            continue
+        writers.append(p.stem)
+        if re.search(r"^write-scope:", fm, re.M):
+            declared.append(p.stem)
+
+    if not declared:
+        findings.append("no command declares write-scope: — layer 2 is inert")
+
+    if findings:
+        return CheckResult(name, "FAIL", f"{len(findings)} problem(s)", sorted(set(findings)))
+    return CheckResult(
+        name, "PASS",
+        f"traversal + protected-zone both fire, benign write silent, stands down for "
+        f"unattended runs; {len(declared)}/{len(writers)} write-capable command(s) "
+        f"declare a scope (rest unenforced by design)")
+
+
 # ---------- Output ----------
 
 CHECKS = [
@@ -1569,6 +1679,7 @@ CHECKS = [
     ("D28", check_calendar_server_readonly),
     ("D29", check_public_counts_match_reality),
     ("D30", check_workflow_scripts_launchable),
+    ("D31", check_interactive_write_gate),
 ]
 
 

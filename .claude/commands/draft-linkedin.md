@@ -2,6 +2,7 @@
 description: Claude-native LinkedIn / voice-content drafter — auto-loads voice rule, reads anchors, drafts inline for iteration
 argument-hint: "[topic, news hook, or capture path to seed from]"
 allowed-tools: Read, Write, Edit, Glob, Grep
+write-scope: ["08-Projects/LinkedIn-Agent/drafts/**"]
 ---
 
 # /draft-linkedin — interactive voice-driven content drafting
