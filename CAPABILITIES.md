@@ -182,12 +182,18 @@ Event-driven scripts wired into `.claude/settings.json`. Most are silent until s
 | **save-on-mention.py** | UserPromptSubmit | Two-stage detector for operational facts → nudge to save to memory |
 | **poisoning-scan.py** | UserPromptSubmit | Shadow-mode prompt-injection detector — flags instruction-shaped attacks (override / role-switch / exfiltration / tool-coax / secret-solicit / encoded / special-token) with confusable-fold + decode-rescan; logs a verdict, never blocks. Engine: `_poisoning.py` |
 | **deny-destructive.py** | PreToolUse (write) | Blocks writes to protected zones (archive, voice-examples, session journals, published posts) |
-| **validate-write-path.py** | PreToolUse (write) | Enforces a per-automation write-path allowlist for unattended runs |
+| **validate-write-path.py** | PreToolUse (write) | Enforces a per-automation write-path allowlist for **unattended** runs (C-3). Dormant unless `HARNESS_UNATTENDED_ALLOWLIST` is set; fails **closed** |
+| **validate-interactive-write.py** | PreToolUse (write) | Confines **interactive** command writes — the gap the above leaves. Three layers: protected zones + escape from the project root; the running command's declared `write-scope:`; and a provenance marker on notes from `reads-untrusted: true` commands. Verdict is `ask`, never `deny`; fails **open** (a bug here must not block a human's legitimate write). **Ships in shadow** — logs, blocks nothing, until `SHADOW = False`. Guarded by D31 |
 | **validate-memory-frontmatter.py** | PostToolUse (write) | Warns when a memory file is missing required frontmatter fields |
-| **skill-usage-log.py** | PostToolUse (Skill) | Logs slash-command invocations for the skill curator |
+| **voice-anchor-ralph-loop.py** | PostToolUse (write) | Nudges a re-read of the voice anchors after a voice-content edit |
+| **skill-usage-log.py** | PostToolUse (Skill) | Logs slash-command invocations for the skill curator, **and** records the active command + its declared write-scope for `validate-interactive-write.py` (via `_active_command.py`) — the Skill tool's input is the only reliable signal for which command is running |
 | **ssh-recovery.py** | PostToolUse (Bash) | On SSH auth failure, nudges the assistant to run the credential recovery script |
 | **notification-toast.py** | Notification | Desktop notification (Windows; no-op elsewhere) |
+| **check-reauth-flag.py** | SessionStart | Surfaces an expired-capture-auth flag left by the capture pipeline |
+| **check-todo-freshness.py** | SessionStart | Warns when `TODO.md` is stale, reading its `generated:` field and cross-checking the refresh log (not mtime) |
 | **on-error.py** | (called from scheduled bats) | Logs failure + shows desktop notification when an unattended runner exits non-zero |
+
+Shared modules, imported rather than wired: `_verdict.py` (the allow/deny/ask/observe vocabulary + audit log), `_telemetry.py`, `_jsonl_append.py`, `_poisoning.py`, `_active_command.py`.
 
 Cerberus also ships its own hook scripts under `scripts/hooks/cerberus/` — `block-secrets.sh` (PreToolUse regex secret-pattern scan, 30+ patterns), `audit-claude-md.sh` (UserPromptSubmit prompt-injection audit), `secret-pattern-scan.py` (shared engine). **Not auto-wired** — opt-in via `/cerberus-setup`, which adds them to `.claude/settings.json` after walking the user through the change.
 
@@ -322,7 +328,7 @@ You invoke these directly.
 | **vault-lint.py** | Content-graph hygiene lint (broken authored links + tag-taxonomy drift). Deterministic, read-only. Exposed as `/vault-lint`; `--json` for machine output |
 | **migrate-tags.py** | Faceted-tag migrator — rewrites bare/legacy frontmatter tags to the taxonomy (companion to `/vault-lint`). Batchable (`--batch <facet>`), dry-run by default, `--apply` to write |
 | **skill-curator.py** | Daily skill-hygiene report — stale + archive candidates |
-| **scheduled-audit.py** | Quarterly deterministic audit (model-ID drift, permission drift, unpinned deps, captured-zone coverage) |
+| **scheduled-audit.py** | Quarterly deterministic audit (model-ID drift, permission drift, unpinned deps, captured-zone coverage, **write-path allowlist integrity** — flags match-everything globs, missing directory anchors and protected-path targets, because nothing else checks the allowlist *itself*) |
 | **archive-captures.py** | Monthly inbox archive — move captures >30d old to `09-Archive/` |
 | **audit-unattended-run.py** | Post-run audit comparing changes against allowlist (C-5) |
 | **recover-ssh-creds.py** | Recover SSH credentials from secrets dir, fall back to history grep |
@@ -344,7 +350,20 @@ You invoke these directly.
 | `.claude/settings.local.json` | Per-user accumulated allowlist. **Gitignored** — never ships. |
 | `.mcp.json` | MCP server registry. `vault-readonly` enabled by default. |
 | `.gitignore` | Excludes state, captures, secrets, memory, settings.local.json, Obsidian cruft. |
+| `.gitattributes` | Pins `eol=lf` (authoritative over `core.autocrlf`), `*.bat`/`*.cmd` kept CRLF. **Load-bearing, not style:** the `Workflow` tool refuses a script containing control characters, and CR is one — without this pin a Windows clone rewrote every LF to CRLF and all three workflows became unlaunchable while the committed blobs stayed clean. Guarded by D30. |
 | `CLAUDE.md` | Vault root context file. Created during first-run from your supplied org structure. |
+
+## Reference material (`07-References/`)
+
+Shipped reference docs the skills and reviewers read at runtime.
+
+| File | What |
+|---|---|
+| `owasp-atlas-crosswalk.md` | OWASP LLM01–10 and ASI01–10 → **MITRE ATLAS** techniques, giving each finding two-layer provenance (`LLM01 · AML.T0051.001`). Reviewers are told to read this table, never to recall an ID. |
+| `atlas-technique-index.json` | Committed snapshot of the ATLAS dataset (version + source URL + retrieval date) so **D32** can validate every cited technique ID offline — a check that reached the network could pass merely because a fetch failed. |
+| `cerberus/docs/vetting-owasp-crosswalk.md` | Cerberus finding → OWASP LLM crosswalk, plus the REM-001…REM-010 remediation library. |
+| `dependency-pinning-discipline.md` | Maintained registry of known-compromised package versions, used by `/cerberus-deps` and `/cerberus-vet`. |
+| `tag-taxonomy.md` | Your faceted tag taxonomy — a template; the engine reads it and ships no values of its own. |
 
 ## Test suite (`test-scenarios/`)
 
@@ -354,7 +373,7 @@ You invoke these directly.
 |---|---|
 | `test-scenarios/README.md` | How to run, scoring, OSS-release bar |
 | `test-scenarios/01-..16-*.md` | 16 LLM-behaviour scenarios with verbatim prompts + pass/fail criteria (manual run in a fresh Claude Code session) |
-| `test-scenarios/run-deterministic-checks.py` | 28 automated checks: YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, closed-vocabulary, Cerberus engine + scan + SARIF, Louvain community detection, vault-graph HTML / query / wiki, multimodal extractors, vault-lint + tag-migrator, base-folder scaffold, workflows present + valid, TODO-freshness net, self-healing watch selftests, self-improving post-check, recall hybrid retrieval, seat routing integrity, calendar server read-only |
+| `test-scenarios/run-deterministic-checks.py` | 32 automated checks: YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, closed-vocabulary, Cerberus engine + scan + SARIF, Louvain community detection, vault-graph HTML / query / wiki, multimodal extractors, vault-lint + tag-migrator, base-folder scaffold, workflows present + valid, TODO-freshness net, self-healing watch selftests, self-improving post-check, recall hybrid retrieval, seat routing integrity, calendar server read-only, **public counts match shipped reality (D29)**, **workflow scripts launchable — no CR, `eol=lf` pinned (D30)**, **interactive write gate fires (D31)**, **ATLAS crosswalk IDs all exist in the committed snapshot (D32)** |
 | `test-scenarios/_results-template.md` | Per-run scoring template — copy as `_results-YYYY-MM-DD.md` |
 
 ```bash
@@ -362,7 +381,7 @@ You invoke these directly.
 python test-scenarios/run-deterministic-checks.py
 
 # Manual portion (fresh Claude Code session, ~30 min)
-# Read README.md, then walk scenarios 01-10
+# Read README.md, then walk scenarios 01-16
 ```
 
 Release bar: **9/10** LLM scenarios + **all** deterministic checks → ship.

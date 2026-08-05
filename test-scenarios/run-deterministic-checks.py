@@ -1381,7 +1381,13 @@ def _surface_inventory() -> "dict[str, set[int]]":
         "workflows": {len(list(claude.joinpath("workflows").glob("*.js")))},
         "MCP servers": {len(list(REPO_ROOT.joinpath("scripts", "mcp").glob("*.py")))},
         "deterministic checks": {len(CHECKS)},
+        # `CAPABILITIES.md` says "32 automated checks" — no "deterministic". The
+        # first version of this inventory required that word, so a stale count in
+        # that exact phrasing sailed through the check built to catch stale counts.
+        # Public claims are not written to suit a regex.
+        "automated checks": {len(CHECKS)},
         "behaviour scenarios": {len(scenarios)},
+        "LLM-behaviour scenarios": {len(scenarios)},
     }
 
 
@@ -1399,7 +1405,17 @@ def check_public_counts_match_reality() -> CheckResult:
     published site page. CHANGELOG.md is excluded because it is a point-in-time
     record and SHOULD keep its historical numbers; ROADMAP.md is excluded
     because it quotes OTHER projects' inventories, which would be a guaranteed
-    false positive."""
+    false positive.
+
+    KNOWN LIMIT — this reads DIGITS, so a spelled-out count sails past it. The
+    homepage said "Two runtime gates" while shipping three, and this check was
+    structurally unable to see it; the noun list also once required the word
+    "deterministic", so "28 automated checks" went unnoticed in two files.
+    Matching number-words is not the fix (they collide with ordinary prose —
+    "one door", "three seats"); the fix is knowing the check covers numerals
+    only, and reading capability prose with human eyes at release time. Recorded
+    because a control whose blind spot is undocumented gets mistaken for
+    complete coverage."""
     name = "Public counts match reality"
     inventory = _surface_inventory()
     nouns = "|".join(re.escape(n) for n in inventory)

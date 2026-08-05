@@ -82,6 +82,8 @@ Built into the harness, not bolted on. Each is enforced by a specific mechanism,
 | **C-5** | Post-run audit on unattended runners — deterministic checks compare changes to allowlist | `scripts/audit-unattended-run.py` |
 | **C-6** | Hook-side LLM hygiene — secret redaction before sending user content to a sidecar model | `redact_secrets()` in save-on-mention.py — Anthropic / GitHub / AWS / Slack / generic patterns |
 | **C-7** | Captured-content discipline — `00-Inbox/_captured/**` is `trust: untrusted`; never auto-writes to authoritative files | `.claude/rules/captures.md` + write-path allowlists |
+| **C-7.1** | **Untrusted content written *down* keeps its provenance.** A note assembled from a capture or calendar event lands where later sessions read authored content as trusted, so hostile text could cross the boundary just by being saved. Commands declare `reads-untrusted: true`; their notes must carry `trust: derived-untrusted` **and** a `DERIVED FROM UNTRUSTED INPUT` body line | `validate-interactive-write.py` (shadow) + D31 |
+| **C-3.2** | **Interactive** command writes confined to the `write-scope:` each command declares, plus protected zones and no escape from the project root — C-3 covers only unattended runs | `validate-interactive-write.py` (shadow) + D31 |
 | **C-8** | Sensitive-data egress — secrets read from the configured secrets directory at the moment of need, never embedded in prompts / logs / context | `harness_paths.secrets_dir()` pattern |
 
 ### Independent security review built in
@@ -307,7 +309,7 @@ Full setup walkthrough: [`INSTALL.md`](INSTALL.md) → [`FIRST-RUN.md`](FIRST-RU
 | [`ROADMAP.md`](ROADMAP.md) | What's coming next + what won't ship |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | License, PR process, skill-authoring standard |
 | [`CHANGELOG.md`](CHANGELOG.md) | Version history |
-| `test-scenarios/` | Pre-release reliability checks — 16 LLM scenarios + 28 automated checks |
+| `test-scenarios/` | Pre-release reliability checks — 16 LLM scenarios + 32 automated checks |
 
 ---
 

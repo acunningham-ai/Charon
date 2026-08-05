@@ -8,6 +8,28 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.28.1] - 2026-08-05
+
+### Fixed — the docs described the counts correctly and the capabilities not at all
+
+D29 kept the *numbers* honest through v0.25.0–v0.28.0. It says nothing about whether the prose describes what shipped, so a content audit found the four new security controls documented in the changelog and essentially nowhere a reader looks. Worst case: **`SECURITY.md` — a security document — mentioned none of them.**
+
+- **`SECURITY.md`** now covers interactive write confinement (all three layers, the `Skill`-tool signal that identifies the running command, `ask`-not-`deny`, fails-open-vs-fails-closed), the write-side trust boundary and `trust: derived-untrusted`, allowlist integrity, OWASP+ATLAS provenance, and the `.gitattributes`/D30 pin — each with its shadow status and coverage ratio stated rather than implied.
+- **`CAPABILITIES.md`** hooks table was listing **10 rows for 13 wired hooks** — `voice-anchor-ralph-loop`, `check-reauth-flag` and `check-todo-freshness` had been missing since before this work. All 13 present, shared modules named, plus a new `07-References/` section and `.gitattributes` in the config table.
+- **`README.md`** gains **C-3.2** (interactive write confinement) and **C-7.1** (untrusted content keeps its provenance when written down) in the baseline table.
+- **The published site** said *"Two runtime gates"* on the homepage and *"Interactively this gate is dormant"* on the security page. Both now correct, with a third gate card and a new trust-boundary section — including the honest note that it ships in shadow and covers 5 of 24 write-capable commands.
+
+### Fixed — two blind spots in D29 itself
+
+Found by auditing the auditor, which is the only way these surface:
+
+- **The noun list required the word "deterministic"**, so `CAPABILITIES.md`'s *"28 automated checks"* and `README.md`'s *"16 LLM scenarios + 28 automated checks"* both went unnoticed by the check built to catch exactly that. Widened; it immediately found the second one.
+- **D29 reads digits, so a spelled-out count is invisible to it.** `docs/workflows.html` said *"Two workflows, both self-verifying"* while documenting three underneath — `/review` was added and the heading never updated. Matching number-words is not the fix (they collide with ordinary prose: "one door", "three seats"), so the limit is now recorded in D29's docstring and a manual sweep of spelled-out counts is part of release. All seven remaining word-form claims were checked by hand and are correct.
+
+The lesson is the same one v0.25.1 recorded about parity checks, one level up: **a check that verifies counts confirms the numbers agree, not that the documentation is true.**
+
+---
+
 ## [0.28.0] - 2026-08-05
 
 ### Added — MITRE ATLAS technique tagging, and a check that makes invented IDs fail
@@ -1257,7 +1279,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.28.0...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.28.1...HEAD
+[0.28.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.28.1
 [0.28.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.28.0
 [0.27.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.27.0
 [0.26.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.26.0

@@ -57,13 +57,13 @@
     <div class="sec-head">
       <p class="kicker">The default gates</p>
       <h2>What actually blocks — and when.</h2>
-      <p>The model can't quietly write where it shouldn't — and you can read exactly why, in plain Python. Two PreToolUse hooks in <code>scripts/hooks/</code>: one stops protected-zone writes the moment you make them, on every install; the other confines what an <em>unattended</em> run can write.</p>
+      <p>The model can't quietly write where it shouldn't — and you can read exactly why, in plain Python. Three PreToolUse hooks in <code>scripts/hooks/</code>: one stops protected-zone writes the moment you make them, on every install; one confines what an <em>unattended</em> run can write; and one confines <em>interactive</em> commands to the scope they declare.</p>
     </div>
     <div class="gates">
       <div class="gate">
         <span class="gtag">C-3 · write-path allowlist</span>
         <h3>On unattended runs, writes stay on the list.</h3>
-        <p>For scheduled or headless <code>claude -p</code> runs, every <code>Write</code> is checked against an allowlist before it lands — bounding the blast radius if a captured read is poisoned. Interactively this gate is dormant; deny-destructive is what guards you there.</p>
+        <p>For scheduled or headless <code>claude -p</code> runs, every <code>Write</code> is checked against an allowlist before it lands — bounding the blast radius if a captured read is poisoned. This gate is dormant interactively by design; the two beside it cover you there.</p>
         <div class="code-mini">
 <span class="c"># PreToolUse · validate-write-path.py · unattended run</span>
 <span class="t">verdict</span>  target=<span class="a">07-References/digest.md</span>
@@ -89,7 +89,34 @@
          <span class="r">→ deny</span>   <span class="c">(protected zone · immutable)</span>
         </div>
       </div>
+      <div class="gate">
+        <span class="gtag">interactive write confinement · shadow</span>
+        <h3>A command writes where it says it writes.</h3>
+        <p>A command that builds a filename out of a <em>calendar invite</em> is building it out of a string a stranger can influence. Its own sanitisation rule is real, but that's the model following instructions — not a control. So each command declares a <code>write-scope:</code>, and the gate holds it there whether or not the model got the path right. It also refuses anything resolving outside your vault, and anything reaching for secrets, git config or the hook code itself.</p>
+        <p><strong>Honest status:</strong> this ships in <em>shadow</em> — it records verdicts and blocks nothing until you've read a fortnight of them and switched it on. And it covers the 5 of 24 write-capable commands that state their output path unambiguously; guessing the rest would mean false positives, which is how confinement controls end up switched off. The test suite prints that ratio on every run, so the gap can't quietly read as complete.</p>
+        <div class="code-mini">
+<span class="c"># PreToolUse · validate-interactive-write.py · /meeting-prep</span>
+<span class="t">verdict</span>  target=<span class="a">05-Meetings/2026-08-05-1on1-alex.md</span>
+         <span class="g">→ allow</span>  <span class="c">(inside declared write-scope)</span>
+
+<span class="t">verdict</span>  target=<span class="a">05-Meetings/../../CLAUDE.md</span>
+         <span class="r">→ ask</span>    <span class="c">(escapes the declared scope)</span>
+        </div>
+      </div>
     </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="kicker">The trust boundary · written down</p>
+      <h2>Hostile text doesn't become trustworthy by being saved.</h2>
+      <p>Everyone treats a captured email as untrusted while they're reading it. The part that gets missed is what happens when the model <em>writes something down</em>.</p>
+    </div>
+    <p>Build an agenda from a calendar event and it lands in your meetings folder — ordinary authored notes, the kind a session next month reads as fact. Quote a crafted invite subject into it verbatim and that text has crossed the boundary simply by being saved. Nothing about where it came from survives the write.</p>
+    <p>So commands that read untrusted sources say so in their frontmatter, and a note one of them writes has to carry its provenance: a machine-readable <code>trust: derived-untrusted</code> field, and a human-readable <em>DERIVED FROM UNTRUSTED INPUT</em> line at the top — because the marker that changes behaviour is the one sitting where the text is actually read. Missing either, the write is stopped and explained.</p>
+    <p>And where the gate genuinely <em>can't</em> see the whole document — an edit arrives as a patch — it records that it couldn't check, rather than reporting a pass. An unverifiable case logged as verified is how a control turns into a story about a control.</p>
   </div>
 </section>
 
@@ -128,6 +155,7 @@
       <p class="kicker">Three threat surfaces</p>
       <h2>You can defend it to a board — not just assert it.</h2>
       <p>Every risk here traces to a standard you can cite: the threat model is written against OWASP's published catalogues for LLM and agentic systems, plus a vault-content layer for what the harness itself holds.</p>
+      <p>Findings carry <strong>two</strong> layers — <code>LLM01 · AML.T0051.001</code>. OWASP names the kind of weakness; <strong>MITRE ATLAS</strong> names what an adversary actually does with it. "This is prompt injection" is useful. "This is the <em>indirect</em> kind, arriving through content the system ingested rather than through the prompt" is a different fix and a different detection. The mapping ships in the repo, pinned to a committed snapshot of the ATLAS dataset — and a test fails the build if any cited technique ID doesn't exist in it. That check earns its place: a plausible-looking technique ID is the easiest thing in a security report to invent and the hardest for a reader to falsify, so an unverifiable citation is worse than none. It borrows authority it hasn't earned.</p>
     </div>
     <div class="surfaces">
       <div class="surface">
