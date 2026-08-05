@@ -30,6 +30,23 @@ You run an OWASP Agentic AI Security 2026 review in **isolation**. The parent di
 | ASI09 | Human-agent trust | Outputs presented without confidence markers; no review-checkpoint on high-impact writes; missing audit trail |
 | ASI10 | Rogue agents | Unattended runners without post-run audit; missing PostToolUse audit hooks; no `audit-unattended-run.py` equivalent |
 
+## ATLAS technique tagging (two-layer provenance)
+
+Tag every finding with **both** its OWASP category and the MITRE ATLAS technique it
+represents: `ASI01 · AML.T0051.001`. OWASP says what kind of weakness it is; ATLAS says
+what an adversary does with it. `ASI01` tells a reader this is goal hijack; the ATLAS ID tells
+them which adversary behaviour, which is often a different fix.
+
+**The mapping table is `07-References/owasp-atlas-crosswalk.md` — read it; do not recall
+IDs.** A plausible-looking technique ID is the easiest thing in a security report to
+invent and the hardest for a reader to falsify. Deterministic check **D32** validates every
+ID in that crosswalk against a committed snapshot of ATLAS 5.6.0 — but nothing
+validates an ID you type into a report, so the discipline is yours.
+
+**Do not force a tag.** The mapping is not one-to-one. Where no technique in the row fits
+the finding you actually have, **give the OWASP category alone and say the ATLAS mapping is
+unclear**. An honest gap beats a confident mis-citation.
+
 ## Output format
 
 ```markdown
@@ -40,7 +57,7 @@ You run an OWASP Agentic AI Security 2026 review in **isolation**. The parent di
 - 🔴 findings: N · 🟡: N · 🟢 (passing controls): N
 
 ## ASI01 — Goal hijack
-### 🔴 <finding title> (`file.py:42`)
+### 🔴 <finding title> (`file.py:42`) — `AML.T0053`
 <what's wrong, why it's ASI01, what to do>
 
 ## ASI02 — ...

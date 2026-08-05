@@ -10,6 +10,18 @@ Where Charon is going. Status, rationale, and what isn't on the list.
 
 ## Done (recently shipped)
 
+- ✅ **MITRE ATLAS technique tagging, with an anti-fabrication check** (2026-08-05, `v0.28.0`). Findings now carry two layers — `LLM01 · AML.T0051.001` — because OWASP says what *kind* of weakness it is and ATLAS says what an adversary *does* with it. Knowing a finding is prompt injection is useful; knowing it is the **indirect** variety, arriving through ingested content rather than the prompt, is a different fix and a different detection.
+
+  Ships `07-References/owasp-atlas-crosswalk.md` (LLM01–10 and ASI01–10 → ATLAS) plus `07-References/atlas-technique-index.json`, a committed snapshot of the dataset with its version and retrieval date. Both reviewer agents and both review commands now tag findings and are instructed to **read the table, never recall an ID**.
+
+  **D32** validates every cited ID against the snapshot, checks the rendered names match, and fails if a reviewer stops pointing at the crosswalk. It is offline by design: the snapshot is committed, so the check can never pass merely because a network fetch failed. The reason it exists is specific — a plausible-looking technique ID is the easiest thing in a security report to invent and the hardest for a reader to falsify, and **an unverifiable citation is worse than none because it borrows authority it has not earned.**
+
+  **This item's own roadmap entry was wrong, in two ways worth recording.** It claimed *"one-day lift — the mapping table exists"*; no crosswalk existed (the only `atlas` matches in the repo were an unrelated vendor name in a KEV list and an unrelated org-name pattern in the content-scrub check). And its ATLAS facts were stale: it said v5.4.0 / 84 techniques / 32 mitigations, against an actual **5.6.0 / 170 techniques / 35 mitigations**, with roughly twenty agent-specific techniques rather than the two it cited as examples. Both example names it gave were real (`AML.T0104` Publish Poisoned AI Agent Tool, `AML.T0105` Escape to Host).
+
+  **And the tooling nearly put fabricated IDs in:** two separate `WebFetch` summarisations of the dataset each reported `AML.T0104` and `AML.T0105` as *not present*, and contradicted one another on `AML.T0006`. Parsing the YAML directly settled it. That is the whole argument for D32 — the failure mode is not carelessness, it is confident-sounding retrieval.
+
+  **Honest limit:** the mapping is a judgement, not a bijection. Several OWASP categories legitimately share techniques (`AML.T0070` RAG Poisoning serves LLM04, LLM08 and ASI06), and some ATLAS techniques have no OWASP home. Both reviewers are told to cite the OWASP category alone and say the ATLAS mapping is unclear rather than reach for the nearest plausible ID.
+
 - ✅ **Untrusted text can no longer be laundered into the trusted zone by being written down** (2026-08-05, `v0.27.0`, **shadow**). Captures and calendar events were already untrusted *in flight*. The residual was the write: a note assembled from a calendar event lands in `05-Meetings/`, which later sessions read as **authored and trusted**, so a crafted invite subject quoted verbatim crossed the trust boundary simply by being saved. Nothing about the untrusted origin survived the write. Every layer guarding it was prose.
 
   Now a third layer on `validate-interactive-write.py`: commands declare `reads-untrusted: true` (eight do, each verified by reading the command — `vault-lint` and `safe-rebuild` were excluded because they name the captured zone only to say they never touch it), and a durable markdown note from one must carry **both** `trust: derived-untrusted` in frontmatter and a body line containing `DERIVED FROM UNTRUSTED INPUT`. The captures rule defines the vocabulary and what reading such a note obliges; `/meeting-prep`'s template carries both markers with the reason attached.
@@ -162,12 +174,6 @@ The counterpart to self-healing: where healing *restores* a known-good state, th
 **Source / rationale:** 2026 research that LLMs can't reliably self-correct without external verification, and that training on unverified/own output drives model collapse — so "no clean signal, no learning loop."
 
 Cerberus already grades every finding `validation_status: theoretical | partial | validated` — nothing claims `validated` without a proof-of-concept. Extend the same discipline to `/secure-code-review` + `/owasp-{llm,agentic}-review`: a 🔴 should carry a **reproduction**, not just a `file:line` citation, before it blocks a merge. Raises the bar from "cite the line" to "show it's real" — the defensive mirror of the Artemis proof-by-exploitation principle, and a natural tightening of the existing `/fp-check` gate.
-
-### 📅 MITRE ATLAS technique tagging in OWASP review skills
-
-ATLAS v5.4.0 (Feb 2026) shipped 16 tactics, 84 techniques, 32 mitigations — including agent-specific entries like "Publish Poisoned AI Agent Tool" and "Escape to Host" 🟢. Charon's `/owasp-llm-review` + `/owasp-agentic-review` skills tag findings to OWASP categories but not to ATLAS. Adding ATLAS tagging gives findings two-layer provenance (OWASP for what kind of bug, ATLAS for what attack technique). One-day lift — the mapping table exists; the skills just need to render the tag.
-
-**Source:** https://atlas.mitre.org/ 🟢
 
 ### 📅 Skill-catalog discovery skill
 

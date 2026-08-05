@@ -176,3 +176,7 @@ Recommend `/fp-check` on every 🔴 finding before blocking merge. Output explic
 - `.claude/commands/owasp-llm-review.md` — LLM01-LLM10 sibling
 - `.claude/commands/fp-check.md` — false-positive verification gate
 - `confidence-tags.md` — convention used on every derived claim
+
+## ATLAS tagging
+
+Findings carry both layers — `LLM01 · AML.T0051.001` — using the mapping in `07-References/owasp-atlas-crosswalk.md`. **Read the table; never recall an ATLAS ID from memory.** Where nothing fits, cite the OWASP category alone and say the ATLAS mapping is unclear rather than reaching for the nearest plausible ID.

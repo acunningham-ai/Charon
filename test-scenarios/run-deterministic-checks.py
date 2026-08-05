@@ -1711,6 +1711,90 @@ def check_interactive_write_gate() -> CheckResult:
         f"{len(untrusted_readers)} declare reads-untrusted (rest unenforced by design)")
 
 
+def check_atlas_crosswalk_ids() -> CheckResult:
+    """Every ATLAS technique ID cited must exist in the committed snapshot.
+
+    A plausible-looking technique ID — `AML.T0099` — is the easiest thing in a
+    security report to invent and the hardest for a reader to falsify. So the
+    crosswalk is checked against a snapshot of the real dataset rather than
+    trusted, and the reviewer agents are checked for pointing at the crosswalk
+    rather than recalling IDs.
+
+    Offline by design: the snapshot is committed, so this never reaches the
+    network and cannot pass merely because a fetch failed. Refreshing the
+    snapshot is a deliberate act with its own diff."""
+    name = "ATLAS crosswalk IDs"
+    snap_path = REPO_ROOT / "07-References" / "atlas-technique-index.json"
+    doc_path = REPO_ROOT / "07-References" / "owasp-atlas-crosswalk.md"
+    if not snap_path.exists():
+        return CheckResult(name, "FAIL", "missing: 07-References/atlas-technique-index.json")
+    if not doc_path.exists():
+        return CheckResult(name, "FAIL", "missing: 07-References/owasp-atlas-crosswalk.md")
+
+    try:
+        snap = json.loads(snap_path.read_text(encoding="utf-8"))
+        known = snap["techniques"]
+    except Exception as exc:
+        return CheckResult(name, "FAIL", f"snapshot unreadable: {type(exc).__name__}: {exc}")
+    if not isinstance(known, dict) or len(known) < 50:
+        return CheckResult(name, "FAIL",
+                           f"snapshot has only {len(known) if isinstance(known, dict) else 0} "
+                           f"technique(s) — implausible, so treat it as corrupt rather than "
+                           f"validating against a stub")
+
+    findings: list[str] = []
+    id_re = re.compile(r"AML\.T\d{4}(?:\.\d{3})?")
+
+    doc = doc_path.read_text(encoding="utf-8", errors="replace")
+    cited = sorted(set(id_re.findall(doc)))
+    if not cited:
+        findings.append("crosswalk cites NO ATLAS IDs — a mapping table that maps nothing "
+                        "must not pass")
+    for cid in cited:
+        if cid not in known:
+            findings.append(f"crosswalk cites `{cid}`, absent from the ATLAS "
+                            f"{snap.get('atlas_version', '?')} snapshot — fabricated, "
+                            f"mistyped, or withdrawn upstream")
+
+    # Names rendered beside an ID must match the dataset, or the table reads
+    # authoritatively while describing something else.
+    # Scoped to TABLE ROWS only. An earlier version scanned the whole document and
+    # false-positived on ordinary prose ("`AML.T0070` RAG Poisoning serves LLM04,
+    # LLM08 and ASI06, because…"), reading the sentence as a claimed name. A checker
+    # that fires on correct content trains you to ignore it, so the fix belongs in
+    # the checker rather than in contorting the prose.
+    for line in doc.splitlines():
+        if not line.lstrip().startswith("|"):
+            continue
+        for cid, cname in re.findall(r"`(AML\.T\d{4}(?:\.\d{3})?)`\s+([^·|\n]+)", line):
+            if cid in known and cname.strip() != known[cid].strip():
+                findings.append(f"`{cid}` rendered as {cname.strip()!r} but the snapshot "
+                                f"says {known[cid]!r}")
+
+    # Both reviewers must route to the crosswalk rather than recalling IDs.
+    for rel in (".claude/agents/owasp-llm-reviewer.md",
+                ".claude/agents/owasp-agentic-reviewer.md"):
+        p = REPO_ROOT / rel
+        if not p.exists():
+            findings.append(f"missing reviewer: {rel}")
+            continue
+        text = p.read_text(encoding="utf-8", errors="replace")
+        if "owasp-atlas-crosswalk.md" not in text:
+            findings.append(f"{rel} does not point at the crosswalk — it would be recalling "
+                            f"ATLAS IDs from memory")
+        # Any ID hardcoded in a reviewer prompt must also be real.
+        for cid in set(id_re.findall(text)):
+            if cid not in known:
+                findings.append(f"{rel} cites `{cid}`, absent from the snapshot")
+
+    if findings:
+        return CheckResult(name, "FAIL", f"{len(findings)} problem(s)", sorted(set(findings)))
+    return CheckResult(name, "PASS",
+                       f"{len(cited)} cited ID(s) all exist in the ATLAS "
+                       f"{snap.get('atlas_version')} snapshot ({len(known)} techniques), "
+                       f"names match, and both reviewers route to the crosswalk")
+
+
 # ---------- Output ----------
 
 CHECKS = [
@@ -1745,6 +1829,7 @@ CHECKS = [
     ("D29", check_public_counts_match_reality),
     ("D30", check_workflow_scripts_launchable),
     ("D31", check_interactive_write_gate),
+    ("D32", check_atlas_crosswalk_ids),
 ]
 
 

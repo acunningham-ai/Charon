@@ -8,6 +8,30 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.28.0] - 2026-08-05
+
+### Added — MITRE ATLAS technique tagging, and a check that makes invented IDs fail
+
+Security findings now carry two layers: `LLM01 · AML.T0051.001`. OWASP says what kind of weakness it is; **ATLAS** (MITRE's *Adversarial Threat Landscape for AI Systems* — ATT&CK for AI) says what an adversary does with it. "This is prompt injection" is useful; "this is the *indirect* variety, arriving through ingested content rather than the prompt" is a different fix and a different detection.
+
+- **`07-References/owasp-atlas-crosswalk.md`** — LLM01–10 and ASI01–10 mapped to ATLAS techniques.
+- **`07-References/atlas-technique-index.json`** — committed snapshot of ATLAS **5.6.0** (16 tactics, 170 techniques, 35 mitigations) with source URL and retrieval date.
+- Both reviewer agents and both review commands tag findings, and are told to **read the table, never recall an ID**.
+- **D32** validates every cited ID against the snapshot, verifies rendered names match it, and fails if a reviewer stops pointing at the crosswalk. **Offline by design** — the snapshot is committed, so the check cannot pass merely because a fetch failed.
+
+**Why the check, specifically.** A plausible-looking technique ID is the easiest thing in a security report to invent and the hardest for a reader to falsify. An unverifiable citation is worse than none: it borrows authority it has not earned. This is not a hypothetical — during this work, **two separate `WebFetch` summarisations of the ATLAS dataset each reported `AML.T0104` and `AML.T0105` as "NOT PRESENT" when both exist**, and contradicted each other on what `AML.T0006` is. Parsing the YAML directly settled it. The failure mode is not carelessness; it is confident-sounding retrieval, which no amount of care catches.
+
+### Fixed — this feature's own roadmap entry was wrong
+
+Recorded rather than quietly corrected, because a roadmap that misstates effort causes the wrong work to be scheduled:
+
+- It claimed *"one-day lift — the mapping table exists"*. **No crosswalk existed.** The only `atlas` matches in the repo were an unrelated vendor name inside a KEV vendor list and an unrelated org-name token inside the content-scrub check.
+- Its ATLAS facts were stale: *v5.4.0, 84 techniques, 32 mitigations* against an actual **5.6.0, 170 techniques, 35 mitigations** — and roughly twenty agent-specific techniques rather than the two cited as examples. Both example names it gave were real (`AML.T0104` Publish Poisoned AI Agent Tool, `AML.T0105` Escape to Host).
+
+**Honest limit:** the mapping is a judgement, not a bijection. Several OWASP categories legitimately share techniques — `AML.T0070` RAG Poisoning serves LLM04, LLM08 and ASI06, because poisoning a retrieval store is all three at once — and some ATLAS techniques have no OWASP home. Reviewers are instructed to cite the OWASP category alone and say the ATLAS mapping is unclear rather than reach for the nearest plausible ID.
+
+---
+
 ## [0.27.0] - 2026-08-05
 
 ### Added — stop untrusted text being laundered into the trusted zone
@@ -1233,7 +1257,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.27.0...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.28.0...HEAD
+[0.28.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.28.0
 [0.27.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.27.0
 [0.26.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.26.0
 [0.25.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.25.1

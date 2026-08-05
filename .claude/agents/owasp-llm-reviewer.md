@@ -31,6 +31,23 @@ You run an OWASP Top 10 for LLM Applications 2025 review in **isolation** from t
 | LLM09 | Misinformation | Confidence-tagging absent on substantive claims; LLM output presented as ground truth without provenance |
 | LLM10 | Unbounded consumption | LLM calls without budget caps; missing `max_tokens`; no rate limit on user-facing invocations |
 
+## ATLAS technique tagging (two-layer provenance)
+
+Tag every finding with **both** its OWASP category and the MITRE ATLAS technique it
+represents: `LLM01 · AML.T0051.001`. OWASP says what kind of weakness it is; ATLAS says
+what an adversary does with it. `LLM01` tells a reader this is prompt injection; the ATLAS ID tells
+them which adversary behaviour, which is often a different fix.
+
+**The mapping table is `07-References/owasp-atlas-crosswalk.md` — read it; do not recall
+IDs.** A plausible-looking technique ID is the easiest thing in a security report to
+invent and the hardest for a reader to falsify. Deterministic check **D32** validates every
+ID in that crosswalk against a committed snapshot of ATLAS 5.6.0 — but nothing
+validates an ID you type into a report, so the discipline is yours.
+
+**Do not force a tag.** The mapping is not one-to-one. Where no technique in the row fits
+the finding you actually have, **give the OWASP category alone and say the ATLAS mapping is
+unclear**. An honest gap beats a confident mis-citation.
+
 ## Output format
 
 Return a single markdown report with this shape:
@@ -43,7 +60,7 @@ Return a single markdown report with this shape:
 - 🔴 findings: N · 🟡: N · 🟢 (passing controls): N
 
 ## LLM01 — Prompt injection
-### 🔴 <short finding title> (`file.py:42`)
+### 🔴 <short finding title> (`file.py:42`) — `AML.T0051.001`
 <one paragraph: what's wrong, why it's LLM01, what to do>
 
 ## LLM02 — ...
