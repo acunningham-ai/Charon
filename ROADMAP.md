@@ -10,6 +10,18 @@ Where Charon is going. Status, rationale, and what isn't on the list.
 
 ## Done (recently shipped)
 
+- ✅ **Content-drift queue cleared — 3 of 4 findings were real defects** (2026-08-05, `v0.25.1`). The parity check compares *names*; the drift detector compares *function inventories*, and what it found was not cosmetic.
+
+  **Write-path allowlist integrity** (`scheduled-audit.py` §6). `validate-write-path.py` checks a target *against* the allowlist; nothing checked the allowlist itself. A glob widened to `**/*.md` passes every hook while confining nothing — **the control reports healthy precisely when it has stopped working.** Now flags match-everything globs, missing directory anchors, protected-path targets, malformed JSON, empty `write_globs`, and `allowed_high_sensitivity`. It **discovers** `*.allowlist.json` rather than assuming a path (Charon ships none — you supply your own), and stays quiet when there are none instead of claiming an unearned pass.
+
+  **Silent voice-note overwrite** (`voice-capture.py`). The transcript name resolved only to the minute and the `.wav` name was the bare slug with *no* timestamp, so `--slug` reused within a day overwrote the earlier recording. A voice note you cannot re-record is not a recoverable loss.
+
+  **Silent truncation in knowledge-graph extraction** (`extract_entities.py`), three compounding defects: `HAIKU_MAX_TOKENS` still `1500` — the exact value raised upstream *because* it truncated entity-rich files; input truncated at 30,000 chars with no warning; and output truncation undetectable, so cut-off JSON surfaced as `"haiku returned non-JSON"` — a size problem disguised as a model fault. Now chunked on heading boundaries with `stop_reason` detection, truncation resolved by re-splitting, and partial extraction **reported** rather than banked as clean.
+
+  **Not everything divergent is a gap.** `vault_query.py`'s `_emit_*` helpers are refactor-only — Charon's `main()` inlines the identical logic line-for-line (verified, not assumed) — and `run_saved` is harness-only because its shortcuts are hardcoded to personal names. Both recorded in `charon-parity.json` with reasons rather than ported for the sake of a clean report.
+
+  **Honest note:** writing tests for the port found a flaw in the *original* — `chunk_content` split only on `\n`, so a file with no newlines came back as one oversized chunk and its hard-split guarantee was false. Fixed in both copies. The lesson generalises: name-level parity said these files matched, and three carried real defects. **A parity check that compares names measures whether two files agree on vocabulary, not on behaviour.**
+
 - ✅ **All three workflows were unlaunchable on Windows — fixed** (2026-08-04, `v0.25.0`). The `Workflow` tool refuses a script containing control characters, and **CR (U+000D) is one**. With no `.gitattributes`, working-tree line endings are set by each user's `core.autocrlf`, which defaults to `true` on Git for Windows — so a fresh clone rewrote every LF to CRLF and `/review`, `/deep-research` and `/devils-advocate` all failed to launch. Confirmed by cloning the public repo with `-c core.autocrlf=true`: **3 of 3** workflow scripts came down CRLF.
 
   Every gate was green while this was true: the committed blobs were clean LF, syntax was valid, `node --check` passed, and D22 confirmed the workflows present and valid. **Checking the artifact you committed says nothing about the artifact your user receives** — the defect existed only in the working tree, so anything reading the blob was structurally unable to see it.
@@ -88,6 +100,12 @@ Run the LLM-behaviour scenarios (`test-scenarios/01..16-*.md`) in a **fresh Clau
 gitleaks 8.30.1 scanned all 43 commits of git history: **no real credentials, ever.** The 5 raw hits were all verified false positives — Stripe's official public docs test keys living inside Cerberus's own `known_test_values` suppression list, plus truncated fake placeholders (`sk-proj-abc123xyz789...`) in the threat-analysis prompt and one synthetic test fixture. A scanner's own corpus necessarily contains secret-shaped strings.
 
 Suppression is now handled by `.gitleaks.toml` `[allowlist]`, matched by **literal value** (not by path) so a genuine secret in those same files would still trip. A plain `gitleaks git .` run (no flags) auto-loads the config and returns **no leaks found / exit 0** — the repo is audit-clean for anyone who scans it. (The earlier `.gitleaksignore` glob `cerberus/rules/**` was silently invalid — gitleaks `.gitleaksignore` accepts fingerprints only — and suppressed nothing; replaced.)
+
+### 📅 User-defined saved graph queries
+
+`vault_query.py` supports `explain` / `neighbours` / `path`, but every useful query means retyping an entity name and remembering which verb to use. The upstream harness has a `saved` shortcut layer — `saved me`, `saved team`, `saved link A B` — and it is genuinely the difference between using the graph and forgetting it exists. It was **not** ported because its shortcuts are hardcoded to personal names, and shipping those into a public repo is a personal-content leak.
+
+Wanted: saved queries defined by the user, read from config (a `saved-queries` block or a small YAML file), resolved through the same `explain`/`neighbours`/`path` primitives. Deliberately recorded rather than improvised during the drift-clearing pass — a config surface is a design decision, not a port. 🟢
 
 ### 📅 Plugin-marketplace packaging
 
