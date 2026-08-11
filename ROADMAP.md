@@ -123,6 +123,60 @@ gitleaks 8.30.1 scanned all 43 commits of git history: **no real credentials, ev
 
 Suppression is now handled by `.gitleaks.toml` `[allowlist]`, matched by **literal value** (not by path) so a genuine secret in those same files would still trip. A plain `gitleaks git .` run (no flags) auto-loads the config and returns **no leaks found / exit 0** — the repo is audit-clean for anyone who scans it. (The earlier `.gitleaksignore` glob `cerberus/rules/**` was silently invalid — gitleaks `.gitleaksignore` accepts fingerprints only — and suppressed nothing; replaced.)
 
+### 🚧 Prompt-aware recall — memory reaches the model without an always-loaded index
+
+**The problem this fixes.** A second brain leans on one always-loaded index file.
+Every "must not forget this" competes for a place on it, so it grows, and anything
+not listed is effectively invisible. Trimming the index resets the clock without
+removing the pressure — the index is fat because it is compensating for retrieval
+that does not exist.
+
+Measured on the upstream harness: 19 of 64 index bullets were pure navigation —
+151 pointers in 9.3 KB carrying 277 bytes of actual content. They existed solely
+so that unlisted notes could be found at all.
+
+**The shift.** Resolve what the user actually asked against their own notes, walk
+one hop through the existing relationship graph, and surface only what relates.
+The index stops being the retrieval mechanism and becomes a thin orientation
+surface. Notes written months ago resurface when relevant instead of dying in a
+list.
+
+Upstream status **shadow** — computing and logging what it would surface,
+injecting nothing, so a miscalibrated matcher cannot degrade a session. Ports to
+Charon once the shadow window proves it, per local-first-then-Charon.
+
+Design points that must survive the port:
+
+- **Deterministic, no LLM, no API cost.** The relationships are already authored
+  as `[[wikilinks]]`; materialising them is transcription, not inference.
+- **Trust is enforced on provenance, not path.** Captured email, calendar invites
+  and meeting transcripts are excluded by frontmatter provenance as well as
+  location — measured upstream, 320 capture-sourced notes were sitting inside
+  "authored" folders. Anything that arrives from outside could otherwise put
+  words into every prompt. The check fails closed.
+- **Ranking by rarity, not by hand-set thresholds.** Standard IDF, because fixed
+  thresholds do not survive a corpus change — tuned buckets broke the moment the
+  corpus tripled.
+- **No result is ever dropped to save space.** Coverage is bounded by relevance;
+  when the byte budget binds, per-item detail degrades before the list does.
+
+### 🚧 Commitment register — dated reviews stop expiring quietly
+
+A shadow window that nobody reviews silently becomes permanent. Dated
+commitments — promotion gates, reviews, ports — are agreed in working sessions,
+so they appear in no captured message and no inbox scan can find them. Without a
+deterministic source they reach the daily list only if someone remembers.
+
+Wanted: a small file-backed register, rendered into the daily note from a
+generated export (the same pattern already used for other deterministic sources)
+and surfaced independently at session start, so a failed daily regeneration
+cannot hide a due date. **Overdue is a first-class state** — something past its
+date is not "still open".
+
+Pairs with a **pickup lifecycle**: retire finished or long-quiet items from the
+read-first list, promoting anything unfinished into the register first so a sweep
+can never quietly drop an open thread.
+
 ### 📅 User-defined saved graph queries
 
 `vault_query.py` supports `explain` / `neighbours` / `path`, but every useful query means retyping an entity name and remembering which verb to use. The upstream harness has a `saved` shortcut layer — `saved me`, `saved team`, `saved link A B` — and it is genuinely the difference between using the graph and forgetting it exists. It was **not** ported because its shortcuts are hardcoded to personal names, and shipping those into a public repo is a personal-content leak.
