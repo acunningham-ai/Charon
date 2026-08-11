@@ -27,6 +27,28 @@ const PAGES = [
 ];
 
 const read = (p) => readFileSync(p, 'utf8');
+
+// --- current release version, resolved at BUILD time -----------------------
+// The site used to hard-code it. Every page said "v0.22 = live now" while the
+// repo shipped v0.28.1 — six releases of a false promise to readers who cannot
+// check. Hand-maintained version strings drift by construction, so the version
+// is now generated: pages write {{VERSION}} and the build substitutes it.
+//
+// CHANGELOG.md is the source, not `git describe`: the deploy workflow checks
+// out at shallow depth and may have no tags, and a build that silently emits
+// the wrong version is worse than one that fails.
+function currentVersion() {
+  const cl = read(join(SITE, '..', 'CHANGELOG.md'));
+  for (const line of cl.split(/\r?\n/)) {
+    const m = line.match(/^##\s*\[(\d+\.\d+(?:\.\d+)?)\]/);
+    if (m) return 'v' + m[1];                 // first dated heading wins
+  }
+  throw new Error('build: cannot resolve current version from CHANGELOG.md');
+}
+const VERSION = currentVersion();
+// Self-dating page: a hand-typed 'As of <date>' is stale the day after it is
+// written, and a stale dateline makes every claim under it look unmaintained.
+const BUILD_DATE = new Date().toISOString().slice(0, 10);
 const navPartial    = read(join(SITE, 'partials', 'nav.html')).trim();
 const footerPartial = read(join(SITE, 'partials', 'footer.html')).trim();
 const scriptsPartial= read(join(SITE, 'partials', 'scripts.html')).trim();
@@ -78,7 +100,7 @@ writeFileSync(join(DOCS, '.nojekyll'), '', 'utf8');
 
 let n = 0;
 for (const p of PAGES) {
-  const body = bodyFor(p.name);
+  const body = bodyFor(p.name).replaceAll('{{VERSION}}', VERSION).replaceAll('{{BUILD_DATE}}', BUILD_DATE);
   writeFileSync(join(DOCS, p.name + '.html'), page(p, body), 'utf8');
   n++;
   console.log(`built docs/${p.name}.html  (active=${p.active || '-'}, body ${body.length}b)`);

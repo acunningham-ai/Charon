@@ -1813,6 +1813,110 @@ def check_atlas_crosswalk_ids() -> CheckResult:
 
 # ---------- Output ----------
 
+
+def check_site_matches_source() -> CheckResult:
+    """Published pages must be exactly what the source builds.
+
+    docs/*.html is GENERATED from site/pages/*.html by site/build.mjs. Editing
+    the generated file works — until the next build silently discards it. That
+    happened on 2026-08-11: a whats-next.html edit was made, committed, pushed
+    and verified live in docs/ while site/pages/ never received it, so the very
+    next `node site/build.mjs` would have reverted the public page with nothing
+    to indicate anything was lost.
+
+    Rebuilding into a temp dir and diffing is the only honest test: it compares
+    what IS published against what WOULD be published, so drift in either
+    direction fails. index.html is excluded — it is a standalone one-pager the
+    build deliberately does not touch.
+
+    Also fails on an unsubstituted {{TOKEN}}, which means a page references a
+    build variable the build does not define.
+    """
+    import subprocess, tempfile, shutil, filecmp
+    site = REPO_ROOT / "site"
+    docs = REPO_ROOT / "docs"
+    if not (site / "build.mjs").is_file():
+        return CheckResult("site-matches-source", "WARN", "no site/build.mjs — nothing to verify")
+    if shutil.which("node") is None:
+        return CheckResult("site-matches-source", "WARN", "node not available on this runner")
+
+    stray = []
+    for page in sorted(docs.glob("*.html")):
+        text = page.read_text(encoding="utf-8", errors="replace")
+        if "{{" in text and "}}" in text:
+            import re as _re
+            for tok in set(_re.findall(r"\{\{[A-Z_]+\}\}", text)):
+                stray.append(f"{page.name}: unsubstituted {tok}")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        staged = Path(tmp) / "docs"
+        shutil.copytree(docs, staged)
+        proc = subprocess.run(["node", str(site / "build.mjs")], cwd=str(REPO_ROOT),
+                              capture_output=True, text=True)
+        if proc.returncode != 0:
+            return CheckResult("site-matches-source", "FAIL",
+                               "site/build.mjs failed", [proc.stderr.strip()[:300]])
+        drift = []
+        for page in sorted(docs.glob("*.html")):
+            if page.name == "index.html":
+                continue
+            old = staged / page.name
+            if not old.is_file():
+                drift.append(f"{page.name}: built but absent before (uncommitted build output)")
+            elif not filecmp.cmp(old, page, shallow=False):
+                drift.append(f"{page.name}: published copy differs from what site/pages builds")
+        # restore whatever was there so the check never mutates the tree
+        for page in sorted(staged.glob("*.html")):
+            shutil.copy2(page, docs / page.name)
+
+    findings = stray + drift
+    if findings:
+        return CheckResult("site-matches-source", "FAIL",
+                           f"{len(findings)} page(s) out of sync with site/pages/", findings)
+    return CheckResult("site-matches-source", "PASS",
+                       "every published page matches what site/pages builds")
+
+
+def check_no_stale_version_claim() -> CheckResult:
+    """No public surface may present an old release as the current one.
+
+    The site said "shipped v0.22 = live now, git pull to get it" while the repo
+    shipped v0.28.1 — six releases of a promise a reader cannot verify and would
+    have found false. D29 keeps public COUNTS honest and says nothing about
+    version strings, which is exactly how this survived.
+
+    Historical phrasing is legitimate and must not fail: "landed in v0.22" and a
+    "shipped · v0.22" pill are permanently true. Only currency claims are
+    checked — a version adjacent to live-now/current/latest wording.
+    """
+    import re as _re
+    changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8", errors="replace")
+    m = _re.search(r"^##\s*\[(\d+\.\d+(?:\.\d+)?)\]", changelog, _re.M)
+    if not m:
+        return CheckResult("no-stale-version-claim", "WARN",
+                           "could not resolve current version from CHANGELOG.md")
+    current = "v" + m.group(1)
+
+    CURRENCY = _re.compile(
+        r"(?:live now|current release|latest release|current version|"
+        r"just shipped|as of)[^<.]{0,40}?(v\d+\.\d+(?:\.\d+)?)"
+        r"|(v\d+\.\d+(?:\.\d+)?)[^<.]{0,30}?(?:is (?:the )?(?:current|latest)|= live now)",
+        _re.I)
+
+    findings = []
+    for page in sorted((REPO_ROOT / "docs").glob("*.html")):
+        text = page.read_text(encoding="utf-8", errors="replace")
+        for hit in CURRENCY.finditer(text):
+            claimed = hit.group(1) or hit.group(2)
+            if claimed and claimed != current:
+                findings.append(f"{page.name}: presents {claimed} as current (actual {current})")
+    if findings:
+        return CheckResult("no-stale-version-claim", "FAIL",
+                           f"{len(findings)} stale currency claim(s)", sorted(set(findings)))
+    return CheckResult("no-stale-version-claim", "PASS",
+                       f"no public surface presents a version other than {current} as current")
+
+
 CHECKS = [
     ("D1", check_yaml_schema),
     ("D2", check_hook_wiring),
@@ -1846,6 +1950,8 @@ CHECKS = [
     ("D30", check_workflow_scripts_launchable),
     ("D31", check_interactive_write_gate),
     ("D32", check_atlas_crosswalk_ids),
+    ("D33", check_site_matches_source),
+    ("D34", check_no_stale_version_claim),
 ]
 
 

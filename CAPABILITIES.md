@@ -367,13 +367,13 @@ Shipped reference docs the skills and reviewers read at runtime.
 
 ## Test suite (`test-scenarios/`)
 
-16 LLM-behaviour scenarios + 32 deterministic checks. Run before any release and after any material change to rules / hooks / wizard.
+16 LLM-behaviour scenarios + 34 deterministic checks. Run before any release and after any material change to rules / hooks / wizard.
 
 | Component | What |
 |---|---|
 | `test-scenarios/README.md` | How to run, scoring, OSS-release bar |
 | `test-scenarios/01-..16-*.md` | 16 LLM-behaviour scenarios with verbatim prompts + pass/fail criteria (manual run in a fresh Claude Code session) |
-| `test-scenarios/run-deterministic-checks.py` | 32 automated checks: YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, closed-vocabulary, Cerberus engine + scan + SARIF, Louvain community detection, vault-graph HTML / query / wiki, multimodal extractors, vault-lint + tag-migrator, base-folder scaffold, workflows present + valid, TODO-freshness net, self-healing watch selftests, self-improving post-check, recall hybrid retrieval, seat routing integrity, calendar server read-only, **public counts match shipped reality (D29)**, **workflow scripts launchable — no CR, `eol=lf` pinned (D30)**, **interactive write gate fires (D31)**, **ATLAS crosswalk IDs all exist in the committed snapshot (D32)** |
+| `test-scenarios/run-deterministic-checks.py` | 34 automated checks: YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, closed-vocabulary, Cerberus engine + scan + SARIF, Louvain community detection, vault-graph HTML / query / wiki, multimodal extractors, vault-lint + tag-migrator, base-folder scaffold, workflows present + valid, TODO-freshness net, self-healing watch selftests, self-improving post-check, recall hybrid retrieval, seat routing integrity, calendar server read-only, **public counts match shipped reality (D29)**, **workflow scripts launchable — no CR, `eol=lf` pinned (D30)**, **interactive write gate fires (D31)**, **ATLAS crosswalk IDs all exist in the committed snapshot (D32)** |
 | `test-scenarios/_results-template.md` | Per-run scoring template — copy as `_results-YYYY-MM-DD.md` |
 
 ```bash
