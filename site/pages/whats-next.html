@@ -1,10 +1,10 @@
 <header class="phero">
   <div class="wrap">
     <a class="back" href="index.html">← Back to overview</a>
-    <div class="eyebrow">Roadmap · what just shipped &amp; what's coming</div>
+    <div class="eyebrow">What just went in &middot; what&rsquo;s in testing &middot; what&rsquo;s next</div>
     <h1 class="big">What's next for Charon</h1>
-    <p class="sub">Charon ships in tranches — each capability proven on the author's own vault first, then genericised. Here's the self-healing work coming next, and the retrieval tools that <b>landed in v0.22</b> and ship in <b>{{VERSION}}</b>.</p>
-    <p class="asof">As of {{BUILD_DATE}} · {{VERSION}} · the pills below move with each release.</p>
+    <p class="sub">Charon ships in tranches, and every capability is proven on a real working vault before it is offered to yours. This page stays current: what has just gone in, what is being tested in the open, and what is coming.</p>
+    <p class="asof">As of {{BUILD_DATE}} · the pills below move with each release.</p>
   </div>
 </header>
 
@@ -29,53 +29,34 @@
   </div>
 </section>
 
-<section>
-  <div class="wrap">
-    <div class="sec-head">
-      <div class="kicker">Coming next · the marquee</div>
-      <h2>A harness that reviews its own failures</h2>
-      <p>When an automation breaks, Charon will read the wreck for you — the failure, the recent runs, the command that broke — and hand you a ranked set of fixes. It <b>surfaces and stops</b>. You pick; a separate, gated step applies. It never quietly fixes itself.</p>
-    </div>
-    <div class="stages" aria-label="The self-healing flow">
-      <div class="stg"><div class="sn">01</div><h4>Failure</h4><p>A scheduled run exits with an error and logs it.</p></div>
-      <div class="stg"><div class="sn">02</div><h4>Auto-review</h4><p>A hardened, read-only pass finds the likely root cause.</p></div>
-      <div class="stg"><div class="sn">03</div><h4>Ranked options</h4><p>A decision-ready note: cause + fixes, most-likely first.</p></div>
-      <div class="stg verify"><div class="sn">04</div><h4>You pick</h4><p>The human gate. Nothing has changed up to here.</p></div>
-      <div class="stg"><div class="sn">05</div><h4>Gated apply</h4><p>A separate, allow-listed step makes the reversible fix.</p></div>
-      <div class="stg"><div class="sn">06</div><h4>Monitor</h4><p>A deterministic check confirms the problem actually fell.</p></div>
-    </div>
-    <p class="honest-beat"><b>Why it's built this way.</b> The review reads; it cannot act. The apply step is a closed allow-list of reversible fixes, each needing your say-so. The "did it work?" check answers from deterministic counts, not the model grading its own homework — so the loop can't talk itself into a win.</p>
-  </div>
-</section>
-
 <section class="alt">
   <div class="wrap">
     <div class="sec-head">
-      <div class="kicker">Shipped · v0.22</div>
-      <h2>Four ways to get more out of your own vault — now live</h2>
+      <div class="kicker">Already yours</div>
+      <h2>Four ways to get more out of your own vault</h2>
       <p>These landed in the latest release. Small, read-only tools for the moments a growing second brain starts to strain — finding, reconciling, pressure-testing, and handing off.</p>
     </div>
     <div class="cards two">
       <div class="card">
-        <div class="ctop"><span class="cmd">/recall</span><span class="pill ok">shipped · v0.22</span></div>
+        <div class="ctop"><span class="cmd">/recall</span><span class="pill ok">already yours</span></div>
         <h4>Find the note you half-remember</h4>
         <p>Hybrid keyword retrieval over everything you've authored — body and title ranked together — with zero setup and <b>no vector database</b> to stand up.</p>
         <p class="out">Outcome: the right note in one query, on a plain install.</p>
       </div>
       <div class="card">
-        <div class="ctop"><span class="cmd">/find-tensions</span><span class="pill ok">shipped · v0.22</span></div>
+        <div class="ctop"><span class="cmd">/find-tensions</span><span class="pill ok">already yours</span></div>
         <h4>Catch where your vault disagrees with itself</h4>
         <p>Surfaces two notes asserting incompatible facts — a date, a number, a verdict — and records each pair side by side. It never averages and never picks a winner.</p>
         <p class="out">Outcome: stale contradictions caught before they reach a report.</p>
       </div>
       <div class="card">
-        <div class="ctop"><span class="cmd">/grill</span><span class="pill ok">shipped · v0.22</span></div>
+        <div class="ctop"><span class="cmd">/grill</span><span class="pill ok">already yours</span></div>
         <h4>Pressure-test a plan against your own record</h4>
         <p>Interrogates a plan one question at a time, first checking it against what you've <b>already decided</b> — so you don't re-litigate settled ground or contradict a past call.</p>
         <p class="out">Outcome: a consistency check no fresh brainstorm can give you.</p>
       </div>
       <div class="card">
-        <div class="ctop"><span class="cmd">/handoff</span><span class="pill ok">shipped · v0.22</span></div>
+        <div class="ctop"><span class="cmd">/handoff</span><span class="pill ok">already yours</span></div>
         <h4>Put a thread down and pick it back up</h4>
         <p>Writes a dated handoff note and a paste-ready kickoff prompt for the next session, wired into your front-of-mind list.</p>
         <p class="out">Outcome: resume after days away without re-deriving where you were.</p>
@@ -88,7 +69,25 @@
 <section>
   <div class="wrap">
     <div class="sec-head">
-      <div class="kicker">Coming next &middot; the shift</div>
+      <div class="kicker">Just went in</div>
+      <h2>The last few releases were about not being able to lie to you.</h2>
+      <p>Less visible than a new command, and more important. A second brain is only worth trusting if what it tells you is true &mdash; so recent work has gone into making it structurally hard for the system, or its author, to state something that is not.</p>
+    </div>
+    <div class="stages" aria-label="Recent work">
+      <div class="stg verify"><div class="sn">&#10003;</div><h4>Outside text stays outside</h4><p>Content that arrives from elsewhere &mdash; mail, invites, transcripts &mdash; can no longer be quietly promoted into your trusted notes.</p></div>
+      <div class="stg"><div class="sn">&#10003;</div><h4>Commands write where they should</h4><p>A command that goes near your files is confined to the paths it declared, and says so before it acts.</p></div>
+      <div class="stg"><div class="sn">&#10003;</div><h4>Findings you can check</h4><p>Security findings carry public standard references, so you can look up what was claimed instead of taking it on faith.</p></div>
+      <div class="stg"><div class="sn">&#10003;</div><h4>Nothing overwrites silently</h4><p>Two voice notes in the same minute used to cost you one of them. Now they don&rsquo;t.</p></div>
+      <div class="stg"><div class="sn">&#10003;</div><h4>The page you are reading</h4><p>Its version and date are generated at build time, and a check fails the release if any public claim drifts from what actually ships.</p></div>
+    </div>
+    <p class="honest-beat"><b>Why this is the marquee and not a footnote.</b> The failure that prompted it was ours: this site once told readers an old release was the current one, for six releases running, because a human had to remember to update a number. Nobody had lied &mdash; but the page had. The fix was not to try harder; it was to generate the claim and add a check that fails the release when a public surface drifts.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">In testing &middot; the shift</div>
       <h2>It brings you the right notes. You don&rsquo;t have to remember which.</h2>
       <p>A second brain usually leans on one list that loads every single time. Everything you must not forget competes for a place on it, so it only grows &mdash; and anything that isn&rsquo;t on the list may as well not exist. Charon is moving to the opposite arrangement: <b>ask a normal question, and the few notes that actually relate come to you</b> &mdash; including ones you wrote months ago and had forgotten you had.</p>
     </div>
@@ -107,12 +106,31 @@
 <section>
   <div class="wrap">
     <div class="sec-head">
-      <div class="kicker">Coming next &middot; the quiet one</div>
+      <div class="kicker">In testing &middot; the quiet one</div>
       <h2>Things you promised yourself stop slipping.</h2>
       <p>Decide to revisit something in a fortnight and that date lives in a note, which means it survives only if you happen to reread it. Charon is gaining a small register for those: reviews, follow-ups, the &ldquo;let&rsquo;s check this again once it&rsquo;s proven&rdquo; commitments. They appear on your daily list and again when you sit down &mdash; and if a date passes, it reads as <b>overdue</b>, not as still-pending.</p>
       <p>The same lifecycle tidies your read-first list. Anything finished, or quiet for a month, gets proposed for retirement &mdash; and anything unfinished is recorded before it leaves, so tidying up can never quietly lose a thread.</p>
     </div>
     <p class="term-cap">in shadow on the author&rsquo;s harness &mdash; not yet in Charon</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">Next · the marquee</div>
+      <h2>A harness that reviews its own failures</h2>
+      <p>When an automation breaks, Charon will read the wreck for you — the failure, the recent runs, the command that broke — and hand you a ranked set of fixes. It <b>surfaces and stops</b>. You pick; a separate, gated step applies. It never quietly fixes itself.</p>
+    </div>
+    <div class="stages" aria-label="The self-healing flow">
+      <div class="stg"><div class="sn">01</div><h4>Failure</h4><p>A scheduled run exits with an error and logs it.</p></div>
+      <div class="stg"><div class="sn">02</div><h4>Auto-review</h4><p>A hardened, read-only pass finds the likely root cause.</p></div>
+      <div class="stg"><div class="sn">03</div><h4>Ranked options</h4><p>A decision-ready note: cause + fixes, most-likely first.</p></div>
+      <div class="stg verify"><div class="sn">04</div><h4>You pick</h4><p>The human gate. Nothing has changed up to here.</p></div>
+      <div class="stg"><div class="sn">05</div><h4>Gated apply</h4><p>A separate, allow-listed step makes the reversible fix.</p></div>
+      <div class="stg"><div class="sn">06</div><h4>Monitor</h4><p>A deterministic check confirms the problem actually fell.</p></div>
+    </div>
+    <p class="honest-beat"><b>Why it's built this way.</b> The review reads; it cannot act. The apply step is a closed allow-list of reversible fixes, each needing your say-so. The "did it work?" check answers from deterministic counts, not the model grading its own homework — so the loop can't talk itself into a win.</p>
   </div>
 </section>
 
@@ -126,20 +144,20 @@
       <table>
         <thead><tr><th>Capability</th><th>What it gives you</th><th>Status</th></tr></thead>
         <tbody>
-          <tr><td><span class="v">/harness-review</span></td><td class="cwhat">Reviews a logged failure into a ranked-fix note; you pick, a gated step applies.</td><td><span class="pill shadow">in shadow</span></td></tr>
-          <tr><td><span class="v">Prompt-aware recall</span></td><td class="cwhat">Brings the handful of notes that relate to what you asked &mdash; without being told which, and without loading everything.</td><td><span class="pill shadow">in shadow</span></td></tr>
-          <tr><td><span class="v">Commitment register</span></td><td class="cwhat">Dated reviews and follow-ups surface daily and at session start; a passed date reads as overdue, not pending.</td><td><span class="pill shadow">in shadow</span></td></tr>
-          <tr><td><span class="v">Pickup lifecycle</span></td><td class="cwhat">Retires finished or long-quiet items from your read-first list, recording anything unfinished before it goes.</td><td><span class="pill shadow">in shadow</span></td></tr>
-          <tr><td><span class="v">/harness-heal</span></td><td class="cwhat">Applies a pre-approved, reversible fix — the gated apply step, on its own high bar.</td><td><span class="pill plan">planned</span></td></tr>
-          <tr><td><span class="v">/recall</span></td><td class="cwhat">Hybrid keyword retrieval over authored notes — no embeddings, no vector DB.</td><td><span class="pill ok">shipped · v0.22</span></td></tr>
-          <tr><td><span class="v">/find-tensions</span></td><td class="cwhat">Surfaces contradictions across notes; records both sources, resolves nothing.</td><td><span class="pill ok">shipped · v0.22</span></td></tr>
-          <tr><td><span class="v">/grill</span></td><td class="cwhat">One-question-at-a-time plan interrogation, grounded in your prior decisions.</td><td><span class="pill ok">shipped · v0.22</span></td></tr>
-          <tr><td><span class="v">/handoff</span></td><td class="cwhat">Cross-session baton: dated handoff note + a paste-ready kickoff prompt.</td><td><span class="pill ok">shipped · v0.22</span></td></tr>
-          <tr><td><span class="v">Clean-room porting</span></td><td class="cwhat">Discipline + verifier for bringing outside tools in safely — re-author from spec, never copy.</td><td><span class="pill ok">shipped · v0.22</span></td></tr>
+          <tr><td><span class="v">/harness-review</span></td><td class="cwhat">Reviews a logged failure into a ranked-fix note; you pick, a gated step applies.</td><td><span class="pill shadow">in testing</span></td></tr>
+          <tr><td><span class="v">Prompt-aware recall</span></td><td class="cwhat">Brings the handful of notes that relate to what you asked &mdash; without being told which, and without loading everything.</td><td><span class="pill shadow">in testing</span></td></tr>
+          <tr><td><span class="v">Commitment register</span></td><td class="cwhat">Dated reviews and follow-ups surface daily and at session start; a passed date reads as overdue, not pending.</td><td><span class="pill shadow">in testing</span></td></tr>
+          <tr><td><span class="v">Pickup lifecycle</span></td><td class="cwhat">Retires finished or long-quiet items from your read-first list, recording anything unfinished before it goes.</td><td><span class="pill shadow">in testing</span></td></tr>
+          <tr><td><span class="v">/harness-heal</span></td><td class="cwhat">Applies a pre-approved, reversible fix — the gated apply step, on its own high bar.</td><td><span class="pill plan">next</span></td></tr>
+          <tr><td><span class="v">/recall</span></td><td class="cwhat">Hybrid keyword retrieval over authored notes — no embeddings, no vector DB.</td><td><span class="pill ok">already yours</span></td></tr>
+          <tr><td><span class="v">/find-tensions</span></td><td class="cwhat">Surfaces contradictions across notes; records both sources, resolves nothing.</td><td><span class="pill ok">already yours</span></td></tr>
+          <tr><td><span class="v">/grill</span></td><td class="cwhat">One-question-at-a-time plan interrogation, grounded in your prior decisions.</td><td><span class="pill ok">already yours</span></td></tr>
+          <tr><td><span class="v">/handoff</span></td><td class="cwhat">Cross-session baton: dated handoff note + a paste-ready kickoff prompt.</td><td><span class="pill ok">already yours</span></td></tr>
+          <tr><td><span class="v">Clean-room porting</span></td><td class="cwhat">Discipline + verifier for bringing outside tools in safely — re-author from spec, never copy.</td><td><span class="pill ok">already yours</span></td></tr>
         </tbody>
       </table>
     </div>
-    <p class="tbl-note"><b>shipped · v0.22</b> = landed in that release and live now — <b>current release {{VERSION}}</b>, <code>git pull</code> to get it · <b>in shadow</b> = running silently on a real vault while it earns trust · <b>planned</b> = designed, gated on the highest bar because it can change files.</p>
+    <p class="tbl-note"><b>already yours</b> = in the current release, <code>git pull</code> to get it &middot; <b>in testing</b> = running silently on a real working vault while it earns trust &middot; <b>next</b> = designed, and gated hardest where it can change your files. Current release <b>{{VERSION}}</b>, page current as of <b>{{BUILD_DATE}}</b>.</p>
   </div>
 </section>
 
@@ -151,7 +169,7 @@
     </div>
     <div class="ceiling">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2 3 6v6c0 5 3.8 8.5 9 10 5.2-1.5 9-5 9-10V6l-9-4Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <p><b>Nothing lands in Charon until it's run for weeks on a real, working vault.</b> The v0.22 tools above shipped that way — used daily on the author's own vault first, then genericised. The in-shadow and planned items are still proving out: a shadow window to catch false alarms, an adversarial security review on anything that can touch files, and a plain honest status until it clears. The rule holds hardest for the file-changing pieces — those carry the highest bar of all.</p>
+      <p><b>Nothing lands in Charon until it's run for weeks on a real, working vault.</b> The retrieval tools above shipped that way — used daily on the author's own vault first, then genericised. The in-shadow and planned items are still proving out: a shadow window to catch false alarms, an adversarial security review on anything that can touch files, and a plain honest status until it clears. The rule holds hardest for the file-changing pieces — those carry the highest bar of all.</p>
     </div>
     <div class="road">
       <p>Want the detail on what's already shipped? The <b>deep-dive pages</b> cover today's capabilities — memory, capture, security, the agents, the workflows.</p>
