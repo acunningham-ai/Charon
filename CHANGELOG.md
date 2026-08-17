@@ -4,6 +4,12 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+*Nothing pending - next change lands here.*
+
+---
+
+## [0.29.0] - 2026-08-17
+
 ### Added — your brain survives a new laptop (`/backup-brain`)
 
 **Capability:** offline backup and restore of the half of a brain nobody syncs, plus a
@@ -1325,7 +1331,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.28.1...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.29.0...HEAD
+[0.29.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.29.0
 [0.28.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.28.1
 [0.28.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.28.0
 [0.27.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.27.0
