@@ -1917,6 +1917,74 @@ def check_no_stale_version_claim() -> CheckResult:
                        f"no public surface presents a version other than {current} as current")
 
 
+def check_backup_brain_integrity():
+    """D35 - backup/restore ships, and NEVER grows a credential-copy path.
+
+    The second assertion is the point of this check. `backup-brain.py` deliberately has
+    no --include-secrets option: the tool cannot encrypt and, unelevated, cannot verify
+    the destination drive is encrypted, so any credential-copy path would be unprotected
+    by construction. That is a decision a well-meaning future change could quietly undo
+    ("just add a flag for it"). This check makes the omission load-bearing rather than a
+    convention someone has to remember.
+    """
+    import py_compile as _pyc
+
+    tool = REPO_ROOT / "scripts" / "backup-brain.py"
+    problems = []
+
+    if not tool.is_file():
+        return CheckResult("backup-brain-integrity", "FAIL",
+                           "scripts/backup-brain.py missing", [str(tool)])
+    try:
+        _pyc.compile(str(tool), doraise=True)
+    except Exception as exc:  # noqa: BLE001 - surface any compile failure verbatim
+        problems.append(f"does not compile: {exc}")
+
+    src = tool.read_text(encoding="utf-8", errors="replace")
+
+    # The invariant: no argparse option that copies credential values, and the secrets
+    # directory must never appear as a backup job. Comments explaining the ABSENCE are
+    # fine, so look for the option being *defined*, not merely mentioned.
+    if '"--include-secrets"' in src or "'--include-secrets'" in src:
+        problems.append("defines an --include-secrets option (credential-copy path)")
+    if 'out.append(("secrets"' in src or "out.append(('secrets'" in src:
+        problems.append("adds the secrets directory as a backup job")
+
+    # The inventory is what makes "move them yourself" actionable - it must survive.
+    if "SECRETS-INVENTORY.json" not in src:
+        problems.append("no SECRETS-INVENTORY.json - the re-issue checklist is missing")
+
+    # Marker-file targeting, not drive letters (the whole point on a new machine).
+    if ".charon-backup-target" not in src:
+        problems.append("marker-file targeting missing")
+
+    # Silent-failure guard: last_success must be tracked apart from last_attempt.
+    if "last_success" not in src or "last_attempt" not in src:
+        problems.append("status file does not separate last_success from last_attempt")
+
+    # Both installers must offer restore, or migrating users on one OS get nothing.
+    for installer in ("install.ps1", "install.sh"):
+        p = REPO_ROOT / installer
+        if not p.is_file():
+            problems.append(f"{installer} missing")
+            continue
+        text = p.read_text(encoding="utf-8", errors="replace")
+        if "backup-brain.py" not in text or "--restore" not in text:
+            problems.append(f"{installer} does not offer restore at install time")
+
+    doc = REPO_ROOT / ".claude" / "commands" / "backup-brain.md"
+    if not doc.is_file():
+        problems.append("/backup-brain command doc missing")
+    elif "Moving your credentials" not in doc.read_text(encoding="utf-8", errors="replace"):
+        problems.append("command doc lacks the 'Moving your credentials' guidance")
+
+    if problems:
+        return CheckResult("backup-brain-integrity", "FAIL",
+                           f"{len(problems)} problem(s)", problems)
+    return CheckResult("backup-brain-integrity", "PASS",
+                       "backup/restore present, marker-targeted, no credential-copy path")
+
+
 CHECKS = [
     ("D1", check_yaml_schema),
     ("D2", check_hook_wiring),
@@ -1952,6 +2020,7 @@ CHECKS = [
     ("D32", check_atlas_crosswalk_ids),
     ("D33", check_site_matches_source),
     ("D34", check_no_stale_version_claim),
+    ("D35", check_backup_brain_integrity),
 ]
 
 

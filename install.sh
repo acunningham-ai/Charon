@@ -359,7 +359,46 @@ mkdir -p "$SECRETS"
 chmod 700 "$SECRETS"
 echo "  Created $SECRETS with mode 700"
 
-# --- Step 6: First-run wizard ---
+# --- Step 6: Restore from a previous machine? ---
+# Offered BEFORE the wizard on purpose. A migrating user's answers already exist in
+# the backup; asking them again is the wrong first experience. Restore first, and
+# first-run only has to fill genuine gaps.
+echo
+echo "${C_GREEN}Step 6 - Moving from another computer?${C_RESET}"
+BACKUP_TOOL="${REPO_ROOT}/scripts/backup-brain.py"
+FOUND_BACKUP=""
+if PY_R="$(py_cmd 2>/dev/null)" && [ -f "$BACKUP_TOOL" ]; then
+    # Probe the usual mount points for the backup marker.
+    for base in /Volumes /media "/media/${USER:-}" /mnt /run/media; do
+        [ -d "$base" ] || continue
+        for vol in "$base"/*; do
+            [ -d "$vol" ] || continue
+            if [ -e "${vol}/.charon-backup-target" ]; then FOUND_BACKUP="$vol"; break 2; fi
+            for sub in "$vol"/*; do
+                [ -d "$sub" ] || continue
+                if [ -e "${sub}/.charon-backup-target" ]; then FOUND_BACKUP="$sub"; break 3; fi
+            done
+        done
+    done
+    if [ -n "$FOUND_BACKUP" ]; then
+        echo "  A Charon backup drive is plugged in: $FOUND_BACKUP"
+        echo "  Restoring brings across your memory, session history and pipeline state."
+        echo "  Credentials are never restored - you re-authenticate afterwards."
+        DO_RESTORE="$(ask_choice "  Restore from that backup now?" "y" "y" "n")"
+        if [ "$DO_RESTORE" = "y" ]; then
+            "$PY_R" "$BACKUP_TOOL" --restore || echo "  ${C_YELLOW}Restore reported a problem - continuing to the wizard.${C_RESET}"
+            echo
+            echo "  ${C_GREEN}Restore finished. The wizard will only fill what's missing.${C_RESET}"
+        fi
+    else
+        echo "  No backup drive detected - continuing with a fresh setup."
+        echo "  (Have one? Plug it in, then: python3 scripts/backup-brain.py --restore)"
+    fi
+else
+    echo "  Skipped (needs Python + scripts/backup-brain.py)."
+fi
+
+# --- Step 7: First-run wizard ---
 if [ -n "$SKIP_FIRST_RUN" ]; then
     echo
     echo "${C_YELLOW}Skipping first-run wizard per SKIP_FIRST_RUN. Run later with:${C_RESET}"
@@ -367,7 +406,7 @@ if [ -n "$SKIP_FIRST_RUN" ]; then
     exit 0
 fi
 echo
-echo "${C_GREEN}Step 6 - Hand off to first-run wizard${C_RESET}"
+echo "${C_GREEN}Step 7 - Hand off to first-run wizard${C_RESET}"
 if PY="$(py_cmd 2>/dev/null)"; then
     WIZARD="${REPO_ROOT}/scripts/first-run.py"
     if [ -f "$WIZARD" ]; then

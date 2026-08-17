@@ -260,7 +260,40 @@ try {
     Write-Host "  Couldn't restrict permissions automatically. Right-click - Properties - Security - restrict to your user." -ForegroundColor Yellow
 }
 
-# --- Step 6: First-run wizard ---
+# --- Step 6: Restore from a previous machine? ---
+# Offered BEFORE the wizard on purpose. If the user is migrating, the wizard's
+# questions are the wrong first experience - their answers already exist in the
+# backup. Restore first, and first-run only has to fill genuine gaps.
+Write-Host ""
+Write-Host "Step 6 - Moving from another computer?" -ForegroundColor Green
+$pyCmdR = (Get-PythonVersion).Command
+$backupTool = Join-Path $RepoRoot "scripts\backup-brain.py"
+$foundBackup = $false
+if ($pyCmdR -and (Test-Path $backupTool)) {
+    foreach ($v in (Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue)) {
+        if ($v.Root -and (Test-Path (Join-Path $v.Root ".charon-backup-target") -ErrorAction SilentlyContinue)) {
+            $foundBackup = $true; break
+        }
+    }
+    if ($foundBackup) {
+        Write-Host "  A Charon backup drive is plugged in." -ForegroundColor Cyan
+        Write-Host "  Restoring brings across your memory, session history and pipeline state."
+        Write-Host "  Credentials are never restored - you re-authenticate afterwards."
+        $doRestore = Ask-Choice "  Restore from that backup now?" @("y", "n") "y"
+        if ($doRestore -eq "y") {
+            & $pyCmdR $backupTool --restore
+            Write-Host ""
+            Write-Host "  Restore finished. The wizard will only fill what's missing." -ForegroundColor Green
+        }
+    } else {
+        Write-Host "  No backup drive detected - continuing with a fresh setup."
+        Write-Host "  (Have one? Plug it in, then: python scripts\backup-brain.py --restore)"
+    }
+} else {
+    Write-Host "  Skipped (needs Python + scripts\backup-brain.py)."
+}
+
+# --- Step 7: First-run wizard ---
 if ($SkipFirstRun) {
     Write-Host ""
     Write-Host "Skipping first-run wizard per -SkipFirstRun. Run later with:" -ForegroundColor Yellow
@@ -268,7 +301,7 @@ if ($SkipFirstRun) {
     exit 0
 }
 Write-Host ""
-Write-Host "Step 6 - Hand off to first-run wizard" -ForegroundColor Green
+Write-Host "Step 7 - Hand off to first-run wizard" -ForegroundColor Green
 $pyCmd = (Get-PythonVersion).Command
 if (-not $pyCmd) {
     Write-Host "  No Python found - can't run the wizard. Install Python and re-run install.ps1." -ForegroundColor Red

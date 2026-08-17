@@ -56,6 +56,11 @@ State persists at `~/.charon-first-run-state.json` while a run is in progress. P
 
 Re-running after completion: every previously-answered question offers **`[k]eep` / `[u]pdate` / `[w]ipe`**.
 
+
+> **Restoring instead of starting fresh?** If a Charon backup drive is attached, the installer
+> offers to restore before this wizard runs, and the wizard then only fills genuine gaps.
+> Run `python scripts/backup-brain.py --restore` any time to do it manually.
+
 ## Why this exists
 
 The harness ships universal patterns (board-reporting structure, security baseline framework, audience-tailoring discipline). It deliberately does NOT ship:

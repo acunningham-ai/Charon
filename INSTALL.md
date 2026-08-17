@@ -64,6 +64,12 @@ The bootstrap installer:
 4. Creates your **secrets directory** with restricted permissions (`~/.secrets/` by default).
 5. Hands off to `scripts/first-run.py` — the interactive wizard, which now offers a **Quick path (4–6 questions, ~2 minutes) or Full path (39 questions, ~20 minutes)** at the top. Pick Quick to get productive immediately and refine any phase later; pick Full if you already know how you want the harness configured. See [`FIRST-RUN.md`](FIRST-RUN.md) for details.
 
+
+> **Moving from another computer?** Plug in your Charon backup drive before running the
+> installer. It detects the drive and offers to restore your memory, session history and
+> pipeline state **before** the first-run wizard - so you are not asked questions you already
+> answered. Credentials are never restored; re-authenticate afterwards. See `/backup-brain`.
+
 ## What the bootstrap script asks you
 
 For each prerequisite that's missing:

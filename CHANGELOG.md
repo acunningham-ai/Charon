@@ -4,7 +4,53 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
-*Nothing pending — next change lands here.*
+### Added — your brain survives a new laptop (`/backup-brain`)
+
+**Capability:** offline backup and restore of the half of a brain nobody syncs, plus a
+restore offer built into the installer.
+
+**Intent:** a brain has two halves living in different places. The vault is almost always
+in Dropbox/OneDrive/iCloud/git. `~/.claude` — memory files, session summaries, transcripts,
+pipeline state — is a hidden home-directory folder no sync tool touches, because nobody
+thinks to point one at a dotfolder. The failure is undramatic and total: you set up a new
+machine, every note is present, and the harness has forgotten everything it learned about
+how you work.
+
+**Why now:** found the hard way in the reference deployment — 346 memory files and 173
+session summaries going back four months on one unbacked local disk, with a machine
+migration already scheduled.
+
+- **`scripts/backup-brain.py`** — cross-platform (Windows / macOS / Linux) backup, restore
+  and status. The destination is located by a **marker file** (`.charon-backup-target`) in
+  a volume root, never by drive letter or mount path — those change between machines and
+  reboots, precisely the situation a migration tool must survive.
+- **`/backup-brain` command** documenting setup, scheduling and the restore contract.
+- **Restore offered during install** — `install.ps1` / `install.sh` gained a *"Moving from
+  another computer?"* step that probes attached volumes for the marker and offers restore
+  **before** the first-run wizard, so a migrating user is not asked questions they already
+  answered on the old machine.
+- **Credentials are never backed up — there is no option to.** Not a flagged one, not a
+  guarded one. The tool cannot encrypt, and as a normal-user process it cannot verify the
+  destination drive is encrypted (BitLocker status needs admin; FileVault and LUKS are
+  equally opaque unelevated), so a "copy my secrets" path would be an unprotected copy
+  wearing a warning label — and warning labels lose to convenience over time. A missing
+  feature does not. Instead every backup writes **`SECRETS-INVENTORY.json`**: the
+  filenames, sizes, dates and *shape* of each credential file (description field if
+  present, else key names) and **never a value** — answering the question that actually
+  blocks a migration, *what did I have?* Users move credentials themselves, once,
+  deliberately: re-issue where possible, else a password manager or an encrypted volume.
+  Documented under "Moving your credentials" in `/backup-brain`.
+- **Restore asks before touching a synced vault.** If a vault already exists at the target,
+  restore names the likely provider and asks whether you still have access to the sync
+  behind it. Yes → skip, and let sync bring the notes back (restoring over a live sync
+  folder causes conflicts and duplicates). No — left the employer, dead tenant — → restore
+  from the drive, because that copy is now the only one. A cloud folder on disk does not
+  prove account access, so this is a question, not a detection. `--vault restore|skip`
+  answers it non-interactively.
+- **Silence is not success.** The drive is normally stored away, so most scheduled runs
+  legitimately find nothing — indistinguishable from a job broken for months. Every run
+  records `last_attempt` **and** `last_success` separately in
+  `state/last-brain-backup.json`; liveness checks judge `last_success`, never log mtime.
 
 ---
 
