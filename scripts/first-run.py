@@ -797,6 +797,85 @@ def configure_stdio_for_unicode() -> None:
                 pass
 
 
+def offer_restore_from_backup() -> bool:
+    """Ask, before any wizard question, whether this is a migration.
+
+    The bootstrap installers already offer restore, but only when a backup drive
+    happens to be plugged in already, and only if the user came through the
+    installer at all - INSTALL.md documents running this wizard directly, which
+    bypasses that path entirely. Someone rebuilding a dead laptop should not have
+    to already know the restore command exists.
+
+    So: ASK, rather than react to detection. A user whose drive is still in a bag
+    gets a chance to plug it in, instead of a passive one-line hint followed by
+    39 questions whose answers are sitting on that drive.
+
+    Detection is delegated to backup-brain.py rather than reimplemented, so the
+    marker contract lives in exactly one place.
+
+    Returns True if a restore actually ran.
+    """
+    tool = Path(__file__).resolve().parent / "backup-brain.py"
+    if not tool.is_file():
+        return False
+
+    find_target = None
+    marker = ".charon-backup-target"
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("_backup_brain", tool)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        find_target, marker = mod.find_target, mod.MARKER
+    except Exception:
+        pass
+
+    print()
+    print("Setting up fresh, or restoring from another computer?")
+    print("  A restore brings back your memory, session history and pipeline state -")
+    print("  the half no cloud sync covers. Credentials are never restored.")
+    print()
+    try:
+        answer = input("  [f]resh setup or [r]estore from backup? [f]: ").strip().lower()
+    except EOFError:
+        return False
+    if answer not in ("r", "restore"):
+        return False
+
+    while True:
+        target = find_target() if find_target else None
+        if target:
+            print(f"\n  Backup drive found: {target}")
+            return _run_restore(tool, [])
+        print(f"\n  No attached drive carries '{marker}'.")
+        print("  Plug in your backup drive now, or give the path to a backup folder.")
+        try:
+            again = input("  [Enter] to look again, a path, or 's' to skip: ").strip()
+        except EOFError:
+            return False
+        if again.lower() == "s":
+            return False
+        if again:
+            src = Path(again)
+            if src.is_dir():
+                return _run_restore(tool, ["--from", str(src)])
+            print(f"  Not a directory: {src}")
+
+
+def _run_restore(tool: Path, extra: list) -> bool:
+    """Invoke the restore, surfacing its output. Never raises into the wizard."""
+    try:
+        rc = subprocess.run([sys.executable, str(tool), "--restore"] + extra).returncode
+    except Exception as exc:  # noqa: BLE001
+        print(f"  Restore could not run: {exc}")
+        return False
+    if rc == 0:
+        print("\n  Restore complete. The wizard will only fill what is missing.\n")
+        return True
+    print("\n  Restore did not complete. Continuing with setup - nothing was lost.\n")
+    return False
+
+
 def main():
     configure_stdio_for_unicode()
     parser = argparse.ArgumentParser(description="Charon first-run setup wizard")
@@ -804,6 +883,12 @@ def main():
     parser.add_argument("--no-logo", action="store_true")
     parser.add_argument("--phase", help="run a single phase only")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--no-restore-prompt",
+        action="store_true",
+        help="Skip the 'fresh setup or restore from backup?' question. For automation, "
+             "or when you know this is a fresh install.",
+    )
     parser.add_argument(
         "--quick",
         action="store_true",
@@ -844,6 +929,12 @@ def main():
 
     print("Welcome to Charon — second-brain harness for Claude Code.")
     print("Press Ctrl+C any time — your progress is saved and you can resume later.")
+
+    # Offered BEFORE any question: a migrating user's answers already exist on the
+    # backup drive. Skipped for --dry-run and non-interactive runs so automation and
+    # CI are never blocked on a prompt.
+    if not args.no_restore_prompt and not args.dry_run and sys.stdin.isatty():
+        offer_restore_from_backup()
 
     data = load_questions()
     phases = filter_phases(data["phases"], args.phase)
