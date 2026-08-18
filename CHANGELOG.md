@@ -31,6 +31,13 @@ migration already scheduled.
   a volume root, never by drive letter or mount path — those change between machines and
   reboots, precisely the situation a migration tool must survive.
 - **`/backup-brain` command** documenting setup, scheduling and the restore contract.
+- **The first-run wizard ASKS whether this is a restore** - before any question. The
+  installers only offered restore when a drive happened to be attached already, and
+  only to users who came through the installer; `INSTALL.md` documents running the
+  wizard directly, which bypassed it. Someone rebuilding a dead laptop should not need
+  to already know the restore command exists. Choosing restore with no drive attached
+  offers to look again or take a path rather than giving up. Skipped for `--dry-run`,
+  non-interactive stdin, and `--no-restore-prompt`.
 - **Restore offered during install** — `install.ps1` / `install.sh` gained a *"Moving from
   another computer?"* step that probes attached volumes for the marker and offers restore
   **before** the first-run wizard, so a migrating user is not asked questions they already
