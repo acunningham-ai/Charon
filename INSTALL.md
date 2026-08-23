@@ -181,7 +181,11 @@ echo '{"prompt":"test","cwd":"."}' | python scripts/load-rules.py
 python scripts/score-vault.py
 ```
 
-If `score-vault.py` reports a score, you're functional. Findings against missing files (`CLAUDE.md not found`, etc.) are expected on a fresh install — first-run sorts those.
+If `score-vault.py` reports a score, you're functional. Some findings are expected on a fresh install, and it's worth knowing which:
+
+- **`MEMORY.md not found` (CRITICAL)** — expected *before* setup, and the loudest thing you'll see. The memory directory doesn't exist until first-run creates it. Run the wizard, then re-run this check: the finding goes away. It reads as alarming and isn't.
+- **Vault folders** (`01-Daily/`, `02-…`, …) don't exist until you create them. Charon ships `00-Inbox/` and `07-References/` only, and deliberately doesn't pre-build an org structure that may not match yours. A finding naming a folder you haven't made is the design, not a failure.
+- **`CLAUDE.md`** — what first-run populates is the *memory directory* (`user_role.md` and friends), not the vault tree.
 
 ## Re-run the wizard
 
