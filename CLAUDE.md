@@ -36,10 +36,22 @@ Keeping these distinct is what stops the system rotting.
 | **Memory** | One durable fact per markdown file, plus a `MEMORY.md` pointer index. Loaded every session. | `~/.claude/projects/<project-slug>/memory/` |
 | **The harness** | The machinery — rules, commands, hooks, scripts. Teaches structure, holds no content. | `.claude/` and `scripts/` |
 
-Only `00-Inbox` and `07-References` ship with Charon. The rest of the numbered folders are a
-suggested shape, not a requirement — an org structure that may not match yours is not pre-built.
-Create the ones you want, ignore the ones you don't. A tool reporting a missing folder you never
-made is describing the design, not a fault.
+The clone ships `00-Inbox` and `07-References`. First-run creates the rest of the 00–09 skeleton —
+Daily, BUs, Domains, People, Meetings, Decisions, Projects, Archive — each with an explainer README,
+in either setup mode, skipping anything that already exists. They arrive **empty on purpose**: every
+capability gets a home to grow into, and no org-specific content is ever invented, so the org-unit
+and domain folders are the user's to populate. Before setup they don't exist, so a tool reporting one
+missing is describing a pre-setup state, not a fault.
+
+## This file is harness-owned — the personal layer is `CLAUDE.local.md`
+
+This file is tracked in git, and updates arrive as a fast-forward pull. A committed edit here
+diverges the branch, and `/charon-update` then refuses to run — the install quietly stops receiving
+updates, and nothing connects the two events afterwards.
+
+So personal instructions go in **`CLAUDE.local.md`** at the repo root: gitignored, and loaded right
+after this file every session, making it the last thing read at this level. If the user asks for a
+durable instruction about their own vault, that is where it belongs — never here.
 
 ## Always-fire rules
 
@@ -68,6 +80,7 @@ Commands live in `.claude/commands/`. The ones that carry the most weight:
 - `/triage-inbox` — turn captured mail and messages into what actually needs action.
 - `/save-feedback` — record a correction or preference so it sticks.
 - `/harness-doctor` — run every self-check and say what is broken.
+- `/charon-update` — pull upstream changes; also ensures any newly-added base folders exist.
 - `/cerberus-vet <repo-url>` — risk-assess a third-party skill, plugin, or MCP server **before**
   installing it.
 - `/backup-brain` — take the whole brain offline to a drive, and restore it onto a new machine.

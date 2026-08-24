@@ -1,6 +1,13 @@
 # Per-user accumulated allowlist — never ship
 .claude/settings.local.json
 
+# Personal layer for the boot file. CLAUDE.md is tracked and updates arrive by
+# `git pull --ff-only`, so a committed edit to it diverges the branch and
+# /charon-update refuses to run. Claude Code loads CLAUDE.local.md right after
+# CLAUDE.md every session, so personal instructions live here and updates keep
+# working.
+CLAUDE.local.md
+
 # Runtime state, telemetry, audit logs
 state/
 **/state/

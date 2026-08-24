@@ -184,7 +184,7 @@ python scripts/score-vault.py
 If `score-vault.py` reports a score, you're functional. Some findings are expected on a fresh install, and it's worth knowing which:
 
 - **`MEMORY.md not found` (CRITICAL)** — expected *before* setup, and the loudest thing you'll see. The memory directory doesn't exist until first-run creates it. Run the wizard, then re-run this check: the finding goes away. It reads as alarming and isn't.
-- **Vault folders** (`01-Daily/`, `02-…`, …) don't exist until you create them. Charon ships `00-Inbox/` and `07-References/` only, and deliberately doesn't pre-build an org structure that may not match yours. A finding naming a folder you haven't made is the design, not a failure.
+- **Vault folders** — the clone ships `00-Inbox/` and `07-References/`; the rest of the 00–09 skeleton is created by **first-run**, not by the clone (the user-content folders are gitignored, so they can't ship). Running the wizard in either mode scaffolds all nine — `00-Inbox`, `01-Daily`, `02-BUs`, `03-Domains`, `04-People`, `05-Meetings`, `06-Decisions`, `08-Projects`, `09-Archive` — each with an explainer README, skipping anything that already exists. They arrive **empty**: Charon gives every capability a home to grow into, but never generates org-specific content, so `02-BUs/` and `03-Domains/` are yours to populate. A folder finding before setup is expected; after setup it isn't.
 - **`CLAUDE.md`** — what first-run populates is the *memory directory* (`user_role.md` and friends), not the vault tree.
 
 ## Re-run the wizard
@@ -199,6 +199,22 @@ python scripts/first-run.py --logo full  # force the full ASCII banner (needs wi
 ```
 
 See [`FIRST-RUN.md`](FIRST-RUN.md) for the question flow.
+
+## Personalising the boot file — use `CLAUDE.local.md`
+
+`CLAUDE.md` is tracked in git, and updates arrive as `git pull --ff-only`. So if you edit it and
+commit, your branch diverges and `/charon-update` stops working — it reports *"local branch has N
+commits not on upstream — manual merge needed"* and your install quietly stays on the version you
+were on. It's an easy trap: `CLAUDE.md` is the most tempting file to personalise, and nothing
+connects the two events for you afterwards.
+
+Put personal instructions in **`CLAUDE.local.md`** at the repo root instead. Claude Code loads it
+straight after `CLAUDE.md` every session, so it's the last thing read at that level, and it's
+gitignored — updates keep flowing. Same pattern as `.claude/settings.local.json` for permissions.
+
+If you've already committed changes to `CLAUDE.md` and want updates back: move your additions into
+`CLAUDE.local.md`, then `git checkout <upstream-sha> -- CLAUDE.md` to restore the shipped version
+and commit that.
 
 ## Troubleshooting
 

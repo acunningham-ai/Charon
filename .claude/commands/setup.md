@@ -88,9 +88,11 @@ list, or a CRITICAL will look like a broken install:
 
 - **`MEMORY.md not found` (CRITICAL)** disappears once setup has run — it's reporting the state
   from before the wizard, not after. If it's still there post-setup, that's real: investigate.
-- **Vault folders** `01-`…`09-` don't exist until they're created. Charon ships `00-Inbox/` and
-  `07-References/` only, because it deliberately doesn't pre-build an org structure that may not
-  match theirs.
+- **Vault folders** — findings naming `01-`…`09-` are pre-setup only. The wizard scaffolds all
+  nine base folders in **either** mode, with an explainer README each, so this clears itself.
+  Worth telling them once, in Step 3: the folders arrive **empty on purpose** — Charon gives each
+  capability a home to grow into but never invents org-specific content, so `02-BUs/` and
+  `03-Domains/` are theirs to fill.
 
 Then confirm `user_role.md` really is there. If it isn't, setup did **not** succeed — say so
 plainly and work out why. Never report success you haven't verified.
