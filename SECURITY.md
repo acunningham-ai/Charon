@@ -45,6 +45,30 @@ Where the LLM has tool dispatch / memory / sub-agent autonomy:
 
 Run `/owasp-agentic-review <path>` against any agentic code in your installation.
 
+#### Auto mode widens tool dispatch — `soft_deny` is the compensating control
+
+`permissions.defaultMode: "auto"` removes the per-call approval prompt. The prompt
+was doing real work as an ASI02 control: it was the last human checkpoint between a
+hijacked goal and a dispatched tool. Turning it off does not remove the need for that
+checkpoint, it narrows where the checkpoint can live.
+
+Charon's position on it:
+
+- **Auto mode is not bypass mode.** Keep `disableBypassPermissionsMode: "disable"`.
+  Hooks, the deny list, `deny-destructive.py` and the write-path validators all still
+  run under auto — they are the controls that survive the prompt going away, and they
+  are the reason auto mode is defensible at all.
+- **`soft_deny` is where the surviving checkpoint goes.** Anything easy to do, hard to
+  undo, and reaching outside the repository — live-service restarts, remote-host writes,
+  the secrets directory, publication — belongs on it. See
+  [`CONFIGURATION.md`](CONFIGURATION.md) for the authoring rules.
+- **The `environment` block is security-relevant text, not documentation.** The model
+  sizes blast radius from it, so a stale or guessed line understates risk silently.
+  Never put a credential in it; name where secrets live, not what they are.
+- **Nothing about auto mode is shipped.** Charon ships no `autoMode` block. It is
+  user-global, machine-specific, and inheriting someone else's environment description
+  is exactly the failure the block exists to prevent.
+
 ### 3. Vault content protection
 
 Files marked `classification: restricted` or `classification: confidential` in frontmatter are never returned by the `vault-readonly` MCP server. The `vault-ops` MCP refuses writes to `CLAUDE.md`, `MEMORY.md`, `TODO.md`, and anything under `00-Inbox/_captured/` or `09-Archive/`.

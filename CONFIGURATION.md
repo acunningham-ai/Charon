@@ -57,6 +57,91 @@ Default allow list is minimal:
 Per-user additions go in `.claude/settings.local.json` (gitignored). The harness auto-accumulates allowlist entries here as you approve them during sessions.
 
 Deny list covers universally-dangerous patterns (`rm -rf`, force push, `shutdown`, `DROP TABLE`, etc.). Add to this list any patterns specific to your environment you want to hard-block.
+### Auto mode
+
+`"defaultMode": "auto"` lets Claude run tools without stopping for approval on each
+one. That is a real widening of blast radius, so treat it as a configured control
+rather than a convenience toggle.
+
+Auto mode is configured in your **user-global** `~/.claude/settings.json` — not in
+the repo-level `.claude/settings.json` above. Charon deliberately does not ship an
+`autoMode` block: it describes *your* machine, hosts and data, so there is no
+generic default that would be safe to inherit. Claude Code's built-in
+`/auto-mode-setup` interviews your environment and drafts the block for you. What
+follows is what to check before accepting that draft.
+
+```jsonc
+{
+  "permissions": {
+    "defaultMode": "auto",
+    "disableBypassPermissionsMode": "disable"
+  },
+  "autoMode": {
+    "environment": [ "..." ],
+    "soft_deny": [ "$defaults", "..." ]
+  }
+}
+```
+
+**Keep `disableBypassPermissionsMode: "disable"`.** Auto mode is not bypass mode:
+hooks, the deny list and the write-path validator all still run. Bypass mode
+disables them. Turning on the first is not a reason to relax the second.
+
+#### `environment` — what the model uses to size blast radius
+
+Free-text lines describing your world. The model reads them to tell a routine
+action from a consequential one, so accuracy matters more than completeness.
+Cover at least:
+
+| Line | Why it changes a decision |
+|---|---|
+| Organisation / team | Frames who is affected by a mistake |
+| Repository visibility, default + protected branches | Whether a push is publication |
+| Cloud provider, deploy targets, CI/CD | Whether an action reaches running infrastructure |
+| Secrets management location | Marks the credential store as a place to never read from or write to casually |
+| Key internal services and hosts | Names the machines where "just restart it" has consequences |
+| Sensitive data locations and audiences | Maps which vault paths are confidential or restricted |
+| Protected namespaces / IaC scopes | Names the environments that must never be edited unattended |
+| Trusted internal domains and registries | Draws the boundary that exfiltration would cross |
+
+Two authoring rules:
+
+- **Write "None configured" when nothing is configured.** An honest blank is a
+  usable fact. A guess is worse than silence — the model will act on it.
+- **No credentials, ever.** Name *where* secrets live, never what they are. The
+  file is plaintext on disk and syncs anywhere your home directory syncs.
+
+#### `soft_deny` — what stays human-reviewed anyway
+
+Patterns that still ask, even in auto mode. Start from `"$defaults"` (the
+built-in set) and append your own, each with a short reason after an em-dash so
+the next reader knows why the entry exists.
+
+```jsonc
+"soft_deny": [
+  "$defaults",
+  "Bash(ssh <production-host> *) — writes and service restarts on a live host",
+  "Bash(scp * <production-host>:*) — file transfer onto a live host"
+]
+```
+
+Earn a place on this list the same way each time: **the action is easy to
+perform, hard to undo, and reaches something outside this repository.** In
+practice that means
+
+- anything that touches a **live or production service** — restarts, deploys,
+  migrations, DDL;
+- anything that **writes to a remote host** — `ssh`, `scp`, `rsync`, remote shells;
+- anything that reads or writes the **secrets directory**;
+- anything that **publishes** — `git push`, release tagging, outbound send.
+
+#### Review it when your environment changes
+
+The block is a snapshot of the day it was written. A new host, a new remote, a
+first git remote on a previously local-only vault, or a new production namespace
+all invalidate part of it — and a stale `environment` line understates blast
+radius silently. Re-run `/auto-mode-setup`, or hand-edit the affected lines, when
+any of those change.
 
 ## `.mcp.json`
 

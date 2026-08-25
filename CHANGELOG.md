@@ -4,7 +4,29 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
-*Nothing pending - next change lands here.*
+### Added — running under auto mode without giving up the checkpoint
+
+Claude Code's `permissions.defaultMode: "auto"` removes the per-tool-call approval
+prompt. That prompt was carrying real security weight, and the built-in
+`/auto-mode-setup` will happily draft you a config without saying so. Charon now
+documents what to check before accepting that draft, and where the checkpoint goes
+once the prompt is gone.
+
+- **[`CONFIGURATION.md`](CONFIGURATION.md) → "Auto mode"** — the `autoMode` block
+  explained: what belongs in `environment` (and the two authoring rules — write
+  "None configured" rather than guessing, never name a credential), and how to earn
+  a place on `soft_deny` (easy to do, hard to undo, reaches outside the repository).
+  Plus the reminder to re-review the block when a host, remote or namespace changes,
+  because a stale `environment` line understates blast radius silently.
+- **[`SECURITY.md`](SECURITY.md) → ASI02** — auto mode framed as the tool-dispatch
+  widening it actually is, with `soft_deny` named as the compensating control and
+  `disableBypassPermissionsMode: "disable"` called out as the line not to cross.
+  Auto mode is not bypass mode; hooks and write-path validators are what survive the
+  prompt going away.
+
+**Not shipped, deliberately:** Charon carries no `autoMode` block. It is user-global
+and machine-specific — inheriting someone else's environment description is the exact
+failure the block exists to prevent.
 
 ---
 
