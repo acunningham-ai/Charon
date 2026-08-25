@@ -45,6 +45,20 @@ Two honest beats ship with it, because both are load-bearing:
   one. Hands-free needs activation solved without an open microphone, which is an unsolved
   design question, so it is not promised.
 
+Two additions after live testing on 25 Aug:
+
+- **It works mid-call.** Tested with another application in front and holding the
+  microphone; the instruction still landed in the right place. Written up as three
+  accessibility properties rather than a party trick — you never have to *get to* the
+  window (the session is found among all open windows, not by focus), it does not seize
+  the microphone so it coexists with assistive software already on the input stack, and
+  someone who cannot type at speed can look something up *during* a live conversation.
+  Focus is handed back afterwards, every time.
+- **Framed explicitly as version 1.** The limits above are v1 boundaries, not a ceiling.
+  The destination is named — the ship's computer, JARVIS — and immediately measured
+  against: a grounded answer currently takes about eighty seconds, most of it fixed
+  overhead rather than thinking. Stated as a direction, not as a description.
+
 Listed **`planned`** in "Where each capability stands" and captioned *Windows only, not in
 Charon* — it is the author's harness, not a shipped Charon capability, and the site says so
 rather than implying a roadmap commitment it cannot yet make.
