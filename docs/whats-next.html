@@ -119,6 +119,27 @@
 <section>
   <div class="wrap">
     <div class="sec-head">
+      <div class="kicker">Coming next &middot; a second way in</div>
+      <h2>Speaking to it is the same as typing to it.</h2>
+      <p>Every capability on this site quietly assumes one thing: that you can sit at a keyboard and type. The author&rsquo;s deployment now has a second way in &mdash; <b>hold a key, say what you want, and it arrives in the session as though you had typed it</b>. Not a voice menu bolted over a handful of commands: the same interface, so anything you can ask, you can ask aloud. For anyone who cannot type comfortably, or for long, that is the difference between a system they can use and one they cannot.</p>
+      <p>It is also the difference between reaching your notes at your desk and reaching them while your hands are busy &mdash; but the accessibility case is the one that decided it was worth building.</p>
+    </div>
+    <div class="stages" aria-label="How the voice interface works">
+      <div class="stg"><div class="sn">01</div><h4>You hold a key</h4><p>The keypress is the consent. There is no open microphone, at any point, by design.</p></div>
+      <div class="stg"><div class="sn">02</div><h4>You speak</h4><p>Up to two minutes. A stuck key cannot open an endless recording.</p></div>
+      <div class="stg"><div class="sn">03</div><h4>It transcribes on your machine</h4><p>Local speech-to-text. No audio is sent anywhere to be heard by anyone.</p></div>
+      <div class="stg verify"><div class="sn">04</div><h4>It checks where it is about to type</h4><p>Two checks must both pass before a single character lands. Wrong window, or wrong tab: refused.</p></div>
+      <div class="stg"><div class="sn">05</div><h4>It arrives as text</h4><p>In the session, submitted, exactly as if you had typed it yourself.</p></div>
+    </div>
+    <p class="honest-beat"><b>Why it&rsquo;s built this way.</b> Dictation types into a live terminal, and a terminal runs what it is given &mdash; that is the entire hazard, and it is why step 04 exists. Checking which program is in front is not enough: two tabs of the same terminal window are the same program, share the same window handle, and are indistinguishable by every obvious signal. The guard therefore also reads the window title, and both checks must pass. Tested against exactly that trap on a real machine &mdash; two tabs, identical process, identical handle, one running Claude and one running a shell. Only the title told them apart, and the shell was refused. A broken pattern degrades to refusing, never to allowing.</p>
+    <p class="honest-beat"><b>What it does not do yet.</b> It is <b>push-to-talk</b>: it needs a key held down, so it is not hands-free, and for someone whose barrier is motor rather than linguistic that key is itself a barrier. Hands-free needs activation solved without an open microphone, which is an unsolved design question here rather than an unwritten feature &mdash; so it is not promised. Voice also cannot approve anything consequential; gated actions stay gated and come back to the keyboard. And with two Claude sessions open it can still type into the wrong one &mdash; visible, nothing executes, but real.</p>
+    <p class="term-cap">on the author&rsquo;s harness, Windows only &mdash; not in Charon, and gated on cross-platform support before it could be</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
       <div class="kicker">Coming next &middot; the shift</div>
       <h2>It brings you the right notes. You don&rsquo;t have to remember which.</h2>
       <p>A second brain usually leans on one list that loads every single time. Everything you must not forget competes for a place on it, so it only grows &mdash; and anything that isn&rsquo;t on the list may as well not exist. Charon is moving to the opposite arrangement: <b>ask a normal question, and the few notes that actually relate come to you</b> &mdash; including ones you wrote months ago and had forgotten you had.</p>
@@ -161,6 +182,7 @@
           <tr><td><span class="v">Prompt-aware recall</span></td><td class="cwhat">Brings the handful of notes that relate to what you asked &mdash; without being told which, and without loading everything.</td><td><span class="pill shadow">in shadow</span></td></tr>
           <tr><td><span class="v">Commitment register</span></td><td class="cwhat">Dated reviews and follow-ups surface daily and at session start; a passed date reads as overdue, not pending.</td><td><span class="pill shadow">in shadow</span></td></tr>
           <tr><td><span class="v">Pickup lifecycle</span></td><td class="cwhat">Retires finished or long-quiet items from your read-first list, recording anything unfinished before it goes.</td><td><span class="pill shadow">in shadow</span></td></tr>
+          <tr><td><span class="v">Voice interface</span></td><td class="cwhat">Hold a key, speak, and it arrives in the session as typed text &mdash; the whole system by speech, transcribed locally.</td><td><span class="pill plan">planned</span></td></tr>
           <tr><td><span class="v">/harness-heal</span></td><td class="cwhat">Applies a pre-approved, reversible fix — the gated apply step, on its own high bar.</td><td><span class="pill plan">planned</span></td></tr>
           <tr><td><span class="v">/recall</span></td><td class="cwhat">Hybrid keyword retrieval over authored notes — no embeddings, no vector DB.</td><td><span class="pill ok">shipped</span></td></tr>
           <tr><td><span class="v">/find-tensions</span></td><td class="cwhat">Surfaces contradictions across notes; records both sources, resolves nothing.</td><td><span class="pill ok">shipped</span></td></tr>

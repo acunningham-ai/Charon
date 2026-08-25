@@ -24,6 +24,31 @@ once the prompt is gone.
   Auto mode is not bypass mode; hooks and write-path validators are what survive the
   prompt going away.
 
+### Added — the site now shows a second way in (not-yet-shipped, labelled as such)
+
+`docs/whats-next.html` gains a scene for the **voice interface**: hold a key, speak, and
+it arrives in the session as typed text — the whole system by speech rather than a voice
+menu over a few commands, with speech-to-text running locally so no audio leaves the
+machine. The case that decided it was worth building is accessibility: every other
+capability on the site quietly assumes you can sit and type.
+
+Two honest beats ship with it, because both are load-bearing:
+
+- **Why the guard exists.** Dictation types into a live terminal, and a terminal runs what
+  it is given. Checking which program is in front is not enough — two tabs of one terminal
+  window are the same program and share a window handle. The guard reads the window title
+  as well, both checks must pass, and a broken pattern degrades to refusing rather than
+  allowing. Tested against exactly that trap on a real machine.
+- **What it does not do yet.** Push-to-talk, so *not* hands-free — and for someone whose
+  barrier is motor rather than linguistic, the held key is itself a barrier. Voice cannot
+  approve anything consequential. With two sessions open it can still type into the wrong
+  one. Hands-free needs activation solved without an open microphone, which is an unsolved
+  design question, so it is not promised.
+
+Listed **`planned`** in "Where each capability stands" and captioned *Windows only, not in
+Charon* — it is the author's harness, not a shipped Charon capability, and the site says so
+rather than implying a roadmap commitment it cannot yet make.
+
 **Not shipped, deliberately:** Charon carries no `autoMode` block. It is user-global
 and machine-specific — inheriting someone else's environment description is the exact
 failure the block exists to prevent.
