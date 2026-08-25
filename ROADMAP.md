@@ -123,6 +123,73 @@ gitleaks 8.30.1 scanned all 43 commits of git history: **no real credentials, ev
 
 Suppression is now handled by `.gitleaks.toml` `[allowlist]`, matched by **literal value** (not by path) so a genuine secret in those same files would still trip. A plain `gitleaks git .` run (no flags) auto-loads the config and returns **no leaks found / exit 0** — the repo is audit-clean for anyone who scans it. (The earlier `.gitleaksignore` glob `cerberus/rules/**` was silently invalid — gitleaks `.gitleaksignore` accepts fingerprints only — and suppressed nothing; replaced.)
 
+### 🚧 Voice interface — a second way in, currently in test on the author's machine
+
+**The problem this fixes.** Every other capability in this repo quietly assumes you can
+sit at a keyboard and type. That assumption excludes anyone who cannot type comfortably,
+or for long — and it also means the brain is only reachable when your hands are free. A
+knowledge system you can only reach one way is a knowledge system some people cannot
+reach at all.
+
+**What it does.** Hold a key, speak, release: the transcript is typed into the live
+Claude Code session and submitted. Not a voice-command menu over a handful of features —
+the same interface, so anything that can be asked can be asked aloud. Answers can be
+spoken back, and a status display shows whether it is ready, listening, thinking or
+speaking. Speech-to-text runs **locally** (Whisper), so no audio leaves the machine and
+accessibility does not cost a privacy trade-off.
+
+**Accessibility properties, stated as design rather than as a conformance claim:**
+
+- The session is located by enumerating windows, not by reading focus, so it works with
+  another application in front — **verified mid-call**. You never have to navigate to it.
+- The microphone is opened in **shared mode**, so it coexists with assistive software
+  already on the input stack (screen readers, dictation, switch access) instead of
+  fighting it for the device.
+- Focus is moved for the moment of typing and **always restored** afterwards. Predictable
+  focus matters to screen-reader users and to cognitive load.
+- The status display carries **three independent signals** per state — a colour, a
+  distinct *kind* of motion, and the word itself printed large. Colour alone fails a
+  colour-blind viewer; words alone are slow to read at a distance; motion alone is
+  ambiguous. Any one of the three carries the meaning.
+
+**The security problem it creates, and the control.** Dictation types into a live
+terminal, and a terminal executes what it is given. A process allowlist is **not
+sufficient**: two tabs of one terminal window are the same process and share a window
+handle, so the obvious check is blind to exactly the case that matters. The guard
+therefore also matches the window **title**, both checks must pass, and a broken pattern
+degrades to refusing rather than allowing. Tested against that precise trap — two tabs,
+identical process and handle, one running Claude and one a shell; only the title
+discriminated, and the shell was refused.
+
+**Honest limits, all open:**
+
+- **Push-to-talk** — it needs a key held, so it is *not hands-free*, and for someone
+  whose barrier is motor rather than linguistic that key is itself a barrier. Hands-free
+  requires solving activation without an open microphone, which is an unsolved design
+  question here, not an unwritten feature. Not promised.
+- **Voice cannot approve anything consequential.** Gated actions stay gated and return to
+  the keyboard. Deliberate, and unlikely to change without a separate authentication factor.
+- **It can still type into the wrong Claude session** when two are open — visible, nothing
+  executes, but real.
+- **Latency** — roughly eighty seconds to a grounded answer, most of it fixed per-invocation
+  overhead rather than inference. The destination people picture (the ship's computer,
+  JARVIS) is a direction, not a description.
+- **On an unmuted call the call hears you too.** Shared-device capture cuts both ways; the
+  instruction *is* the message.
+
+**Why it is not in Charon yet.** Two structural gates, not a schedule:
+
+1. **Cross-platform.** The implementation is Win32 (terminal-process allowlist, foreground
+   and key-state APIs). It ports when it runs on **Windows, macOS and Linux** — a rewrite of
+   the guard layer, not a copy.
+2. **Provenance.** It was clean-room rebuilt from an **AGPL** reference, so entering an
+   MIT repo requires the clean-room record and a `verify_no_copy.py` pass per
+   `.claude/rules/clean-room-port.md`.
+
+Treat everything above as **version 1**. The limits are v1 boundaries rather than a
+ceiling, and they are listed so that the ones that matter to you are visible before you
+wait for it.
+
 ### 🚧 Prompt-aware recall — memory reaches the model without an always-loaded index
 
 **The problem this fixes.** A second brain leans on one always-loaded index file.
