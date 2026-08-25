@@ -132,10 +132,88 @@
       <div class="stg verify"><div class="sn">04</div><h4>It checks where it is about to type</h4><p>Two checks must both pass before a single character lands. Wrong window, or wrong tab: refused.</p></div>
       <div class="stg"><div class="sn">05</div><h4>It arrives as text</h4><p>In the session, submitted, exactly as if you had typed it yourself.</p></div>
     </div>
+    <style>
+      .faces{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin:26px 0 6px}
+      .facecard{background:#05100e;border:1px solid #16332d;border-radius:12px;padding:0;overflow:hidden}
+      .facecard canvas{display:block;width:100%;height:150px}
+      .facecap{padding:10px 14px 13px;border-top:1px solid #122924}
+      .facecap b{display:block;font:700 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.16em;text-transform:uppercase}
+      .facecap span{display:block;margin-top:6px;font-size:12.5px;line-height:1.45;color:#8fb3ab}
+      @media (prefers-reduced-motion:reduce){.facecard canvas{height:130px}}
+    </style>
+    <div class="faces" aria-label="The four states of the voice interface">
+      <figure class="facecard"><canvas data-face="ready" width="380" height="300"></canvas>
+        <figcaption class="facecap"><b style="color:rgb(74,127,114)">Ready</b><span>Breathing slowly, receded. Nothing is being heard.</span></figcaption></figure>
+      <figure class="facecard"><canvas data-face="listening" width="380" height="300"></canvas>
+        <figcaption class="facecap"><b style="color:rgb(125,227,195)">Listening</b><span>Rings travel <i>outward</i>, and an arc tracks how loud you are &mdash; proof it hears you.</span></figcaption></figure>
+      <figure class="facecard"><canvas data-face="thinking" width="380" height="300"></canvas>
+        <figcaption class="facecap"><b style="color:rgb(227,178,95)">Thinking</b><span>A single dot <i>orbits</i> the ring. A different kind of motion, not a faster one.</span></figcaption></figure>
+      <figure class="facecard"><canvas data-face="speaking" width="380" height="300"></canvas>
+        <figcaption class="facecap"><b style="color:rgb(125,180,227)">Speaking</b><span>The voice runs across the spine as a waveform, and what it says is captioned.</span></figcaption></figure>
+    </div>
+    <p class="honest-beat"><b>Why the face looks like this.</b> Each state carries <b>three independent signals</b> &mdash; a colour, a distinct <i>kind</i> of motion, and the word itself, printed large. Colour alone would fail a colour-blind viewer. Words alone are slow to read across a room. Motion alone is ambiguous, which is why listening pushes rings outward while thinking orbits, rather than the two being fast and slow versions of one animation. Any one of the three carries the meaning on its own, so the state is readable by someone who has never seen it before, from a distance, or on a projector. That is the same reason the interface exists at all, applied to its own display.</p>
+    <p class="term-cap">the actual renderer, running here &mdash; driven by sample data rather than a live microphone</p>
+    <script>
+    (function(){
+      var LOOK={ready:{rgb:"74,127,114",glow:.18},listening:{rgb:"125,227,195",glow:.55},
+                 thinking:{rgb:"227,178,95",glow:.45},speaking:{rgb:"125,180,227",glow:.5}};
+      var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      // Seeded once so the board does not shimmer frame to frame.
+      var nodes=[],i;for(i=0;i<44;i++){nodes.push({a:(i/44)*Math.PI*2,r:.24+((i*37)%100)/100*.22,s:1+((i*17)%3)});}
+      function paint(cv,st,t){
+        var ctx=cv.getContext("2d");if(!ctx)return;
+        var W=cv.width,H=cv.height,cx=W/2,cy=H/2,R=Math.min(W,H)*.32;
+        var look=LOOK[st],rgb=look.rgb,glow=look.glow;
+        // Stand-ins for live audio: a slow swell for level, a shaped ripple for speech.
+        var env=st==="listening"?(.10+Math.abs(Math.sin(t/900))*.16):(st==="speaking"?.07:0);
+        ctx.clearRect(0,0,W,H);
+        var breathe=1+Math.sin(t/1400)*.018;
+        var spin=st==="thinking"?t/700:t/6000;
+        ctx.lineWidth=1;
+        for(i=0;i<nodes.length;i++){var n=nodes[i],a=n.a+spin,rr=R*n.r*breathe*(1+env*.5);
+          var x=cx+Math.cos(a)*rr,y=cy+Math.sin(a)*rr;
+          ctx.strokeStyle="rgba("+rgb+","+(.06+glow*.12)+")";
+          ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(x,y);ctx.stroke();
+          ctx.fillStyle="rgba("+rgb+","+(.25+env*.6)+")";
+          ctx.beginPath();ctx.arc(x,y,n.s*(1+env),0,7);ctx.fill();}
+        ctx.strokeStyle="rgba("+rgb+","+(.35+glow)+")";ctx.lineWidth=2;
+        ctx.beginPath();ctx.arc(cx,cy,R*breathe*(1+env*.12),0,7);ctx.stroke();
+        var span=R*1.5;ctx.beginPath();ctx.lineWidth=2;
+        ctx.strokeStyle="rgba("+rgb+","+(.5+env*.5)+")";
+        for(i=0;i<64;i++){var xx=cx-span/2+(i/63)*span;
+          var v=st==="speaking"?Math.sin(i*.55+t/150)*Math.sin(i*.13+t/700)*.5:0;
+          var yy=cy+v*R*.42;i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy);}
+        ctx.stroke();
+        if(st==="listening"){for(var k=0;k<3;k++){var p=((t/1500)+k/3)%1;
+            ctx.strokeStyle="rgba("+rgb+","+((1-p)*.45)+")";ctx.lineWidth=2;
+            ctx.beginPath();ctx.arc(cx,cy,R*(1+p*.6),0,7);ctx.stroke();}
+          var lvl=Math.min(1,env*3.2);
+          if(lvl>.01){ctx.strokeStyle="rgba("+rgb+",0.95)";ctx.lineWidth=6;
+            ctx.beginPath();ctx.arc(cx,cy,R*.78,-Math.PI/2,-Math.PI/2+lvl*Math.PI*2);ctx.stroke();}}
+        if(st==="thinking"){var ang=t/420,gx=cx+Math.cos(ang)*R,gy=cy+Math.sin(ang)*R;
+          var g=ctx.createRadialGradient(gx,gy,0,gx,gy,R*.22);
+          g.addColorStop(0,"rgba("+rgb+",0.95)");g.addColorStop(1,"rgba("+rgb+",0)");
+          ctx.fillStyle=g;ctx.beginPath();ctx.arc(gx,gy,R*.22,0,7);ctx.fill();
+          ctx.fillStyle="rgba("+rgb+",1)";ctx.beginPath();ctx.arc(gx,gy,4.5,0,7);ctx.fill();}
+      }
+      var cvs=[].slice.call(document.querySelectorAll('.facecard canvas'));
+      if(!cvs.length)return;
+      if(reduce){cvs.forEach(function(cv){paint(cv,cv.getAttribute('data-face'),700);});return;}
+      var live=false;
+      function loop(t){cvs.forEach(function(cv){paint(cv,cv.getAttribute('data-face'),t);});
+        if(live)requestAnimationFrame(loop);}
+      function start(){if(live)return;live=true;requestAnimationFrame(loop);}
+      function stop(){live=false;}
+      if('IntersectionObserver' in window){
+        var io=new IntersectionObserver(function(es){es.forEach(function(e){e.isIntersecting?start():stop();});},{threshold:.15});
+        io.observe(cvs[0].parentNode.parentNode);
+      } else start();
+    })();
+    </script>
     <p class="honest-beat"><b>Why it&rsquo;s built this way.</b> Dictation types into a live terminal, and a terminal runs what it is given &mdash; that is the entire hazard, and it is why step 04 exists. Checking which program is in front is not enough: two tabs of the same terminal window are the same program, share the same window handle, and are indistinguishable by every obvious signal. The guard therefore also reads the window title, and both checks must pass. Tested against exactly that trap on a real machine &mdash; two tabs, identical process, identical handle, one running Claude and one running a shell. Only the title told them apart, and the shell was refused. A broken pattern degrades to refusing, never to allowing.</p>
     <p class="honest-beat"><b>What it does not do yet.</b> It is <b>push-to-talk</b>: it needs a key held down, so it is not hands-free, and for someone whose barrier is motor rather than linguistic that key is itself a barrier. Hands-free needs activation solved without an open microphone, which is an unsolved design question here rather than an unwritten feature &mdash; so it is not promised. Voice also cannot approve anything consequential; gated actions stay gated and come back to the keyboard. And with two Claude sessions open it can still type into the wrong one &mdash; visible, nothing executes, but real.</p>
     <p class="honest-beat"><b>This is version 1.</b> Everything above that it cannot do yet is a v1 boundary, not a ceiling &mdash; it grows as Charon does. The destination is the one everybody already pictures when they think of talking to a computer, the ship&rsquo;s computer or JARVIS: you speak, and the whole system answers. Charon is not there. A grounded answer currently takes about eighty seconds, most of it fixed overhead rather than thinking, and saying otherwise would be the first dishonest sentence on this site. It is the direction, stated as a direction.</p>
-    <p class="term-cap">on the author&rsquo;s harness, Windows only &mdash; not in Charon, and gated on cross-platform support before it could be</p>
+    <p class="term-cap">being tested by the author now &mdash; it ports into Charon once it runs on Windows, macOS and Linux</p>
   </div>
 </section>
 
@@ -186,6 +264,8 @@
           <tr><td><span class="v">Pickup lifecycle</span></td><td class="cwhat">Retires finished or long-quiet items from your read-first list, recording anything unfinished before it goes.</td><td><span class="pill shadow">in shadow</span></td></tr>
           <tr><td><span class="v">Voice interface</span></td><td class="cwhat">Hold a key, speak, and it arrives in the session as typed text &mdash; the whole system by speech, transcribed locally.</td><td><span class="pill plan">planned</span></td></tr>
           <tr><td><span class="v">/harness-heal</span></td><td class="cwhat">Applies a pre-approved, reversible fix — the gated apply step, on its own high bar.</td><td><span class="pill plan">planned</span></td></tr>
+          <tr><td><span class="v">/harness-doctor</span></td><td class="cwhat">Runs every self-healing detector on demand, plus a coverage report of what has no detector yet.</td><td><span class="pill ok">shipped</span></td></tr>
+          <tr><td><span class="v">/harness-improve</span></td><td class="cwhat">Surveys where the harness could do what it already does better, as plain-English changes you choose from.</td><td><span class="pill ok">shipped</span></td></tr>
           <tr><td><span class="v">/recall</span></td><td class="cwhat">Hybrid keyword retrieval over authored notes — no embeddings, no vector DB.</td><td><span class="pill ok">shipped</span></td></tr>
           <tr><td><span class="v">/find-tensions</span></td><td class="cwhat">Surfaces contradictions across notes; records both sources, resolves nothing.</td><td><span class="pill ok">shipped</span></td></tr>
           <tr><td><span class="v">/grill</span></td><td class="cwhat">One-question-at-a-time plan interrogation, grounded in your prior decisions.</td><td><span class="pill ok">shipped</span></td></tr>
