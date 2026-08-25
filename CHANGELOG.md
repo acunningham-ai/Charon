@@ -8,6 +8,45 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ---
 
+## [0.29.2] - 2026-08-26
+
+### Fixed — a platform bar that was never a real condition
+
+The voice-interface entry said it would port "once it runs on Windows, macOS and Linux"
+and called that a structural gate. It was not one. Narrower platform coverage is a reason
+to state the coverage, not a reason to withhold a working capability from people already
+on the platform it supports — so the wording now reads **Windows first, macOS and Linux
+later**, as ordinary planned updates.
+
+What has *not* changed, and now says so explicitly: it ships when the usual proof window
+closes, like everything else here. A capability that types into a live terminal earns its
+place the same way the rest did, and the platform plan does not shortcut that. The one
+remaining coverage-shaped prerequisite is the AGPL clean-room provenance, which is a
+licence constraint rather than a feature gap.
+
+### Changed — the voice scene now opens on the picture, not the plumbing
+
+It led with "every capability here assumes you can sit at a keyboard and type" — true, and
+the reason it was built, but it is the mechanism. It now opens where everyone's head
+already is: the ship's computer answering a question put to the room, Stark talking to
+JARVIS with his hands busy on something else. Then what actually exists today, then why it
+was worth building at all — access, which stays the deciding reason without being the
+opening line. The measured eighty seconds is still on the page a few paragraphs later;
+flair in the framing does not buy a looser claim.
+
+### Added — what comes after it works: looks, voices, personalities
+
+Roadmap only. The display is already pluggable and the voice already switchable — both
+restricted to **local** voices, because the best-sounding ones a browser offers are cloud
+voices that would send your speech off the machine, which is a security decision rather
+than a preference. So more faces and voices need content, not new plumbing. Distinct
+*personalities* are the genuinely new work, and they sit behind the thing functioning
+properly: charm on a broken injection path is worth less than a plain interface that works.
+
+Touches `README.md`, `ROADMAP.md` and the what's-next page. No capability change.
+
+---
+
 ## [0.29.1] - 2026-08-25
 
 ### Added — running under auto mode without giving up the checkpoint
@@ -1406,6 +1445,7 @@ Private repo during initial validation. Public toggle pending:
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
 [Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.29.0...HEAD
+[0.29.2]: https://github.com/acunningham-ai/Charon/releases/tag/v0.29.2
 [0.29.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.29.1
 [0.29.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.29.0
 [0.28.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.28.1

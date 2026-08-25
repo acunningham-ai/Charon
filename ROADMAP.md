@@ -123,7 +123,7 @@ gitleaks 8.30.1 scanned all 43 commits of git history: **no real credentials, ev
 
 Suppression is now handled by `.gitleaks.toml` `[allowlist]`, matched by **literal value** (not by path) so a genuine secret in those same files would still trip. A plain `gitleaks git .` run (no flags) auto-loads the config and returns **no leaks found / exit 0** — the repo is audit-clean for anyone who scans it. (The earlier `.gitleaksignore` glob `cerberus/rules/**` was silently invalid — gitleaks `.gitleaksignore` accepts fingerprints only — and suppressed nothing; replaced.)
 
-### 🚧 Voice interface — a second way in, currently in test on the author's machine
+### 🚧 Voice interface — a second way in (in shadow; Windows first, macOS and Linux later)
 
 **The problem this fixes.** Every other capability in this repo quietly assumes you can
 sit at a keyboard and type. That assumption excludes anyone who cannot type comfortably,
@@ -177,14 +177,36 @@ discriminated, and the shell was refused.
 - **On an unmuted call the call hears you too.** Shared-device capture cuts both ways; the
   instruction *is* the message.
 
-**Why it is not in Charon yet.** Two structural gates, not a schedule:
+**When it ships.** Same as everything else here: once it has run for the usual proof
+window on the author's own vault. The shadow process is unchanged — a capability that
+types into a live terminal earns its place the same way the rest did, and nothing about
+the platform plan below shortcuts that.
 
-1. **Cross-platform.** The implementation is Win32 (terminal-process allowlist, foreground
-   and key-state APIs). It ports when it runs on **Windows, macOS and Linux** — a rewrite of
-   the guard layer, not a copy.
-2. **Provenance.** It was clean-room rebuilt from an **AGPL** reference, so entering an
-   MIT repo requires the clean-room record and a `verify_no_copy.py` pass per
-   `.claude/rules/clean-room-port.md`.
+**Planned after it works: looks, voices, personalities.** The display is already
+pluggable — a gallery discovers whatever sits in the faces directory, each face carrying
+its own title and tagline — and the voice is already switchable, cycled by ear rather
+than chosen from a list of meaningless names. Both are deliberately restricted to
+**local** voices: the best-sounding options a browser offers are cloud voices that would
+send your speech off the machine, which is a security decision rather than a preference.
+
+So more faces and more voices need *content*, not new plumbing. **Distinct personalities**
+— a different manner of answering, not just a different skin — are the genuinely new work,
+and they are queued behind the thing functioning properly first. A second brain with
+charm and a broken injection path is worth less than a plain one that works.
+
+**Platform support: Windows first, macOS and Linux later.** The implementation is Win32
+(terminal-process allowlist, foreground and key-state APIs). The other platforms are
+**planned updates, not preconditions** — narrower coverage is a reason to state the
+coverage, not a reason to withhold a working capability from people already on the
+platform it supports.
+
+**The one genuine prerequisite is licence, not function.** It was clean-room rebuilt from
+an **AGPL** reference, so it needs the clean-room provenance record and a
+`verify_no_copy.py` pass before AGPL-derived work lands in an MIT repo — see
+`.claude/rules/clean-room-port.md`. That is a legal constraint rather than a feature gap,
+and it is the only *coverage-shaped* item here that would make shipping *wrong*
+rather than merely *incomplete* — distinct from the proof window above, which applies
+regardless.
 
 Treat everything above as **version 1**. The limits are v1 boundaries rather than a
 ceiling, and they are listed so that the ones that matter to you are visible before you
