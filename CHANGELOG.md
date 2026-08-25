@@ -4,6 +4,12 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+*Nothing pending - next change lands here.*
+
+---
+
+## [0.29.1] - 2026-08-25
+
 ### Added — running under auto mode without giving up the checkpoint
 
 Claude Code's `permissions.defaultMode: "auto"` removes the per-tool-call approval
@@ -1400,6 +1406,7 @@ Private repo during initial validation. Public toggle pending:
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
 [Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.29.0...HEAD
+[0.29.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.29.1
 [0.29.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.29.0
 [0.28.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.28.1
 [0.28.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.28.0
