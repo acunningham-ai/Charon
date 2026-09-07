@@ -73,6 +73,8 @@ STANDALONE_HOOKS = {
     "_poisoning.py",     # detector module imported by poisoning-scan.py, not invoked directly
     "_active_command.py",  # shared active-command state; imported by skill-usage-log.py (writer) and validate-interactive-write.py (reader)
     "route-binary-doc-read.py",  # opt-in PreToolUse(Read) router for /ingest; unwired by default (depends on optional ingest deps) — wire per its header when markitdown is installed
+    "_provenance.py",    # shared trust-zone / artefact-role discriminator; imported by phase-gate.py, poisoning-scan-read.py and cerberus/scan-config-edits.py to calibrate findings, never invoked directly
+    "_policy.py",        # declarative policy engine (rules live in scripts/policy/policy.json); imported by hooks that ask it for a verdict, never invoked directly
 }
 
 # Personal-content patterns — must NOT appear in any Charon file.
@@ -1985,6 +1987,68 @@ def check_backup_brain_integrity():
                        "backup/restore present, marker-targeted, no credential-copy path")
 
 
+def check_wired_hooks_are_documented() -> CheckResult:
+    """Every wired hook must be DESCRIBED in CAPABILITIES.md; every hook config
+    file must be described in CONFIGURATION.md.
+
+    D29 checks that public COUNTS match reality. That is necessary and it is not
+    sufficient, and the gap is not theoretical: three hooks shipped whose entire
+    documentation change was editing "13 hooks" to "16 hooks" in three files.
+    D29 passed. Every count was accurate. A reader still could not learn that the
+    hooks existed, what they did, or — worse — that two of them are inert until
+    you fill in a config file. Same failure shape as D34, which exists because
+    D29 said nothing about version strings.
+
+    A NAME is the minimum bar, not the goal: the name must appear in the
+    CAPABILITIES hooks table, which is prose, so a bare count bump cannot pass.
+    Config files are checked separately because a hook that ships empty has its
+    activation path in the docs and nowhere else — undocumented, it is dead code
+    the user never switches on.
+    """
+    import json as _json
+
+    settings = REPO_ROOT / ".claude" / "settings.json"
+    caps = REPO_ROOT / "CAPABILITIES.md"
+    conf = REPO_ROOT / "CONFIGURATION.md"
+    for f in (settings, caps, conf):
+        if not f.is_file():
+            return CheckResult("wired-hooks-documented", "WARN", f"missing {f.name}")
+
+    try:
+        cfg = _json.loads(settings.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return CheckResult("wired-hooks-documented", "FAIL",
+                           f"settings.json unreadable: {exc}")
+
+    wired = set()
+    for _event, groups in (cfg.get("hooks") or {}).items():
+        for g in groups:
+            for h in g.get("hooks", []):
+                cmd = h.get("command", "")
+                if "/scripts/hooks/" in cmd:
+                    name = cmd.split("/scripts/hooks/")[-1].strip('" ').split()[0]
+                    wired.add(name.rsplit("/", 1)[-1])
+
+    caps_text = caps.read_text(encoding="utf-8", errors="replace")
+    undocumented = sorted(n for n in wired if n not in caps_text)
+
+    # Hook config files must have their activation path written down.
+    cfg_files = sorted(p.name for p in (REPO_ROOT / "scripts" / "hooks").glob("*-config.json"))
+    conf_text = conf.read_text(encoding="utf-8", errors="replace")
+    unconfigured = sorted(n for n in cfg_files if n not in conf_text)
+
+    problems = []
+    if undocumented:
+        problems.append("not in CAPABILITIES.md: " + ", ".join(undocumented))
+    if unconfigured:
+        problems.append("not in CONFIGURATION.md: " + ", ".join(unconfigured))
+    if problems:
+        return CheckResult("wired-hooks-documented", "FAIL", " | ".join(problems))
+    return CheckResult(
+        "wired-hooks-documented", "PASS",
+        f"{len(wired)} wired hooks documented, {len(cfg_files)} hook configs documented")
+
+
 CHECKS = [
     ("D1", check_yaml_schema),
     ("D2", check_hook_wiring),
@@ -2021,6 +2085,7 @@ CHECKS = [
     ("D33", check_site_matches_source),
     ("D34", check_no_stale_version_claim),
     ("D35", check_backup_brain_integrity),
+    ("D36", check_wired_hooks_are_documented),
 ]
 
 

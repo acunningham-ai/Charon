@@ -29,7 +29,7 @@ FACET A — trust_zone(path) and artefact_role(path)
 
   Mostly path-derived. trust_zone ALSO reads the frontmatter of on-disk .md
   files, because path alone is wrong: in the reference deployment 320
-  capture-sourced notes (`source: m365-calendar`, `plaud`) lived inside the
+  capture-sourced notes (`source: m365-calendar`, `voice-transcript`) lived inside the
   "authored" vault zones and were being classified "vault-authored". The
   frontmatter check is one-way — it can only downgrade to "untrusted-capture",
   never grant trust — and it reads the frontmatter BLOCK only, so body prose
@@ -121,7 +121,8 @@ _FRONTMATTER_BYTES = 1500
 _FRONTMATTER_RE = re.compile(r"\A\s*---\r?\n(.*?)\r?\n---", re.S)
 _CAPTURE_SOURCE_RE = re.compile(
     r"^(?:source|trust):\s*[\"']?\s*"
-    r"(m365|m365-calendar|plaud|outlook|teams|graph-api|untrusted|captured)",
+    r"(m365|m365-calendar|outlook|teams|graph-api|calendar|transcript"
+    r"|voice-transcript|recorder|untrusted|captured)",
     re.M | re.I,
 )
 
@@ -362,7 +363,7 @@ def _selftest() -> int:
 
     _cap = _w("captured-meeting.md",
               "---\ntype: meeting\nsource: m365-calendar\n---\n\n# Notes\n")
-    _plaud = _w("voice.md", "---\nsource: plaud\n---\n\nTranscript\n")
+    _voice = _w("voice.md", "---\nsource: voice-transcript\n---\n\nTranscript\n")
     _authored = _w("real-note.md", "---\ntype: meeting\nauthor: me\n---\n\n# Notes\n")
     _prose = _w("about-capture.md",
                 "---\ntype: reference\n---\n\nCaptured notes carry\n"
@@ -375,7 +376,7 @@ def _selftest() -> int:
          "arbitrary vault root→vault-authored (no hard-coded folder name)"),
         # --- frontmatter provenance ---
         (trust_zone(_cap) == "untrusted-capture", "m365 frontmatter→untrusted"),
-        (trust_zone(_plaud) == "untrusted-capture", "plaud frontmatter→untrusted"),
+        (trust_zone(_voice) == "untrusted-capture", "transcript frontmatter→untrusted"),
         (trust_zone(_authored) == "vault-authored", "authored note→vault-authored"),
         # Body prose that MENTIONS the marker must not reclassify — the
         # describes-vs-contains trap this module exists to avoid.

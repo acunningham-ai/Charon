@@ -42,6 +42,45 @@ All hooks wired in by default. Disable a hook by removing its entry from the `ho
 - **Save-on-mention** — requires `~/.secrets/anthropic.json`. Without it the hook silently skips. Remove from `UserPromptSubmit` block if you don't want it.
 - **Poisoning-scan** — shadow-mode prompt-injection detector on `UserPromptSubmit`; observe-only (logs a verdict to `state/verdict/`, never blocks). No external dependency, no API key. Remove from the `UserPromptSubmit` block to disable.
 
+### Hook config files
+
+Three hooks read a JSON file beside them in `scripts/hooks/`. **All three ship
+empty or disabled**, because their correct values depend on your machine and your
+organisation — a default guessed for you would be wrong in a way you would not
+notice. Until you fill them in, those hooks are inert or maximally cautious.
+
+| File | Hook | Ships as | What it decides |
+|---|---|---|---|
+| `phase-gate-config.json` | `phase-gate.py` | empty glob list → **never fires** | Which artefacts are high-stakes enough to warrant a confirm beat before a write lands |
+| `validate-interactive-write-config.json` | `validate-interactive-write.py` | empty → only universal roots allowed | Which directories *outside* this project a command may still write to |
+| `poisoning-scan-read-config.json` | `poisoning-scan-read.py` | empty → every sender treated as external | Which mail domains are your own, and therefore logged rather than blocked |
+
+**`phase-gate-config.json`** — add globs for the documents you would not want to
+land half-finished (a published policy, board papers, a decision record), then
+leave `"shadow": true` for a fortnight and read `state/verdict/*.jsonl` to see what
+it *would* have asked about before you enforce. Drafts are excluded automatically.
+
+**`validate-interactive-write-config.json`** — you do **not** list your memory
+directory or scratchpad here; those are universal to every Claude Code install and
+are derived automatically. Add a root only when you routinely work on a sibling
+tree from inside this project. The symptom that you need one is repeated
+`outside-project-root` verdicts in the log naming the same directory — read the log
+first, don't add speculatively. Protected zones are re-checked *relative to* each
+allow-listed root, so allow-listing a repo never exposes that repo's hooks or
+settings.
+
+**`poisoning-scan-read-config.json`** — list your organisation's mail domains.
+Adding them means a high-severity finding in mail from a colleague is logged
+rather than raised, which is a real reduction in enforcement: a **compromised
+internal account** sending an injection would be recorded, not blocked. If that
+sits high in your threat model, leave this empty and accept the extra prompts.
+Common newsletter/ESP senders are recognised automatically and never need listing.
+
+**All three fail in the safe direction.** A missing or malformed config allows
+*nothing* extra: no configured roots means no external writes, and no configured
+domains means every sender counts as external, so *more* findings enforce, not
+fewer. Corrupting one of these files tightens the gate — it cannot quietly widen it.
+
 ### Permissions
 
 Default allow list is minimal:
