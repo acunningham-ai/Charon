@@ -92,8 +92,106 @@ PROTECTED_GLOBS = (
 )
 
 
+# --- roots outside the project that are still legitimate --------------------
+#
+# WHY THIS EXISTS. The `outside-project-root` rule assumed a harness lives in ONE
+# directory. It does not. In the reference deployment, 405 of this hook's 514
+# shadow fires were `outside-project-root` and effectively ALL were legitimate:
+# 211 writes to the harness memory store, 104 to the session scratchpad, and the
+# rest to sibling project trees. Enforcing the rule as written would have blocked
+# every memory write the harness makes — it would have broken the memory system in
+# order to enforce a gate.
+#
+# Two kinds of root, handled differently:
+#
+#   UNIVERSAL — every Claude Code install has these, so they are DERIVED, never
+#   configured. Asking you to configure your own memory directory would be a
+#   setup step with exactly one correct answer.
+#
+#   YOURS — sibling trees you legitimately write to from this project (another
+#   repo, a pipeline directory). These cannot be guessed, so they are read from
+#   `validate-interactive-write-config.json` beside this hook. It ships EMPTY:
+#   until you add one, only the universal roots are allowed.
+#
+# Allow-listed by ROOT ONLY, and still logged (`external-root`, observe) so the
+# crossing stays visible. PROTECTED_GLOBS are re-checked *relative to* the matched
+# root, so this can never become a way to reach another project's hooks or
+# settings ungated. Anything outside both the project and this list is still a
+# genuine escape and is treated as one.
+_EXTERNAL_ROOTS_CONFIG = Path(__file__).resolve().parent / "validate-interactive-write-config.json"
+
+
 def _norm(p: str) -> str:
     return p.replace("\\", "/")
+
+
+def _universal_external_roots():
+    """(path, label) for roots every Claude Code install has."""
+    roots = []
+    try:
+        roots.append((Path(os.path.expanduser("~")) / ".claude" / "projects",
+                      "Claude Code memory + session store"))
+    except Exception:
+        pass
+    tmp = os.environ.get("TEMP") or os.environ.get("TMP") or "/tmp"
+    try:
+        roots.append((Path(tmp) / "claude", "session scratchpad"))
+    except Exception:
+        pass
+    return roots
+
+
+def _configured_external_roots():
+    """(path, label) from the config file. Absent/broken/empty -> none.
+
+    Fail-CLOSED: an unreadable config allows nothing extra, so a corrupt file
+    tightens the gate rather than silently widening it.
+    """
+    try:
+        cfg = json.loads(_EXTERNAL_ROOTS_CONFIG.read_text(encoding="utf-8"))
+        entries = cfg.get("external_roots") or []
+        if not isinstance(entries, list):
+            return []
+        out = []
+        for e in entries:
+            if isinstance(e, str) and e.strip():
+                out.append((Path(os.path.expanduser(e.strip())), "configured root"))
+            elif isinstance(e, dict) and str(e.get("path", "")).strip():
+                out.append((Path(os.path.expanduser(str(e["path"]).strip())),
+                            str(e.get("label", "configured root"))[:60]))
+        return out
+    except Exception:
+        return []
+
+
+def _external_root_prefixes():
+    """Normalised, lower-cased (prefix, label) pairs for every allowed root.
+
+    Both the literal and the resolved form of each root are returned: on Windows
+    TEMP is often the 8.3 short form (C:/Users/ADAMCU~1/...) while resolve()
+    yields the long one, and a write can arrive as either.
+    """
+    out = []
+    for raw, label in _universal_external_roots() + _configured_external_roots():
+        forms = {str(raw)}
+        try:
+            forms.add(str(Path(raw).resolve()))
+        except Exception:
+            pass
+        for form in forms:
+            pref = _norm(form).rstrip("/").lower()
+            if pref:
+                out.append((pref, label))
+    return out
+
+
+def _under_external_root(resolved: str) -> tuple:
+    """(prefix, label) if `resolved` sits under an allow-listed root, else ()."""
+    low = _norm(resolved).lower()
+    for pref, label in _external_root_prefixes():
+        if low == pref or low.startswith(pref + "/"):
+            return (pref, label)
+    return ()
 
 
 def _matches_any(path: str, globs) -> str:
@@ -245,6 +343,41 @@ def main() -> int:
 
     # ---- Layer 1: protected zones + escape from the project root ----
     if outside:
+        ext = _under_external_root(rel)
+        if ext:
+            pref, label = ext
+            # A legitimate root that simply isn't this project. Still run the
+            # protected-zone check against the path RELATIVE TO THAT ROOT — the
+            # allowlist must not become a way to reach another project's hooks
+            # or settings ungated.
+            ext_rel = _norm(rel)[len(pref):].lstrip("/")
+            ext_hit = _matches_any(ext_rel, PROTECTED_GLOBS)
+            if ext_hit:
+                return _decide(
+                    rule="protected-zone",
+                    reason=(f"target `{rel}` is in a protected zone of the "
+                            f"allow-listed root `{label}` (matched `{ext_hit}`)"),
+                    context={"target": _norm(target), "resolved": rel,
+                             "external_root": pref, "external_rel": ext_rel,
+                             "matched_glob": ext_hit,
+                             "tool_name": data.get("tool_name", "")},
+                    session_id=session_id,
+                    ask_reason=(f"`{target}` is inside `{label}` but lands in a "
+                                f"protected zone (`{ext_hit}`)."),
+                    retry_hint="Protected zones are gated in every root, not just "
+                               "this project. Confirm before retrying.",
+                )
+            emit_verdict(
+                hook=HOOK_NAME, rule="external-root", verdict="observe",
+                reason=(f"write outside the project but inside an allow-listed "
+                        f"root ({label}): {rel}"),
+                context={"target": _norm(target), "resolved": rel,
+                         "external_root": pref, "label": label,
+                         "tool_name": data.get("tool_name", "")},
+                session_id=session_id,
+            )
+            return 0
+
         return _decide(
             rule="outside-project-root",
             reason=f"write resolves outside the project root: {rel}",
@@ -252,7 +385,8 @@ def main() -> int:
                      "tool_name": data.get("tool_name", "")},
             session_id=session_id,
             ask_reason=(f"`{target}` resolves to `{rel}`, outside the project root "
-                        f"`{root}`. Interactive commands write inside the vault."),
+                        f"`{root}` and outside every allow-listed root. Add it to "
+                        f"validate-interactive-write-config.json if it is legitimate."),
             retry_hint="If this is intentional, confirm and retry, or write inside "
                        "the project root.",
         )

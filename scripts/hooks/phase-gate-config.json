@@ -1,0 +1,11 @@
+{
+  "_README": "High-stakes phase-gate. `high_stakes_globs` = path globs whose writes warrant an explicit confirm beat before the write lands — the artefacts whose mistakes are most expensive. EMPTY = the hook never fires, which is the shipped default: only you know which of your artefacts are high-stakes. `shadow: true` = log-only (observe); flip to false ONLY after a clean shadow window, per the shadow-before-enforce discipline in .claude/rules/verdict-vocabulary.md. `exclude_drafts: true` skips artefacts the shared discriminator (_provenance.artefact_role) classifies as drafts. Matcher is case-sensitive and matches forward-slashed absolute paths.",
+
+  "_GETTING_STARTED": "Add a glob or two for the documents you would not want to land half-finished — a published policy, board papers, a decision record. Example: [\"**/06-Decisions/*.md\", \"**/08-Projects/Governance/**/*.md\"]. Leave shadow:true for a fortnight and read state/verdict/*.jsonl to see what it WOULD have asked about, then decide whether to enforce.",
+
+  "_WHY_EXCLUDE_DRAFTS": "The gate asks 'is this the final, signed-off version?' — a question that is meaningless mid-draft. In the reference deployment it fired 17 times on a single agenda while it was being iterated. Asking someone 17 times whether their draft is final is how a gate gets switched off, so drafts are skipped by default. Fail-safe: if the discriminator is unavailable, nothing is excluded and the gate behaves as if this were false.",
+
+  "high_stakes_globs": [],
+  "exclude_drafts": true,
+  "shadow": true
+}

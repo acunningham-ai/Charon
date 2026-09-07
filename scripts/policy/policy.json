@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "description": "Declarative policy for harness hooks (AGT borrow #1). Hooks call _policy.evaluate(); verdict precedence is most-restrictive-wins (deny > ask > observe > allow). Editing rules here changes hook behaviour without touching hook code. Profiles let unattended runs tighten vs interactive.",
+  "default_verdict": "allow",
+  "profiles": {
+    "interactive": {
+      "description": "Human-in-the-loop session; per-call review exists."
+    },
+    "unattended": {
+      "description": "Scheduled / no human per-call (e.g. morning-update.bat). Tightest profile.",
+      "inherit": "interactive"
+    }
+  },
+  "rules": [
+    {
+      "id": "protected-config-write",
+      "description": "Writes/edits to load-bearing config that future sessions trust. RE-SCOPED + PROMOTED 2026-08-10 after the shadow review (see 00-Inbox/_harness/review-2026-08-10.md): 380 shadow fires, 336 of them (88%) the harness doing its own mandated work. MEMORY.md (295 fires) is an index whose co-change the enforce-memory-index-cochange Stop hook already COMPELS — gating it put two controls in direct opposition. TODO.md (41) is a derived artefact regenerated wholesale by morning-update, never hand-authored. Both are now excluded by ROLE rather than by deleting the glob, so a future derived artefact or index is covered automatically. Residual scope = CLAUDE.md (32) + settings.json (12) = ~0.8 fires/week, which is what makes this promotable. Revert by deleting the \"enforce\" line.",
+      "applies_to": ["*"],
+      "match": {
+        "tool": ["Write", "Edit"],
+        "path_globs": ["**/CLAUDE.md", "**/MEMORY.md", "**/TODO.md", "**/.claude/settings*.json"],
+        "exclude_roles": ["derived", "index"]
+      },
+      "verdict": "ask",
+      "enforce": true,
+      "severity": "high",
+      "reason": "Write to a protected config file (CLAUDE.md / .claude/settings*.json). These steer every future session — confirm before modifying."
+    },
+    {
+      "id": "protected-config-write-via-shell",
+      "description": "CLOSES secure-code-review finding #4 (2026-08-10). protected-config-write matches tool Write/Edit only, so a shell redirect reached the same files without passing the gate. Same file set and same exclusions as protected-config-write: MEMORY.md and TODO.md are deliberately ABSENT so the shell path cannot be stricter than the tool path. TWO KNOWN LIMITS, both found in live use the day it shipped and both accepted rather than papered over: (1) FALSE POSITIVES — a command that merely QUOTES one of these shapes (a test fixture, a grep, a heredoc discussing the rule) matches, because regex over a shell string cannot separate quoting a pattern from executing it. This is the same describes-vs-contains problem _provenance.py solves for file paths, and it has no equivalent solution here. Mitigated by verdict=ask plus the one-shot confirm token, so an FP costs a confirmation rather than blocking work outright. (2) INCOMPLETE — programmatic writes (python -c open(...,'a'), node -e fs.writeFileSync) are not matched at all. This rule raises the cost of the obvious shell bypass; it is not a complete mediation of the shell path, and should not be described as one. FIX APPLIED SAME DAY: the character classes exclude newlines ([^|;&\\n\\r]) because [^|;&] matched across newlines, so any write-verb anywhere in a multi-line script plus any protected filename anywhere else in it produced a match — it fired on its own test file three times before this was found.",
+      "applies_to": ["*"],
+      "match": {
+        "tool": ["Bash"],
+        "command_patterns": [
+          ">>?\\s*[^|;&\\n\\r]*(CLAUDE\\.md|settings[^/\\\\\\n\\r]*\\.json)",
+          "\\b(tee|cp|mv|rename|Copy-Item|Move-Item)\\b[^|;&\\n\\r]*(CLAUDE\\.md|settings[^/\\\\\\n\\r]*\\.json)",
+          "\\bsed\\s+-i\\b[^|;&\\n\\r]*(CLAUDE\\.md|settings[^/\\\\\\n\\r]*\\.json)",
+          "\\b(Set-Content|Add-Content|Out-File)\\b[^|;&\\n\\r]*(CLAUDE\\.md|settings[^/\\\\\\n\\r]*\\.json)"
+        ]
+      },
+      "verdict": "ask",
+      "enforce": true,
+      "severity": "high",
+      "reason": "Shell command writes to a protected config file (CLAUDE.md / .claude/settings*.json). These steer every future session — confirm before modifying."
+    },
+    {
+      "id": "secrets-write",
+      "description": "Any write into a secrets or key store.",
+      "applies_to": ["*"],
+      "match": {
+        "tool": ["Write", "Edit"],
+        "path_globs": ["**/.secrets/**", "**/.ssh/**"]
+      },
+      "verdict": "deny",
+      "severity": "critical",
+      "reason": "Write into a secrets / key directory is never an agent action. Blocked."
+    },
+    {
+      "id": "captured-content-write",
+      "description": "Captured content is untrusted by design and must not be authored/overwritten by an agent.",
+      "applies_to": ["*"],
+      "match": {
+        "tool": ["Write", "Edit"],
+        "path_globs": ["**/00-Inbox/_captured/**"]
+      },
+      "verdict": "deny",
+      "severity": "high",
+      "reason": "Captured content (00-Inbox/_captured/**) is untrusted input — agents read it as data, never write to it (C-7)."
+    },
+    {
+      "id": "destructive-command",
+      "description": "Recursive/force deletes and disk-wiping commands.",
+      "applies_to": ["*"],
+      "match": {
+        "tool": ["Bash"],
+        "command_patterns": [
+          "\\brm\\s+-[a-z]*r",
+          "\\b(remove-item|ri|rd|del)\\b.*(-recurse|-force|/s|/q)",
+          "\\bgit\\s+reset\\s+--hard\\b",
+          "\\bgit\\s+clean\\s+-[a-z]*f",
+          "\\bmkfs\\b",
+          ">\\s*/dev/sd"
+        ]
+      },
+      "verdict": "ask",
+      "severity": "high",
+      "reason": "Destructive command (recursive delete / hard reset / disk write). Confirm before running."
+    },
+    {
+      "id": "remote-exec-pipe",
+      "description": "Piping a downloaded script straight into a shell.",
+      "applies_to": ["*"],
+      "match": {
+        "tool": ["Bash"],
+        "command_patterns": [
+          "(curl|wget|iwr|invoke-webrequest)[^|]*\\|\\s*(ba)?sh",
+          "(curl|wget|iwr)[^|]*\\|\\s*(python|node|pwsh|powershell)"
+        ]
+      },
+      "verdict": "deny",
+      "severity": "critical",
+      "reason": "curl|bash-style remote code execution — downloads and runs unreviewed code. Blocked (feedback_no_framework_installs)."
+    },
+    {
+      "id": "secret-exfil-pipe",
+      "description": "Reading a secret/credential file and sending it over the network.",
+      "applies_to": ["*"],
+      "match": {
+        "tool": ["Bash"],
+        "command_patterns": [
+          "(cat|type|get-content|gc)\\b[^|]*(\\.secrets|\\.ssh|\\.env|credentials)[^|]*\\|[^|]*(curl|wget|nc|invoke-webrequest)"
+        ]
+      },
+      "verdict": "deny",
+      "severity": "critical",
+      "reason": "Reads a credential/secret file and pipes it to the network — exfiltration shape. Blocked (C-8 / C-2.1 pipeline-parsing)."
+    },
+    {
+      "id": "unattended-bash",
+      "description": "Bash is denied in unattended runs unless via a documented command-allowlisting wrapper (C-2).",
+      "applies_to": ["unattended"],
+      "match": { "tool": ["Bash"] },
+      "verdict": "deny",
+      "severity": "high",
+      "reason": "Bash in an unattended run has no human per-call review and no command allowlist — denied by default (C-2)."
+    },
+    {
+      "id": "unattended-agency-tools",
+      "description": "Cascading agents / network egress tools magnify blast radius in unattended runs.",
+      "applies_to": ["unattended"],
+      "match": { "tool": ["Agent", "Task", "WebFetch", "WebSearch"] },
+      "verdict": "deny",
+      "severity": "high",
+      "reason": "Agent/Task/WebFetch/WebSearch are denied in unattended runs (cascading-agent + egress blast radius — C-2)."
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "_README": "Roots OUTSIDE this project that commands may still legitimately write to. Ships EMPTY on purpose — until you add one, only the universal roots below are allowed and everything else outside the project is treated as an escape.",
+
+  "_UNIVERSAL_ROOTS_ARE_AUTOMATIC": "You do NOT list these; the hook derives them, because every Claude Code install has them and there is exactly one correct answer: (1) ~/.claude/projects — the memory and session store, which is where save-on-mention writes and which lives outside your vault by design; (2) your OS temp dir + /claude — the per-session scratchpad. If these were not allowed, the harness would block its own memory writes.",
+
+  "_WHEN_TO_ADD_ONE": "Add a root when you routinely work on a sibling tree from inside this project — another repo you maintain alongside it, a data-pipeline directory, a tooling checkout. Symptom that you need one: repeated `outside-project-root` verdicts in state/verdict/*.jsonl naming the same directory. Read the log before adding; do not add speculatively.",
+
+  "_SECURITY_NOTES": "Roots are matched by PREFIX ONLY. Protected zones (.secrets, .claude/settings*.json, scripts/hooks, .git) are re-checked RELATIVE TO the matched root, so allow-listing a repo does not expose that repo's hooks or settings — verified by test. An unreadable or malformed config allows nothing extra (fail-closed), so corrupting this file tightens the gate rather than widening it. Every allowed crossing is still logged as an `external-root` observe, so the audit trail shows it. Do NOT add a root you do not control, a root containing credentials, or your home directory.",
+
+  "_FORMAT": "Either a plain string path, or an object with `path` and an optional `label` used in log messages. ~ is expanded. Examples: \"~/Projects/my-other-repo\", or {\"path\": \"~/data-pipeline\", \"label\": \"ingest pipeline\"}.",
+
+  "external_roots": []
+}
