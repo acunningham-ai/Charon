@@ -126,6 +126,51 @@
 
 <section>
   <div class="wrap">
+    <div class="sec-head">
+      <p class="kicker">How it finds things</p>
+      <h2>A memory you can&rsquo;t retrieve isn&rsquo;t a memory.</h2>
+      <p>Storing facts is the easy half. The half that actually stops you re-explaining your world is <i>getting the right one back</i> at the moment it matters &mdash; without you remembering it exists and asking for it.</p>
+    </div>
+    <div class="row">
+      <div class="col-text">
+        <span class="k">memory-retrieve hook &middot; no embeddings</span>
+        <h3>It reads your question, then loads what&rsquo;s relevant.</h3>
+        <p>Every prompt is scored against a compact index of your memory files and authored notes, expanded one hop through the graph, and the matches are injected as context <i>before</i> the answer. No embeddings, no vector database, no network call &mdash; the index is about a megabyte and loads in milliseconds.</p>
+        <p>Two properties do the real work. It matches <b>note bodies, not just filenames</b>: a filename can answer &ldquo;show me the deploy runbook&rdquo;, but it cannot answer &ldquo;does the build server have antivirus&rdquo; &mdash; the note that answers that shares no word with the question. And when the context budget binds, <b>detail degrades before coverage does</b>: full descriptions, then short ones, then bare pointers. A pointer is what makes a note findable at all, so it is the last thing to go.</p>
+        <p class="note">A cap that quietly discards correct results is a defect, not a limit.</p>
+        <p class="note"><b>Enabling it:</b> retrieval runs on every prompt, so it spends context on every prompt &mdash; which makes it one line you add to your hooks rather than something switched on for you. Build the index, add the line, and it is on. See <code>CAPABILITIES.md</code>.</p>
+      </div>
+      <div class="visual" style="align-items:center">
+        <svg viewBox="0 0 320 200" width="100%" style="max-width:340px;margin:0 auto" aria-label="Retrieval quality before and after body-token matching: the right note reached the model 64 percent of the time before, 93 percent after">
+          <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10">
+            <text x="10" y="18" fill="#3A4046" font-size="10">Right note reached the model</text>
+            <text x="10" y="70" fill="#6B7280">filenames only</text>
+            <rect x="10" y="78" width="186" height="22" rx="4" fill="#F1F2F4" stroke="#DDE0E5" stroke-width="1"/>
+            <rect x="10" y="78" width="119" height="22" rx="4" fill="#E3E6EA"/>
+            <text x="204" y="93" fill="#3A4046" font-weight="600">64%</text>
+            <text x="10" y="132" fill="#0A5049">+ note bodies</text>
+            <rect x="10" y="140" width="186" height="22" rx="4" fill="#F1F2F4" stroke="#DDE0E5" stroke-width="1"/>
+            <rect x="10" y="140" width="173" height="22" rx="4" fill="#0E6F66"/>
+            <text x="204" y="155" fill="#0A5049" font-weight="600">93%</text>
+            <text x="10" y="188" fill="#8A9099" font-size="9">reference deployment &middot; 28-question goldset</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-text">
+        <span class="k">scripts/eval/</span>
+        <h3>And you can measure your own.</h3>
+        <p>Our number is from one deployment with a small goldset written by the person who built the index &mdash; read it as &ldquo;this went from broken to working&rdquo;, not as a benchmark. Yours is the one that counts, so the measuring harness ships with it.</p>
+        <p>Write one line per memory &mdash; the question that memory should answer &mdash; and run the evaluator. It reports whether the scorer <i>ranked</i> the note and, separately, whether it <b>survived the context budget and actually reached the model</b>. A gap between those two is a budget problem rather than a ranking problem, and the fixes are different.</p>
+        <p class="note">The commonest reason retrieval misses: the note never uses the words the question will carry. One goldset line per memory is what surfaces that while you can still fix it.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
     <div class="trust-line">
       <p class="kicker">The point</p>
       <h2 style="font-size:clamp(24px,3.2vw,32px);line-height:1.15">Your memory outlives the session — and the tool.</h2>

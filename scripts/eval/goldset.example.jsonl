@@ -1,0 +1,15 @@
+# Example goldset for retrieval_eval.py / eval_live_retrieval.py — replace with your own.
+# One JSON object per line: {"query": "...", "relevant": ["<path relative to --corpus>", ...]}
+# Paths are relative to --corpus (point it at your memory dir).
+#
+# Write the query the way YOU would actually ask it, not as keywords. The whole point of a
+# goldset is to catch the case where the note exists but the words in your question never
+# appear in it — which is the commonest reason retrieval misses.
+#
+# One line per memory file is the discipline. A memory nobody can retrieve is not a memory.
+{"query": "lead with the outcome not the process", "relevant": ["feedback_outcome_over_process.md"]}
+{"query": "does the build server have antivirus or EDR", "relevant": ["bugs_buildserver_host_no_endpoint_protection.md"]}
+{"query": "what is our office street address", "relevant": ["reference_office_address.md"]}
+{"query": "who do I ask before deploying to production", "relevant": ["feedback_ask_who_deploys.md"]}
+{"query": "restart the dashboard first before a schema change", "relevant": ["bugs_ddl_blocked_by_idle_transaction.md"]}
+{"query": "why are the scheduled jobs not running", "relevant": ["bugs_scheduled_tasks_silent_skip.md"]}

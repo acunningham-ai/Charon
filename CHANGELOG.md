@@ -6,6 +6,77 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 > MINOR bump due (→ 0.30.0) when this is released — new capability ships below.
 
+### Added — your memory is now RETRIEVED, not just stored
+
+Charon has always been able to *store* memory well. It could not reliably *recall*
+it. `/recall` existed, but you had to remember to type it — so the memory only
+surfaced when you already suspected it was there. The failure mode that produces
+is the one everybody recognises: the assistant confidently not knowing something
+you told it a fortnight ago.
+
+**What ships now:** prompt-conditioned retrieval on every prompt.
+`scripts/hooks/memory-retrieve.py` (UserPromptSubmit) scores your prompt against a
+compact index of your memory files and authored notes, expands one hop through the
+knowledge graph, and injects the matches as context — before the assistant answers.
+No embeddings, no vector database, no network call. `scripts/build_memory_retrieval_index.py`
+builds the index; put it in your daily refresh.
+
+**Why an index and not a search over your notes:** the index is ~1 MB and loads in
+milliseconds. Reading hundreds of note bodies on every keystroke is not a thing you
+want in your prompt path.
+
+**Enabling it.** Retrieval runs on every prompt, which means it spends context on every
+prompt — so it is an explicit one-line addition to your `UserPromptSubmit` hooks rather
+than something switched on for you. Build the index first, then add the hook line shown in
+`CAPABILITIES.md`. Same reasoning as the Cerberus hooks and `detect-recall-miss` below: a
+capability that changes what every prompt costs is yours to switch on.
+
+**Two design properties worth knowing**, because they are the difference between
+this working and not:
+
+- **It matches on note BODIES, not just filenames.** The first version scored only
+  slug tokens, which means it matched on what a file was *called*. Filenames answer
+  *"tell me about the deploy runbook"*; they cannot answer *"does the build server
+  have antivirus"*, because the note that answers it is called
+  `bugs_buildserver_host_no_endpoint_protection` and shares no word with the
+  question. Body tokens close that, and are scored *below* filename matches with
+  their own document-frequency table — a word's rarity as a filename is a different
+  statistic from its rarity in prose, and merging the two makes both worse.
+- **When the byte budget binds, DETAIL degrades — never coverage.** Full
+  descriptions, then short, then bare names. A pointer is ~40 bytes and is the whole
+  reason a note is findable at all, so the pointer is the last thing to go. A cap
+  that silently discards correct results is a defect, not a limit.
+
+**Measured, with the caveats stated.** On the reference deployment (a few hundred
+memory files, a 28-question goldset written from real prompts): the right note
+reached the model's context on **93%** of questions, up from **64%** before body
+tokens. Ranking is weaker than recall — the note often arrives without being ranked
+first — and that is the next thing being improved. The goldset is small and was
+written by the same person who built the index, so treat 93% as *"this went from
+broken to working"*, not as a benchmark.
+
+**And you can measure your own**, which matters more than our number:
+`scripts/eval/` ships the harness. Write one line per memory — the question that
+memory should answer — into a goldset, then run `eval_live_retrieval.py` to see
+whether your own retrieval finds it. Two metrics, and the second is the honest one:
+`recall@k` says the scorer ranked it; **`recall@injected` says it actually survived
+the byte budget and reached the model.** A gap between them is a budget problem, not
+a ranking problem, and the fixes are different.
+
+The discipline that makes it work is one line per new memory. A memory nobody can
+retrieve is not a memory — and the commonest reason retrieval misses is that the
+note never uses the words the question will carry. Write the body with the question
+in mind.
+
+**Also shipped, deliberately not wired:** `scripts/hooks/detect-recall-miss.py`.
+It watches for the phrases people use when the assistant has forgotten something
+(*"didn't we"*, *"we discussed this"*, *"you should know this"*) and logs the
+retrieval context that failed — the *preceding* turns, since a complaint is always
+about the previous answer. That turns forgetfulness from a feeling into a dataset.
+It is not in `settings.json`: add it when you want the measurement, because a
+sample of your own real misses is worth more than any goldset we could write for
+you.
+
 ### Fixed — a scanner fix you should already have had
 
 `poisoning-scan.py` scanned the **whole prompt**, which meant it scanned your own
