@@ -4,7 +4,7 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
-> MINOR bump due (→ 0.30.0) when this is released — new capability ships below.
+## [0.30.0] - 2026-09-09
 
 ### Added — your memory is now RETRIEVED, not just stored
 
@@ -120,6 +120,73 @@ happened. 120-second grace inside a 300-second TTL; every use logged.
 
 Each ships in shadow because what counts as a false positive depends on your files,
 not on someone else's. Inherit the mechanism, run your own window.
+
+### Added — you can now tell a broken gate from a quiet one
+
+A hook that fails open logs `allow`. So does a hook that deliberately allowed. Those
+were the same line in the audit log, which means a gate that had silently stopped
+evaluating was indistinguishable from a gate with nothing to report — and a shadow
+window's "N allows" had no denominator you could trust.
+
+`_verdict.py` gains an **outcome axis**, orthogonal to the verdict and strictly
+additive: `decided` (was this a real decision?) and `outcome` (`decided` /
+`unknown`). The fail-open *direction* is unchanged — changing it would break every
+hook — but a fall-open is now countable:
+
+```
+jq 'select(.decided == false)' state/verdict/*.jsonl
+```
+
+`emit_fell_open()` is the call to use in the `except` branch of any gate that fails
+open, in place of a bare `except` or an `emit_verdict(verdict="allow")` that lies
+about what happened. It is wired into the outermost backstop of `phase-gate.py`,
+`poisoning-scan-read.py` and `cerberus/scan-config-edits.py`, so a crash in any of
+the three still allows the action — and still says so.
+
+`unknown` deliberately is **not** a member of `ALL_VERDICTS`: an "I don't know" that
+can be compared against real levels silently sorts below the lowest one.
+
+**The standing check this gives you:** if the answer to *"how would I know this hook
+broke?"* is *"I wouldn't"*, it needs `emit_fell_open()`.
+
+### Fixed — your retrieval index was not gitignored
+
+The index and the knowledge graph are written to `.charon/`, and `.gitignore` did
+not cover it. The index carries note paths **plus descriptions lifted from your note
+bodies** — a searchable digest of your vault — and it lands inside a git working
+tree that you pull updates into. Untracked is not the same as safe: one `git add -A`
+would have committed it. `.charon/` is now ignored.
+
+### Added — the retrieval trust check ships
+
+`scripts/test_retrieval_trust.py` asserts the property that actually matters about
+retrieval: **not** "does it find things" but "can untrusted content reach the
+context". It checks that no capture-sourced note is in the index, that no excluded
+zone leaked in, that the index is not stale, and that the two independent filters —
+the builder's provenance regex and `_provenance.trust_zone()` — **agree**, since a
+silent divergence is how a two-filter design quietly becomes a one-filter design.
+
+It was previously referenced by the builder and never shipped, so the claim went out
+without its proof. It now imports the builder's filter rather than restating it, so
+it tracks whatever you add to `capture-provenance-config.json` instead of testing a
+stale copy of the defaults.
+
+Run it after building the index. It exits 0 when clean, 0 with `SKIP` when you have
+no index yet, and 1 with the specific leak when something is wrong.
+
+### Changed — capture provenance is yours to extend
+
+The retrieval index decides what to exclude by reading each note's frontmatter
+provenance, not its path — because a note gets filed by topic, not by where it came
+from, and on the reference deployment 320 capture-sourced notes were sitting inside
+the "authored" folders. That vocabulary was a hardcoded list, which is fine until you
+wire a capture source Charon does not ship.
+
+`scripts/capture-provenance-config.json` now lets you add your own markers. It is
+**additive only**: your values are unioned with the built-ins and nothing in the file
+can remove one, so a typo, a bad merge or a hostile edit can only widen what counts
+as untrusted, never shrink it — and an unreadable config leaves the built-in list
+fully intact. Same direction as the rest of that filter: it fails closed.
 
 ### Added — shared modules and configuration
 
@@ -1602,7 +1669,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.29.0...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.30.0...HEAD
+[0.30.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.30.0
 [0.29.2]: https://github.com/acunningham-ai/Charon/releases/tag/v0.29.2
 [0.29.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.29.1
 [0.29.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.29.0

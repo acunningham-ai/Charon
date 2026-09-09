@@ -8,6 +8,13 @@
 # working.
 CLAUDE.local.md
 
+# Derived indexes over YOUR OWN notes. The retrieval index carries note paths
+# plus descriptions lifted from note bodies, and the knowledge graph carries
+# entity names from the same content — so this is private data, not build
+# output. Untracked is not enough: you pull updates into this repo, so a single
+# `git add -A` would otherwise commit a searchable digest of your vault.
+.charon/
+
 # Runtime state, telemetry, audit logs
 state/
 **/state/

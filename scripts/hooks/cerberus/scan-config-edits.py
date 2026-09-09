@@ -88,10 +88,14 @@ except Exception:
         return None
 try:
     sys.path.insert(0, os.path.dirname(_HERE))  # scripts/hooks
-    from _verdict import emit_verdict, verdict_to_exit_code, write_ask_stderr
+    from _verdict import (emit_fell_open, emit_verdict, verdict_to_exit_code,
+                          write_ask_stderr)
 except Exception:
     def emit_verdict(*a, **k):
         return k.get("verdict", "allow")
+
+    def emit_fell_open(*a, **k):
+        return "allow"
 
     def verdict_to_exit_code(v):
         return 2 if v in ("deny", "ask") else 0
@@ -268,4 +272,17 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        sys.exit(main())
+    except Exception as exc:
+        # Absolute backstop -- a scanner fault must never block a write.
+        # Recorded as a FALL-OPEN, not a plain allow: a gate that has
+        # silently stopped evaluating must not look like a gate with
+        # nothing to report. Query: jq 'select(.decided == false)'
+        try:
+            emit_fell_open(hook="cerberus-scan-config-edits", rule="backstop",
+                           reason="hook raised; allowing",
+                           error=repr(exc))
+        except Exception:
+            pass
+        sys.exit(0)

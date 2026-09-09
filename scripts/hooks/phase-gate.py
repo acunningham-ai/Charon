@@ -45,10 +45,13 @@ except Exception:
 # Verdict layer — fail-silent if absent so the hook stays operable.
 try:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from _verdict import emit_verdict, write_ask_stderr  # noqa: E402
+    from _verdict import emit_fell_open, emit_verdict, write_ask_stderr  # noqa: E402
 except Exception:
     def emit_verdict(*args, **kwargs):  # type: ignore
         return kwargs.get("verdict", "allow")
+
+    def emit_fell_open(*args, **kwargs):  # type: ignore
+        return "allow"
 
     def write_ask_stderr(*args, **kwargs):  # type: ignore
         return None
@@ -174,6 +177,15 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         sys.exit(main())
-    except Exception:
-        # Absolute backstop — never block an edit because the gate errored.
+    except Exception as exc:
+        # Absolute backstop -- never block an edit because the gate errored.
+        # Recorded as a FALL-OPEN, not a plain allow: a gate that has
+        # silently stopped evaluating must not look like a gate with
+        # nothing to report. Query: jq 'select(.decided == false)'
+        try:
+            emit_fell_open(hook="phase-gate", rule="backstop",
+                           reason="hook raised; allowing",
+                           error=repr(exc))
+        except Exception:
+            pass
         sys.exit(0)

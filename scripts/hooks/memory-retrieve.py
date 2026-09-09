@@ -37,10 +37,10 @@ TRUST — the load-bearing property, since this feeds every prompt:
 Only authored content is indexed. Captured/untrusted material is excluded by the
 index builder on TWO independent filters, path AND frontmatter provenance.
 Path alone is not sufficient and CLAUDE.md's "authored content elsewhere in the
-vault is trusted" does not hold as a rule: measured 2026-08-10, 320 capture-
-sourced notes (`source: m365-calendar`, `plaud`) sit inside 05-Meetings,
-03-Domains and 08-Projects. A path-only filter would have fed all of them into
-every prompt. See build_memory_retrieval_index.py::CAPTURE_PROVENANCE, which
+vault is trusted" does not hold as a rule: on the reference deployment, 320
+capture-sourced notes (`source: m365-calendar`, and other capture providers) sat
+inside 05-Meetings, 03-Domains and 08-Projects. A path-only filter would have fed
+every one of them into every prompt. See build_memory_retrieval_index.py::CAPTURE_PROVENANCE, which
 fails CLOSED — an unreadable file is excluded, not included.
 
 LOGGING: the shadow log stores a short prompt preview so a miss can be judged,

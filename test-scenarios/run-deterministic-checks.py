@@ -75,6 +75,8 @@ STANDALONE_HOOKS = {
     "route-binary-doc-read.py",  # opt-in PreToolUse(Read) router for /ingest; unwired by default (depends on optional ingest deps) — wire per its header when markitdown is installed
     "_provenance.py",    # shared trust-zone / artefact-role discriminator; imported by phase-gate.py, poisoning-scan-read.py and cerberus/scan-config-edits.py to calibrate findings, never invoked directly
     "_policy.py",        # declarative policy engine (rules live in scripts/policy/policy.json); imported by hooks that ask it for a verdict, never invoked directly
+    "memory-retrieve.py",     # opt-in UserPromptSubmit retrieval; unwired by default BECAUSE it spends context on every prompt — a capability that changes what every prompt costs is the user's to switch on. Build the index first, then add the hook line per CAPABILITIES.md
+    "detect-recall-miss.py",  # opt-in measurement hook; unwired by default so the user chooses to collect their own retrieval-miss dataset. Wire per its header when you want the numbers
 }
 
 # Personal-content patterns — must NOT appear in any Charon file.

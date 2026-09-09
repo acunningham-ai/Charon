@@ -70,6 +70,30 @@ except Exception:
 
 
 ALL_VERDICTS = ("allow", "deny", "ask", "observe")
+
+# Outcome vocabulary -- ORTHOGONAL to the verdict, and deliberately NOT a verdict.
+#
+# The four verdicts are all *decisions*. There is no way among them to record
+# "I could not evaluate this", which is a different thing from `observe` (a
+# deliberate choice to watch). Hooks are told to fail-silent on _verdict.py
+# errors, so without this a BROKEN hook emits `allow` indistinguishably from a
+# hook that deliberately allowed -- and a gate that has silently stopped
+# evaluating looks exactly like a gate with nothing to report.
+#
+# The fail-open DIRECTION is unchanged; changing it would break every hook.
+# What changes is that a fall-open becomes countable:
+#   decision == "allow" and decided is False  ->  "we could not decide",
+#                                                 not "we allowed"
+#
+# `unknown` sits outside ALL_VERDICTS on purpose: an "I don't know" that can be
+# compared against real levels silently sorts below the lowest one. Keeping it
+# out of the decision tuple makes that impossible.
+#
+# Standing check for any new gate: if the answer to "how would I know this hook
+# broke?" is "I wouldn't", it needs emit_fell_open(), not a bare `except`.
+OUTCOME_DECIDED = "decided"
+OUTCOME_UNKNOWN = "unknown"
+
 PRODUCTION_MODE = "production"
 MONITOR_MODE = "monitor"
 MODE_ENV_VAR = "HARNESS_MODE"
@@ -109,6 +133,8 @@ def emit_verdict(
     context: dict = None,
     session_id: str = "",
     enforce: bool = False,
+    decided: bool = True,
+    outcome: str = "",
 ) -> str:
     """Log a verdict and return the effective verdict.
 
@@ -145,6 +171,12 @@ def emit_verdict(
             "effective": effective,
             "mode": mode,
             "enforced": bool(enforce),
+            # `decided=False` marks a fall-open: the hook could not evaluate and
+            # allowed by default. Makes "how many allows this fortnight were
+            # actually failures?" a grep instead of an archaeology project, and
+            # gives a shadow-window review a real denominator.
+            "decided": bool(decided),
+            "outcome": outcome or (OUTCOME_DECIDED if decided else OUTCOME_UNKNOWN),
             "reason": reason,
             "session_id": session_id or "",
             "context": context or {},
@@ -157,6 +189,49 @@ def emit_verdict(
         pass
 
     return effective
+
+
+def emit_fell_open(
+    hook: str,
+    rule: str,
+    reason: str,
+    error: str = "",
+    context: dict = None,
+    session_id: str = "",
+) -> str:
+    """Record an ALLOW that happened because the hook could not evaluate.
+
+    Use this in the `except` branch of any gate that fails open -- instead of
+    returning 0 silently, or calling emit_verdict(verdict="allow"), which is
+    indistinguishable from a real allow.
+
+    Returns "allow", so the call site keeps its existing fail-open behaviour:
+
+        try:
+            ...evaluate...
+        except Exception as exc:
+            return verdict_to_exit_code(
+                emit_fell_open(hook="my-hook", rule="my-rule",
+                               reason="evaluation failed; allowing",
+                               error=repr(exc), context={"target": path})
+            )
+
+    Query the audit log for these with:
+        jq 'select(.decided == false)' state/verdict/*.jsonl
+    """
+    ctx = dict(context or {})
+    if error:
+        ctx["error"] = error[:500]
+    return emit_verdict(
+        hook=hook,
+        rule=rule,
+        verdict="allow",
+        reason=reason,
+        context=ctx,
+        session_id=session_id,
+        decided=False,
+        outcome=OUTCOME_UNKNOWN,
+    )
 
 
 def verdict_to_exit_code(effective_verdict: str) -> int:

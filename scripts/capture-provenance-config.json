@@ -1,0 +1,15 @@
+{
+  "_README": "Extra frontmatter provenance markers that mean 'this note came from outside and is untrusted'. Read by scripts/build_memory_retrieval_index.py, which excludes matching notes from the retrieval index that feeds every prompt.",
+
+  "_WHY_THIS_EXISTS": "Trust cannot be decided by path. On the reference deployment 320 capture-sourced notes were sitting inside the 'authored' folders (05-Meetings, 03-Domains, 08-Projects), because a note gets filed by topic, not by where it came from. A path-only filter would have fed every one of them into every prompt. So provenance is read from each file's frontmatter instead, and this is the vocabulary it reads.",
+
+  "_EMPTY_IS_A_WORKING_DEFAULT": "Unlike some configs, this one ships empty because the built-ins already cover what Charon itself can ingest (m365, m365-calendar, outlook, teams, graph-api, untrusted, captured, capture, voice, voice-note, transcript). You only need this file if you wired up a capture source of your own.",
+
+  "_ADDITIVE_ONLY": "Values here are ADDED to the built-in list. Nothing in this file can remove a built-in. That is deliberate: a typo, a bad merge or a hostile edit can only ever widen what counts as untrusted, never shrink it. If this file is missing or unparseable the built-in list is used unchanged.",
+
+  "_WHEN_TO_ADD_SOMETHING": "You built a capture path Charon does not ship — a voice recorder, a ticketing system, a web scraper, a Slack exporter — and its notes carry a frontmatter marker like `source: my-recorder`. Add that marker here so those notes are treated as untrusted data rather than as your own writing.",
+
+  "_FORMAT": "Bare lowercase tokens, matched against the value of a `source:` or `trust:` frontmatter key. Matching is case-insensitive and anchored at the start of the value. Example: [\"my-recorder\", \"zendesk\", \"slack-export\"].",
+
+  "additional_provenance_values": []
+}

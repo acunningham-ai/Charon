@@ -18,7 +18,9 @@ milliseconds.
 Token derivation lives HERE, not in the hook: the hook stays dumb and fast, and
 there is one source of truth for how a slug becomes matchable words.
 
-Output: <vault>/state/memory-retrieval-index.json
+Output: <vault>/.charon/memory-retrieval-index.json  (gitignored — it carries
+        note paths and descriptions lifted from your note bodies)
+Verify: python scripts/test_retrieval_trust.py
 Run:    python scripts/build_memory_retrieval_index.py [--stats]
 """
 from __future__ import annotations
@@ -74,11 +76,46 @@ EXCLUDED_DIRS = ("09-Archive", "_Templates", "templates", "_templates",
 # primitive's semantics; two filters agreeing is a check, one filter is a
 # single point of failure. They are cross-verified in
 # scripts/test_retrieval_trust.py.
-CAPTURE_PROVENANCE = re.compile(
-    r'^(?:source|trust):\s*"?\s*(m365|m365-calendar|plaud|outlook|teams|'
-    r'graph-api|untrusted|captured)',
-    re.M | re.I,
+# The token list is CONFIGURABLE because capture sources are not universal: the
+# built-ins cover what Charon itself can ingest, and anyone wiring their own
+# provider (a voice recorder, a ticketing system, a scraper) needs their marker
+# treated as untrusted too. A vendor name hardcoded here would be dead weight for
+# every user who does not own that device.
+#
+# ADDITIVE ONLY, on purpose. User tokens are unioned with the built-ins; nothing
+# in the config can remove one. So a typo'd or malicious config can only ever
+# widen what counts as untrusted, never shrink it, and an unreadable config
+# leaves the built-in set fully intact. Same direction as the rest of this
+# filter: it fails CLOSED.
+CAPTURE_PROVENANCE_BUILTIN = (
+    "m365", "m365-calendar", "outlook", "teams", "graph-api",
+    "untrusted", "captured", "capture", "voice", "voice-note", "transcript",
 )
+
+_PROVENANCE_CONFIG = Path(__file__).resolve().parent / "capture-provenance-config.json"
+
+
+def _capture_provenance_tokens() -> tuple:
+    """Built-in provenance markers, plus any the user added. Never fewer."""
+    tokens = set(CAPTURE_PROVENANCE_BUILTIN)
+    try:
+        cfg = json.loads(_PROVENANCE_CONFIG.read_text(encoding="utf-8"))
+        for t in cfg.get("additional_provenance_values") or ():
+            t = str(t).strip().lower()
+            if t:
+                tokens.add(t)
+    except Exception:
+        pass  # unreadable config -> built-ins only -> still fails closed
+    # Longest first so `m365-calendar` cannot be shadowed by `m365`.
+    return tuple(sorted(tokens, key=lambda t: (-len(t), t)))
+
+
+def _build_capture_provenance() -> "re.Pattern":
+    alts = "|".join(re.escape(t) for t in _capture_provenance_tokens())
+    return re.compile(r'^(?:source|trust):\s*"?\s*(' + alts + r')', re.M | re.I)
+
+
+CAPTURE_PROVENANCE = _build_capture_provenance()
 
 FRONTMATTER_SCAN_BYTES = 1200   # enough for frontmatter; avoids reading bodies
 LEADING_DATE = re.compile(r"^\d{4}[-_]\d{2}[-_]\d{2}[-_]?")
