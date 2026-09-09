@@ -4,6 +4,38 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+## [0.30.1] - 2026-09-09
+
+### Added — your shadow window now measures real use, not your own testing
+
+Every promotion decision about a shadow rule reads the verdict log and asks "how
+noisy was this?". That answer is wrong if the log also holds the times you
+deliberately provoked the rule to check it worked. On the reference deployment a
+shadow review found **15 of 29 fires were fixtures** — verification runs firing on
+throwaway paths. Over half the evidence was the rule being poked with a stick.
+
+Set `HARNESS_HOOK_TEST=1` when you exercise a hook and its fires land in
+`state/verdict/_test/` instead. The real emission path still runs — that is part of
+what you are testing — but the production log stays clean. Readers glob the flat
+`state/verdict/*.jsonl`, so `_test/` is excluded with no reader change, and every
+line is additionally stamped `"test": true` so a fixture entry stays identifiable
+even if the files are later merged.
+
+### Fixed — `emit_fell_open` is now wired everywhere it belongs
+
+It shipped in 0.30.0 with three gates adopting it, but
+`validate-interactive-write.py` still had a bare `except` that exited 0 silently.
+Every gate that fails open now records the fall-open. No bare backstops remain.
+
+### Changed — a permitted write is logged as `allow`, not `observe`
+
+`validate-interactive-write` logged writes to allow-listed external roots as
+`observe`. The audit line is right to exist — a boundary crossing should stay
+visible — but `observe` means "a rule in its shadow phase", and this is a routine,
+in-scope write. On the reference deployment that mislabelling made **83 of the
+hook's 131 fires** happy-path noise, burying the 46 real ones a promotion decision
+actually turns on. The logging is unchanged; only the verdict now says what it is.
+
 ## [0.30.0] - 2026-09-09
 
 ### Added — your memory is now RETRIEVED, not just stored
@@ -1669,7 +1701,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.30.0...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.30.1...HEAD
+[0.30.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.30.1
 [0.30.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.30.0
 [0.29.2]: https://github.com/acunningham-ai/Charon/releases/tag/v0.29.2
 [0.29.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.29.1

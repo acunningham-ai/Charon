@@ -52,7 +52,8 @@ except Exception:
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 try:
-    from _verdict import emit_verdict, verdict_to_exit_code, write_ask_stderr
+    from _verdict import (emit_fell_open, emit_verdict, verdict_to_exit_code,
+                          write_ask_stderr)
 except Exception:                                             # fail-silent per convention
     def emit_verdict(*_args, **kwargs):                       # type: ignore
         return kwargs.get("verdict", "allow")
@@ -62,6 +63,9 @@ except Exception:                                             # fail-silent per 
 
     def write_ask_stderr(**_kwargs):                          # type: ignore
         pass
+
+    def emit_fell_open(*_args, **_kwargs):                    # type: ignore
+        return "allow"
 
 try:
     from _active_command import active as active_command, project_root
@@ -472,7 +476,14 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         sys.exit(main())
-    except Exception:
-        # Interactive layer fails OPEN: a bug in this hook must not block a
-        # human's legitimate write with no route around it.
+    except Exception as exc:
+        # Interactive layer fails OPEN: a bug here must not block a legitimate write.
+        # Recorded as a FALL-OPEN so a silently broken gate is countable
+        # rather than indistinguishable from a gate with nothing to say.
+        try:
+            emit_fell_open(hook=HOOK_NAME, rule="backstop",
+                           reason="hook raised; allowing",
+                           error=repr(exc))
+        except Exception:
+            pass
         sys.exit(0)

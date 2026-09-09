@@ -111,9 +111,35 @@ def _project_root() -> Path:
     return here
 
 
+# Test-run redirect. A hook being VERIFIED still exercises the real emission path
+# — that is part of what is being tested — but its fires must not land in the
+# production audit log, because that log is the denominator for every promotion
+# decision you make about a shadow rule.
+#
+# WHY YOU WANT THIS: on the reference deployment, a shadow review found that 15 of
+# 29 fires for a pair of new hooks were fixtures — verification runs firing on
+# throwaway paths. Over half the evidence for "is this rule noisy?" was the rule
+# being deliberately provoked. Set HARNESS_HOOK_TEST=1 when you exercise a hook
+# and your shadow window measures real use only.
+#
+# Readers glob `state/verdict/{YYYY-MM-DD}.jsonl` — a flat pattern — so entries
+# under `_test/` are excluded automatically, with no reader change. Lines are ALSO
+# stamped `"test": true`, so a fixture entry stays self-identifying even if the
+# file is later moved or concatenated.
+HOOK_TEST_ENV = "HARNESS_HOOK_TEST"
+
+
+def is_hook_test_run() -> bool:
+    """True when this process is a hook verification run, not real use."""
+    return os.environ.get(HOOK_TEST_ENV, "").strip().lower() not in ("", "0", "false", "no")
+
+
 def _audit_log_path() -> Path:
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    return _project_root() / "state" / "verdict" / f"{day}.jsonl"
+    base = _project_root() / "state" / "verdict"
+    if is_hook_test_run():
+        base = base / "_test"
+    return base / f"{day}.jsonl"
 
 
 def current_mode() -> str:
@@ -177,6 +203,9 @@ def emit_verdict(
             # gives a shadow-window review a real denominator.
             "decided": bool(decided),
             "outcome": outcome or (OUTCOME_DECIDED if decided else OUTCOME_UNKNOWN),
+            # Stamped so a fixture entry stays identifiable even if the file is
+            # moved or concatenated — belt as well as the _test/ braces.
+            "test": is_hook_test_run(),
             "reason": reason,
             "session_id": session_id or "",
             "context": context or {},
