@@ -876,6 +876,97 @@ def _run_restore(tool: Path, extra: list) -> bool:
     return False
 
 
+def run_catch_up(dry_run: bool = False) -> int:
+    """Ask only the questions that capability shipped AFTER you installed needs.
+
+    The gap this closes: `charon-update` pulls new code and runs
+    `first-run.py --scaffold-only`, which creates folders and asks nothing. A
+    question added to the wizard after your install therefore never reached you --
+    so an install-wiring capability (one whose port IS a configuration step) would
+    land its config file and silently stay unconfigured. Three shipped that way in
+    a single release.
+
+    This is deliberately NOT `--full`. On a Quick install most questions are
+    unanswered by design, and re-asking all of them would just be the wizard again.
+    Catch-up asks exactly the questions a shipped capability declares it needs,
+    minus the ones already answered -- and names the capability doing the asking,
+    so a question out of nowhere arrives with its reason attached.
+    """
+    import whats_new
+
+    notes = whats_new.load_notes()
+    answered = whats_new.answered_question_ids()
+    owed = whats_new.pending_questions(notes, answered)
+
+    block = whats_new.render(whats_new.pending_notes(notes, whats_new.load_seen()), answered)
+    if block:
+        print(block)
+
+    if not owed:
+        print("  Nothing to catch up on - every capability that needs a setting has one.")
+        return 0
+
+    data = load_questions()
+    by_id = {q["id"]: q for q in data["questions"]}
+    missing = [q for q in owed if q not in by_id]
+    if missing:
+        # A capability naming a question the wizard does not define is a packaging
+        # error, not a user problem. Say so loudly rather than skipping quietly.
+        sys.stderr.write(
+            f"Warning: capability notes reference unknown question(s): {', '.join(missing)}\n"
+            f"         This release is inconsistent; please report it.\n")
+    askable = [by_id[q] for q in owed if q in by_id]
+    if not askable:
+        return 1
+
+    heading("Catch-up - settings new capability needs from you")
+    soft("Only questions a newly shipped capability declares it needs. "
+         "Everything is skippable; skipping leaves the safe default in place.")
+
+    answers = load_state()
+    for q in askable:
+        owners = whats_new.questions_owed_by(notes, q["id"])
+        if owners:
+            soft(f"needed by: {', '.join(owners)}")
+        if not depends_on_satisfied(q, answers):
+            continue
+        try:
+            answers[q["id"]] = ask_question(q, answers.get(q["id"]))
+        except KeyboardInterrupt:
+            print("\n\nInterrupted. Answers so far are saved; re-run --catch-up to finish.")
+            save_state(answers)
+            return 130
+        save_state(answers)
+
+    # Render only the templates that actually consume a newly-answered question --
+    # a catch-up must never rewrite files unrelated to what it just asked.
+    fresh = {q["id"] for q in askable if answers.get(q["id"], "").strip()}
+    templates = data.get("templates") or {}
+    touched = {tid: t for tid, t in templates.items()
+               if any(f"{{{{{qid}}}}}" in (t.get("body") or "") for qid in fresh)}
+    if not touched:
+        print("\nAnswers saved. No files needed rewriting.")
+        return 0
+
+    types = {q["id"]: q.get("type", "string") for q in data["questions"]}
+    vault, mem = vault_root(), memory_root()
+    plans = plan_writes(touched, answers, types, vault, mem, Path(__file__).resolve().parents[1])
+    print("\nFiles to update:")
+    for target, tid, _ in plans:
+        print(f"  - {target}  ({tid})")
+    if dry_run:
+        print("\n--dry-run: nothing written")
+        return 0
+    if sys.stdin.isatty() and (input("\nProceed? [Y/n]: ").strip().lower() or "y") not in ("y", "yes"):
+        print("Nothing written. Answers are saved; re-run --catch-up when ready.")
+        return 0
+    for target, _tid, body in plans:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(body, encoding="utf-8")
+    print(f"Wrote {len(plans)} file(s).")
+    return 0
+
+
 def main():
     configure_stdio_for_unicode()
     parser = argparse.ArgumentParser(description="Charon first-run setup wizard")
@@ -906,7 +997,17 @@ def main():
              "root, then exit. Idempotent; asks no questions. Used by /charon-update "
              "after a self-update so newly-added base folders land one-touch.",
     )
+    parser.add_argument(
+        "--catch-up",
+        action="store_true",
+        help="Ask only the settings that capability shipped since your install needs, "
+             "and show what those capabilities give you. Run by /charon-update; safe "
+             "to run by hand any time. Not the full wizard.",
+    )
     args = parser.parse_args()
+
+    if args.catch_up:
+        sys.exit(run_catch_up(dry_run=args.dry_run))
 
     if args.scaffold_only:
         vault = vault_root()

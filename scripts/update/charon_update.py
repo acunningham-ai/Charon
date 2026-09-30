@@ -239,7 +239,43 @@ def _apply_github_self(source: dict, status: dict, interactive: bool) -> dict:
     scaffold_status = _run_scaffold_ensure()
     if scaffold_status:
         result["scaffold"] = scaffold_status
+    result["whats_new"] = _whats_new_after_update()
     return result
+
+
+def _whats_new_after_update() -> Optional[dict]:
+    """What did this pull actually give the user -- in plain language?
+
+    The update used to say "impact: capability update (new commands / engine /
+    rules)" and leave the rest to a 198KB CHANGELOG. And because the only wizard
+    call here is `--scaffold-only` (folders, no questions), a question added to
+    the wizard after someone installed never reached them: an install-wiring
+    capability could land its config file and stay silently unconfigured.
+
+    So after a successful pull we read the capability notes shipped with the new
+    code and report (a) what is newly available, (b) which settings it still needs.
+    Best-effort: release notes must never be able to fail an update.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    sys.path.insert(0, str(repo_root / "scripts"))
+    try:
+        import whats_new  # noqa: PLC0415 - optional, must not break the update
+        notes = whats_new.load_notes()
+        seen = whats_new.load_seen()
+        answered = whats_new.answered_question_ids()
+        pending = whats_new.pending_notes(notes, seen)
+        if not pending:
+            return None
+        owed = whats_new.pending_questions(pending, answered)
+        print(whats_new.render(pending, answered))
+        if owed:
+            print("  Some of that needs a setting from you:")
+            print("      python scripts/first-run.py --catch-up")
+            print()
+        whats_new.save_seen(seen | {n["id"] for n in pending if n.get("id")})
+        return {"new": [n.get("id") for n in pending], "questions_owed": owed}
+    except Exception as exc:  # noqa: BLE001
+        return {"error": f"could not read capability notes: {exc!r}"}
 
 
 # ---------------- github-vendored ----------------

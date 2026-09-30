@@ -4,6 +4,36 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+### Added — an update now tells you what you actually got
+
+`charon-update` used to report one line — `impact : capability update (new
+commands / engine / rules)` — and leave the rest to a CHANGELOG now approaching
+200KB. After a successful pull it now prints, in plain language, what you can do
+that you could not before, and which of those capabilities still needs a setting
+from you.
+
+### Fixed — a question added after you installed now reaches you
+
+This was a real hole, not a nicety. The update path's only call into the wizard
+was `first-run.py --scaffold-only`, which creates folders and asks nothing. So a
+question added to the wizard *after* your install never reached you — and a
+capability whose port IS a configuration step would land its config file and stay
+silently unconfigured for good. Three such configs shipped in a single release.
+
+`python scripts/first-run.py --catch-up` asks exactly the questions a shipped
+capability declares it needs, minus those you have already answered, and names the
+capability doing the asking so a question out of nowhere arrives with its reason.
+It is deliberately not `--full`: on a Quick install most questions are unanswered
+by design, and re-asking all of them would just be the wizard again. `charon-update`
+runs it for you; it is safe to run by hand any time.
+
+New `scripts/whats_new.py` is the shared engine. Its data is
+`scripts/capability-notes.json`, generated upstream from the capability manifest.
+If that file is absent everything degrades to "nothing to report" — release notes
+must never be able to fail an update. Notices you have seen are tracked in
+`~/.charon-capability-state.json`, kept deliberately separate from your wizard
+answers so recording a notice can never corrupt them.
+
 ## [0.30.1] - 2026-09-09
 
 ### Added — your shadow window now measures real use, not your own testing
