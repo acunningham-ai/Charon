@@ -34,6 +34,14 @@ must never be able to fail an update. Notices you have seen are tracked in
 `~/.charon-capability-state.json`, kept deliberately separate from your wizard
 answers so recording a notice can never corrupt them.
 
+### Fixed — SECURITY.md said the confirm token was one-shot; it is not
+
+Since the consume-on-success fix, a confirmation token stays spendable for 120
+seconds after first use — and it is matched on the rule, not the file, so inside
+that window it passes *every* protected-zone write, not only the one you were
+shown. SECURITY.md still called it "one-shot". It now says what the token covers,
+and to ask the assistant to name every file before you issue one.
+
 ## [0.30.1] - 2026-09-09
 
 ### Added — your shadow window now measures real use, not your own testing

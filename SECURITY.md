@@ -92,7 +92,7 @@ somewhere else, or switch the hook off. **That is precisely how a control gets
 switched off**, and it is a failure mode worth naming because it looks like
 security while producing the opposite.
 
-The answer channel is a one-shot token file, `state/policy-confirm.json`, naming the
+The answer channel is a short-lived token file, `state/policy-confirm.json`, naming the
 rule it confirms. You create it yourself, out of band, in your own terminal — the
 block message prints the exact command — then ask the assistant to retry.
 
@@ -109,6 +109,13 @@ on first use and stays spendable for the same rule for **120 seconds** (within a
 agent-proof barrier. Anything that can write the token can pass the gate. Its value
 is that confirming becomes a separate, explicit, logged act rather than a silent
 one — and an unexplained token in the audit log is itself a finding.
+
+**What one token covers:** a token is matched on the rule it names, not on a file.
+Inside its 120-second window it passes *every* write under that rule — so one
+confirmation can land several protected edits, not only the one you were shown.
+Ask the assistant to name every file it will touch *before* you issue the token, and
+check the log afterwards: each pass is a separate `policy-confirmed-bypass` line
+with a rising `reuse_count`.
 
 #### Config-edit poisoning scan (`cerberus/scan-config-edits.py`) — ships in shadow
 
