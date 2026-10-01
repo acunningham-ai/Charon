@@ -194,6 +194,7 @@ You can re-run any time:
 ```bash
 python scripts/first-run.py              # walk all phases; existing answers offer keep/update/wipe
 python scripts/first-run.py --phase voice    # re-do voice profile only
+python scripts/first-run.py --catch-up   # after an update: only the questions new capabilities need
 python scripts/first-run.py --dry-run    # show planned writes; don't touch the filesystem
 python scripts/first-run.py --logo full  # force the full ASCII banner (needs wide terminal)
 ```

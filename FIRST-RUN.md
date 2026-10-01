@@ -45,6 +45,7 @@ python scripts/first-run.py --quick         # express path (4–6 questions)
 python scripts/first-run.py --full          # full path (39 questions across 5 phases)
 python scripts/first-run.py --phase voice   # re-do a single phase
 python scripts/first-run.py --phase engines # seed research beats / newsletter senders / forums
+python scripts/first-run.py --catch-up      # after an update: only the questions new capabilities need
 python scripts/first-run.py --dry-run       # show planned writes; don't touch the filesystem
 python scripts/first-run.py --logo full     # force full ASCII banner (needs ~200-col terminal)
 python scripts/first-run.py --no-logo       # skip banner entirely

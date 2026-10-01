@@ -13,6 +13,7 @@ The skill orchestrates `python -m scripts.update.charon_update`, which:
    - `github-vendored` — compares pinned SHA in NOTICE / cerberus/README.md vs upstream HEAD
 3. Reports a status summary
 4. On user confirmation, applies each available update and runs the source's post-update smoke check. After a `github-self` update it also **ensures the 00-09 base-folder skeleton** exists (idempotent `first-run.py --scaffold-only`), so any newly-added base folders land one-touch — no manual first-run re-run. Best-effort; never fails the update.
+   It then prints **"New in this update"** — one plain-language line per capability just received (from `scripts/capability-notes.json`, each shown once). If one of them needs a setting, it tells the user to run `python scripts/first-run.py --catch-up`, which asks only those questions. Relay that list to the user in plain words; don't summarise it away.
 5. Leaves the user to review with `git diff` and commit
 
 **One-touch scope:** new commands, scripts, rules, hooks, and docs all arrive with the fast-forward pull. Base folders are ensured automatically (step 4). The only change that still needs a manual step is a new Python dependency — if a release adds one, `pip install -r requirements*.txt` is on you (the update reports it).

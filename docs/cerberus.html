@@ -86,7 +86,7 @@ V8 deps vs registry <span class="g">✓ clean</span>
     <div class="sec-head"><p class="kicker">Five commands</p><h2>Set up, audit, vet, check deps, recover.</h2></div>
     <div class="cmds">
       <div class="cmd"><code>/cerberus-setup</code><p>First-run hardening wizard — audits your setup against the gold standard, walks each gap, verifies. The first thing you run on a new machine.</p></div>
-      <div class="cmd"><code>/cerberus-audit</code><p>Read-only audit across the 7-layer threat model → a 0–100 score and per-finding fixes. Run monthly, or after any change to settings/plugins.</p></div>
+      <div class="cmd"><code>/cerberus-audit</code><p>Read-only audit across the 7-layer threat model → a 0–100 score and per-finding fixes. Checks your permission <b>allow</b> rules too: the ones that let any script run or any file leave your machine without asking, and the ones that silently never match — including the warning Claude Code flashes at startup that is gone before you can read it. Run monthly, or after any change to settings/plugins.</p></div>
       <div class="cmd"><code>/cerberus-vet</code><p>Pre-install risk assessment of a third-party plugin / skill / MCP against V0–V8. Risk level + score; evidence, not approval.</p></div>
       <div class="cmd"><code>/cerberus-deps</code><p>Audit your own project's dependencies against a live compromise registry (LiteLLM 1.82.7/8, telnyx, tiledesk, typosquats, Shai-Hulud). Reports hits + suggested pins.</p></div>
       <div class="cmd"><code>/cerberus-recover</code><p>Post-leak runbook — rotation, git-history cleanup, session invalidation, hardening. Run the moment you suspect a secret was exposed.</p></div>

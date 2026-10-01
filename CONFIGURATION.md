@@ -472,10 +472,24 @@ python -m scripts.update.charon_update --source NAME   # one source only
 
 The check is read-only and idempotent. It never auto-commits — you review `git diff` and commit yourself.
 
+### What you get told after an update
+
+After a successful pull, `/charon-update` prints a short **"New in this update"** list — one plain-language line per capability you just received — so you don't have to dig through the CHANGELOG. Each note is shown once; the ones you've seen are tracked in `~/.charon-capability-state.json`, kept separate from your wizard answers so recording a notice can never corrupt them. `python scripts/whats_new.py --all` shows every note again; `--check` looks without marking anything as seen.
+
+If a new capability needs a setting from you, the summary says so and prints:
+
+```
+python scripts/first-run.py --catch-up
+```
+
+That asks **only** the questions a shipped capability declares it needs and you haven't answered yet — not the whole wizard. `--catch-up --dry-run` shows which files it would update without writing. With nothing owed it says so and exits.
+
+The notes come from `scripts/capability-notes.json`, shipped with each release. If that file is missing or unreadable the summary is skipped — release notes can never fail an update.
+
 ### Frequency recommendation for users
 
 - **Weekly:** run `/charon-update --check` to spot rule-corpus updates. Apply them; review the diff; commit.
-- **Monthly (or when notified):** if a new Charon release tag is published, run `/charon-update` to apply the capability update. Re-read the [`CHANGELOG.md`](CHANGELOG.md) for the new release's "Added" section so you know what's new.
+- **Monthly (or when notified):** if a new Charon release tag is published, run `/charon-update` to apply the capability update. It prints what you gained (see above); the [`CHANGELOG.md`](CHANGELOG.md) "Added" section has the full detail.
 - **After applying any update:** the script runs the post-update smoke test automatically (`python -m cerberus.engine.smoke_test`). If smoke fails, **review the changes before committing** — don't commit broken state. Roll back via `git checkout -- cerberus/rules/` for the rules tree, or `git reset --hard HEAD~1` for the harness itself.
 
 ### What `/charon-update` does NOT do

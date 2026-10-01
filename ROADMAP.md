@@ -10,6 +10,10 @@ Where Charon is going. Status, rationale, and what isn't on the list.
 
 ## Done (recently shipped)
 
+- ✅ **An update tells you what you got — and asks only what it still needs** (2026-10-01, `v0.31.0`). `/charon-update` now prints a plain-language line per capability you just received, instead of one line and a 200KB CHANGELOG. If a new capability needs a setting, `python scripts/first-run.py --catch-up` asks only those questions — closing the hole where a question added after you installed never reached you. See [CONFIGURATION.md](CONFIGURATION.md#what-you-get-told-after-an-update).
+
+- ✅ **The security audit checks your allow rules** (2026-10-01, `v0.31.0`). `/cerberus-audit` Step 2b lints permission allow rules: approve-everything, interpreters or copy/network tools allowed with only a wildcard, and rules that can never match. `--with-claude-lint` captures Claude Code's own startup warning — the yellow text that is gone before you can read it.
+
 - ✅ **MITRE ATLAS technique tagging, with an anti-fabrication check** (2026-08-05, `v0.28.0`). Findings now carry two layers — `LLM01 · AML.T0051.001` — because OWASP says what *kind* of weakness it is and ATLAS says what an adversary *does* with it. Knowing a finding is prompt injection is useful; knowing it is the **indirect** variety, arriving through ingested content rather than the prompt, is a different fix and a different detection.
 
   Ships `07-References/owasp-atlas-crosswalk.md` (LLM01–10 and ASI01–10 → ATLAS) plus `07-References/atlas-technique-index.json`, a committed snapshot of the dataset with its version and retrieval date. Both reviewer agents and both review commands now tag findings and are instructed to **read the table, never recall an ID**.

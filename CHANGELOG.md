@@ -4,6 +4,8 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-10-01
+
 ### Added — an update now tells you what you actually got
 
 `charon-update` used to report one line — `impact : capability update (new
@@ -24,8 +26,10 @@ silently unconfigured for good. Three such configs shipped in a single release.
 capability declares it needs, minus those you have already answered, and names the
 capability doing the asking so a question out of nowhere arrives with its reason.
 It is deliberately not `--full`: on a Quick install most questions are unanswered
-by design, and re-asking all of them would just be the wizard again. `charon-update`
-runs it for you; it is safe to run by hand any time.
+by design, and re-asking all of them would just be the wizard again. When an update
+brings a capability that needs a setting, `charon-update` tells you so and prints
+the command for you to run — it does not ask the questions itself. `--catch-up` is
+safe to run by hand any time; with nothing owed it says so and exits.
 
 New `scripts/whats_new.py` is the shared engine. Its data is
 `scripts/capability-notes.json`, generated upstream from the capability manifest.
@@ -1761,7 +1765,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.30.1...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.31.0...HEAD
+[0.31.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.31.0
 [0.30.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.30.1
 [0.30.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.30.0
 [0.29.2]: https://github.com/acunningham-ai/Charon/releases/tag/v0.29.2
