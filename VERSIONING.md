@@ -37,16 +37,24 @@ These look fine in isolation but degrade the signal of your release log over tim
 3. Update `CHANGELOG.md`:
    - Move `[Unreleased]` entries into a new `[v0.X.Y-preview] - YYYY-MM-DD` section.
    - Add the version's compare/tag link to the footer.
-4. Create the annotated tag:
+4. Update every public surface that describes the change **in the same release** — README, CAPABILITIES, CONFIGURATION / INSTALL / FIRST-RUN where a user must act, ROADMAP, the site deep-dive pages (`site/pages/` → `node site/build.mjs`) **and** the standalone marketing page `docs/index.html`, which the build does not touch. A capability the docs don't describe isn't shipped.
+5. Commit the CHANGELOG + docs, then create the annotated tag on that commit:
    ```bash
-   git tag -a v0.X.Y-preview <SHA> -m "<short release summary>"
+   git tag -a vX.Y.Z -m "<short release summary>"
    ```
-5. Push the tag:
+   (Keep the `-preview` suffix only while the repo is still private.)
+6. Push `main` and the tag:
    ```bash
-   git push origin v0.X.Y-preview
+   git push origin main && git push origin vX.Y.Z
    ```
-6. Commit + push the CHANGELOG update.
-7. `[Unreleased]` is empty until the next change.
+7. Publish the GitHub Release — the page most readers check first. Its notes are the CHANGELOG section verbatim, so the two can never disagree:
+   ```bash
+   python scripts/release/changelog_section.py vX.Y.Z --out notes.md
+   gh release create vX.Y.Z --verify-tag --title "vX.Y.Z" --notes-file notes.md --latest
+   ```
+   Add `--prerelease` (and drop `--latest`) for a `-preview` tag.
+8. Verify it is *published*, not just pushed: the Pages deploy succeeded, the live site shows the new version, and the Release page exists.
+9. `[Unreleased]` is empty until the next change.
 
 ## Why this framework
 

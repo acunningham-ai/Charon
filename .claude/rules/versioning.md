@@ -71,20 +71,26 @@ A one-line "Added: /forum-agenda" fails this — it conveys neither purpose nor 
 3. Update `CHANGELOG.md`:
    - Move `[Unreleased]` entries into a new `[v0.X.Y-preview] - YYYY-MM-DD` section
    - Add the version's compare/tag link to the footer
-4. Create the annotated tag:
+4. Update every public surface that describes the change **in the same release** — README, CAPABILITIES, CONFIGURATION / INSTALL / FIRST-RUN where a user must act, ROADMAP, the site deep-dive pages (`site/pages/` → `node site/build.mjs`) **and** the standalone marketing page `docs/index.html`, which the build does not touch
+5. Commit the CHANGELOG + docs, then create the annotated tag on that commit:
    ```bash
-   git tag -a v0.X.Y-preview <SHA> -m "<short release summary>"
+   git tag -a vX.Y.Z -m "<short release summary>"
    ```
-5. Push the tag:
+   (Keep the `-preview` suffix only while the repo is still private.)
+6. Push `main` and the tag: `git push origin main && git push origin vX.Y.Z`
+7. **Publish the GitHub Release** — notes are the CHANGELOG section verbatim:
    ```bash
-   git push origin v0.X.Y-preview
+   python scripts/release/changelog_section.py vX.Y.Z --out notes.md
+   gh release create vX.Y.Z --verify-tag --title "vX.Y.Z" --notes-file notes.md --latest
    ```
-6. Commit + push the CHANGELOG update
-7. `[Unreleased]` is empty until the next change
+   `--prerelease` (no `--latest`) for a `-preview` tag
+8. Verify *published*, not just pushed: Pages deploy succeeded, live site shows the version, Release page exists
+9. `[Unreleased]` is empty until the next change
 
 ## Co-change couplings
 
 - **CHANGELOG and tag are coupled.** A commit that adds a `[v0.X.Y]` section MUST also push the matching tag. A pushed tag without a CHANGELOG entry is a documentation gap that confuses readers.
+- **Tag and GitHub Release are coupled.** A pushed tag with no Release page leaves the notes where readers don't look. Generate the body from the CHANGELOG (`scripts/release/changelog_section.py`), never hand-write it.
 - **VERSIONING.md is the user-facing doc.** This rule auto-injects when you're in version-work. `VERSIONING.md` is what readers see in the repo.
 - **README references SHOULD include the latest tag** if the README has install / install-from-tag instructions.
 
