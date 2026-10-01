@@ -187,6 +187,8 @@ For each prerequisite (Python 3.10+, Obsidian if you want it), you get:
 
 The first-run wizard takes ~20 minutes — identity, vault path, voice profile, org structure, framework calibration, dashboard tool, tool exceptions, workflow rules. State persists at `~/.charon-first-run-state.json`, so Ctrl+C any time and resume later. Re-run any phase independently to refresh that section without redoing the rest.
 
+**Staying current.** `/charon-update` pulls new releases and then tells you, in a line each, what you just gained — not "capability update, see the CHANGELOG". If something new needs a setting from you, it says so and points you at `python scripts/first-run.py --catch-up`, which asks only those questions instead of the whole wizard. So a capability added after you installed still reaches you. Details: [`CONFIGURATION.md`](CONFIGURATION.md#what-you-get-told-after-an-update).
+
 Full walkthrough: [`INSTALL.md`](INSTALL.md).
 
 ---
@@ -218,7 +220,7 @@ Full walkthrough: [`INSTALL.md`](INSTALL.md).
 | **Doc + web ingestion** | `/ingest` (rich docs → Markdown, local + zero-egress via Microsoft `markitdown`), `/webfetch` (URL → clean Markdown, SSRF-guarded, own thin wrapper — no stealth stack), `/docs` (resolve a package to its current official docs via public npm/PyPI registries, then fetch). **Optional** install via `requirements-ingest.txt` (markitdown + requests); core install does not need it. `/ingest` and `/webfetch` degrade gracefully with a clear "install X" pointer when the deps are absent. |
 | **Capture pipeline** | Runnable Node.js reference impl — inbox + sent items via M365 (fully implemented), Gmail + IMAP (skeletons). `direction: inbound\|outbound` frontmatter, user-configurable schedule, prompt-injection wrapper on every capture, dedup by provider ID. See `EMAIL-PROVIDER-SETUP.md`. |
 | **Backup & migration** | `/backup-brain` - offline backup and restore of the half nothing else syncs: `~/.claude` memory, session history and pipeline state, plus your vault. Marker-file targeting (not drive letters), restore offered by the installer before the wizard, and it asks before writing over a cloud-synced vault. **Credentials are never copied** - you get a `SECRETS-INVENTORY.json` checklist and move them yourself. |
-| **First-run wizard** | YAML-defined questions (5 phases / 39 questions, ~25 always-asked + the rest conditional on your answers), state file resume on Ctrl+C, atomic write at the end, ANSI banner with optional ASCII trademark logo. The `engines` phase seeds the research ledger + forums so the pipeline isn't empty on day one. Scaffolds the full 00-09 base-folder skeleton (empty until you populate) so every capability has a home from day one; re-runnable idempotently via `--scaffold-only` |
+| **First-run wizard** | YAML-defined questions (5 phases / 39 questions, ~25 always-asked + the rest conditional on your answers), state file resume on Ctrl+C, atomic write at the end, ANSI banner with optional ASCII trademark logo. The `engines` phase seeds the research ledger + forums so the pipeline isn't empty on day one. Scaffolds the full 00-09 base-folder skeleton (empty until you populate) so every capability has a home from day one; re-runnable idempotently via `--scaffold-only`. After an update, `--catch-up` asks only the questions a newly shipped capability needs |
 | **Test suite** | 16 LLM-behaviour scenarios + 36 deterministic checks (YAML schema, hook wiring, rule frontmatter, always-fire presence, personal-content scrub, wizard launch, banner render, subagent frontmatter, optional-lib imports, Cerberus engine + SARIF, vault-graph pipeline, Louvain community detection, multimodal extractors, vault-lint + tag-migrator, base-folder scaffold, workflows present + valid, TODO-freshness net, self-healing watch selftests, self-improving post-check, recall hybrid retrieval, seat routing integrity, calendar server read-only, public counts match shipped reality, workflow scripts launchable, interactive write gate fires, ATLAS crosswalk IDs verified, backup/restore integrity - no credential-copy path) |
 | **Utility scripts** | score-vault, vault-lint, migrate-tags, skill-curator, scheduled-audit, archive-captures, audit-unattended-run, recover-ssh-creds, check-capture-state, telemetry-summary, harness-watch (read-only self-healing observer, observe-only) |
 
@@ -325,7 +327,7 @@ Full setup walkthrough: [`INSTALL.md`](INSTALL.md) → [`FIRST-RUN.md`](FIRST-RU
 | Public release (MIT) | ✓ live |
 | Credential scrub before publish | ✓ |
 | First-run wizard | ✓ |
-| Test suite (16 scenarios + 28 checks) | ✓ |
+| Test suite (16 scenarios + 36 checks) | ✓ |
 | Internal-cohort validation | ongoing |
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
