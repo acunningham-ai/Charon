@@ -77,6 +77,7 @@ STANDALONE_HOOKS = {
     "_policy.py",        # declarative policy engine (rules live in scripts/policy/policy.json); imported by hooks that ask it for a verdict, never invoked directly
     "memory-retrieve.py",     # opt-in UserPromptSubmit retrieval; unwired by default BECAUSE it spends context on every prompt — a capability that changes what every prompt costs is the user's to switch on. Build the index first, then add the hook line per CAPABILITIES.md
     "detect-recall-miss.py",  # opt-in measurement hook; unwired by default so the user chooses to collect their own retrieval-miss dataset. Wire per its header when you want the numbers
+    "memory_reachability_check.py",  # shared "would I find it?" primitive; imported by enforce-memory-index-cochange.py and scripts/memory_reachability.py, never invoked directly
 }
 
 # Personal-content patterns — must NOT appear in any Charon file.
@@ -1419,11 +1420,21 @@ def check_public_counts_match_reality() -> CheckResult:
     "one door", "three seats"); the fix is knowing the check covers numerals
     only, and reading capability prose with human eyes at release time. Recorded
     because a control whose blind spot is undocumented gets mistaken for
-    complete coverage."""
+    complete coverage.
+
+    WIDENED 2026-10-01 — two more numeral shapes it used to miss, both found
+    stale since July: a count split from its noun by markup
+    (`<b>10</b><span>hooks</span>`, a stat tile) and a noun-first label
+    (`Guardrail hooks · 10`, a card heading). Both said 10 while 16 were wired.
+    Tags are now stripped before matching, and `<noun> · <N>` is read too."""
     name = "Public counts match reality"
     inventory = _surface_inventory()
     nouns = "|".join(re.escape(n) for n in inventory)
     pattern = re.compile(r"(\d+)\s+(" + nouns + r")\b")
+    # Noun-first only when nothing follows the number: in "55 commands · 18 rules"
+    # the 18 belongs to "rules", and reading it as "commands · 18" is a false claim.
+    noun_first = re.compile(r"\b(" + nouns + r")\s*·\s*(\d+)\b(?!\s*(?:" + nouns + r")\b)")
+    tags = re.compile(r"<[^>]+>")
 
     public_docs = ["README.md", "CAPABILITIES.md", "SECURITY.md",
                    "CONFIGURATION.md", "INSTALL.md"]
@@ -1436,7 +1447,10 @@ def check_public_counts_match_reality() -> CheckResult:
             continue
         for lineno, line in enumerate(
                 target.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
-            for claimed, noun in pattern.findall(line):
+            plain = tags.sub(" ", line)
+            claims = pattern.findall(plain)
+            claims += [(n, noun) for noun, n in noun_first.findall(plain)]
+            for claimed, noun in claims:
                 checked += 1
                 acceptable = inventory[noun]
                 if int(claimed) not in acceptable:

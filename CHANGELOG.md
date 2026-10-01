@@ -4,6 +4,43 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-10-02
+
+### Added — a memory you save is checked for whether you'd ever find it again
+
+A memory file nobody can retrieve isn't a memory: it exists on disk and never comes
+back when the question is asked. The usual guard is "is it listed in the index?" —
+and that is the wrong question twice over. Being listed is not being findable (on the
+reference deployment the one genuinely unfindable file had an empty description and
+was dutifully listed), and an index every new file must join only ever grows, until
+its tail is silently cut off at the read limit.
+
+`enforce-memory-index-cochange.py` is a new **Stop** hook that asks the right
+question at the end of every turn: for each memory file you wrote or edited, it
+queries your memory with the file's own `description:` — the question the file
+exists to answer — and if the file doesn't come back in the top 10, the turn can't
+end until the description is fixed. Adding an index line doesn't satisfy it, on
+purpose. It fails open on any error and blocks at most once per turn. Measured on
+the reference deployment over 422 files, the index definition produced 5 false
+orphans and missed the one real one; this definition caught it.
+
+`python scripts/memory_reachability.py` runs the same test across your whole
+memory, so "would I find it?" is a number rather than a hope. Both share one
+definition, `scripts/hooks/memory_reachability_check.py`, so the end-of-turn check
+and the report can never disagree about what an orphan is.
+
+### Fixed — the site said 10 hooks; 16 were wired
+
+The Skills page stat tile and the homepage's "Guardrail hooks" card both said
+**10** — true on 7–8 July, stale ever since. The public-counts check (D29) couldn't
+see either: one had the number and the noun split by markup
+(`<b>10</b><span>hooks</span>`), the other put the noun first
+(`Guardrail hooks · 10`). D29 now strips markup before matching and reads the
+noun-first form, so both shapes are covered. Proven against the old pages: it flags
+exactly those two claims and nothing else. All hook counts now read 17. README's
+"28 automated deterministic checks" — the same staleness, in a sentence D29 already
+read but under a noun it doesn't track — now reads 36.
+
 ## [0.31.1] - 2026-10-01
 
 ### Fixed — every release now has a GitHub Release page, with its notes
@@ -1792,7 +1829,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.31.1...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.32.0...HEAD
+[0.32.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.32.0
 [0.31.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.31.1
 [0.31.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.31.0
 [0.30.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.30.1

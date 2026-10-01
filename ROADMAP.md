@@ -10,6 +10,8 @@ Where Charon is going. Status, rationale, and what isn't on the list.
 
 ## Done (recently shipped)
 
+- ✅ **A memory you save is checked for whether you'd find it again** (2026-10-02, `v0.32.0`). New Stop hook `enforce-memory-index-cochange.py`: at the end of each turn it searches your memory with each new file's own description, and won't let the turn end until the file comes back in the top 10. Being listed in an index is not being findable, so an index line doesn't satisfy it. `scripts/memory_reachability.py` runs the same test over your whole memory.
+
 - ✅ **An update tells you what you got — and asks only what it still needs** (2026-10-01, `v0.31.0`). `/charon-update` now prints a plain-language line per capability you just received, instead of one line and a 200KB CHANGELOG. If a new capability needs a setting, `python scripts/first-run.py --catch-up` asks only those questions — closing the hole where a question added after you installed never reached you. See [CONFIGURATION.md](CONFIGURATION.md#what-you-get-told-after-an-update).
 
 - ✅ **The security audit checks your allow rules** (2026-10-01, `v0.31.0`). `/cerberus-audit` Step 2b lints permission allow rules: approve-everything, interpreters or copy/network tools allowed with only a wildcard, and rules that can never match. `--with-claude-lint` captures Claude Code's own startup warning — the yellow text that is gone before you can read it.

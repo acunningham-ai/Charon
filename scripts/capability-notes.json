@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-01",
+  "generated": "2026-10-02",
   "schema": 1,
   "capabilities": [
     {
@@ -7,6 +7,27 @@
       "class": "command",
       "shipped_in": null,
       "blurb": "The security audit now checks your permission ALLOW rules too -- rules that silently never match, and ones that let any script run or any file leave the machine without asking -- and can show you the warning Claude Code flashes at startup that is gone before you can read it.",
+      "questions": []
+    },
+    {
+      "id": "enforce-memory-index-cochange",
+      "class": "hook",
+      "shipped_in": null,
+      "blurb": "When you save a memory, it now checks you'd actually find it again -- by searching with the file's own description -- and won't let the turn end until it would. No index line needed.",
+      "questions": []
+    },
+    {
+      "id": "memory_reachability_check",
+      "class": "hook",
+      "shipped_in": null,
+      "blurb": "The one shared definition of 'would I find this memory?', so the end-of-turn check and the full report can never disagree.",
+      "questions": []
+    },
+    {
+      "id": "memory_reachability",
+      "class": "script",
+      "shipped_in": null,
+      "blurb": "Run python scripts/memory_reachability.py to see which of your saved memories you could not actually find again, and why.",
       "questions": []
     }
   ]
