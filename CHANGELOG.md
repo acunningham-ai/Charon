@@ -34,6 +34,28 @@ must never be able to fail an update. Notices you have seen are tracked in
 `~/.charon-capability-state.json`, kept deliberately separate from your wizard
 answers so recording a notice can never corrupt them.
 
+### Added — the security audit now checks your allow rules, not just your deny rules
+
+Claude Code checks permission rules when it starts and warns about bad ones — in
+yellow, for about a second, before the screen repaints over it. So a rule that can
+never match, or one that approves far more than it appears to, sits in your
+settings indefinitely. `/cerberus-audit` has a new Step 2b that runs
+`scripts/hooks/cerberus/lint-permission-rules.py`, a read-only linter that flags:
+
+- `Bash` / `Bash(*)` — every shell command approved (**Critical**)
+- an interpreter or copy/network tool with only a wildcard after it —
+  `Bash(python:*)`, `Bash(curl *)`, `Bash(scp *)`: any code, or any file to any
+  host, with no prompt
+- `*` mixed with the trailing `:*` form — `Bash(scp * host:*)` — which makes the
+  `*` literal, so the rule never matches
+
+`--with-claude-lint` also captures Claude Code's own startup warnings verbatim. It
+is the only source for the "wildcard before the rest of the command" case: that
+check is narrower than any simple rule. Calibrated against Claude Code itself, a
+plain heuristic produced 13 false positives on one real settings file, so the
+linter asks Claude Code rather than guessing. It is opt-in because it makes one
+small API call and runs your SessionStart hooks like any session.
+
 ### Fixed — SECURITY.md said the confirm token was one-shot; it is not
 
 Since the consume-on-success fix, a confirmation token stays spendable for 120

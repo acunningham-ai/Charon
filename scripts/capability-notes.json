@@ -1,0 +1,13 @@
+{
+  "generated": "2026-10-01",
+  "schema": 1,
+  "capabilities": [
+    {
+      "id": "cerberus-audit",
+      "class": "command",
+      "shipped_in": null,
+      "blurb": "The security audit now checks your permission ALLOW rules too -- rules that silently never match, and ones that let any script run or any file leave the machine without asking -- and can show you the warning Claude Code flashes at startup that is gone before you can read it.",
+      "questions": []
+    }
+  ]
+}
