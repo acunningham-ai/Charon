@@ -10,6 +10,8 @@ Where Charon is going. Status, rationale, and what isn't on the list.
 
 ## Done (recently shipped)
 
+- ✅ **MEMORY.md stays small enough to be read, and dated commitments surface** (2026-10-02, `v0.33.0`). `scripts/memory_working_set.py` keeps the one always-loaded memory file to your pickups and what's due now, moves everything else into a searchable catalog, and holds a 16 KB ceiling under Claude Code's ~24 KB read limit, backed by an in-session ask in `deny-destructive.py`. Two new session-start checks: `check-commitments.py` lists overdue and due-soon commitments from `scripts/commitments.py`, and `check-scheduler-liveness.py` says when a scheduled job has stopped producing output. `/score-vault` stops reporting false orphans.
+
 - ✅ **A memory you save is checked for whether you'd find it again** (2026-10-02, `v0.32.0`). New Stop hook `enforce-memory-index-cochange.py`: at the end of each turn it searches your memory with each new file's own description, and won't let the turn end until the file comes back in the top 10. Being listed in an index is not being findable, so an index line doesn't satisfy it. `scripts/memory_reachability.py` runs the same test over your whole memory.
 
 - ✅ **An update tells you what you got — and asks only what it still needs** (2026-10-01, `v0.31.0`). `/charon-update` now prints a plain-language line per capability you just received, instead of one line and a 200KB CHANGELOG. If a new capability needs a setting, `python scripts/first-run.py --catch-up` asks only those questions — closing the hole where a question added after you installed never reached you. See [CONFIGURATION.md](CONFIGURATION.md#what-you-get-told-after-an-update).

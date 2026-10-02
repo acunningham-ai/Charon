@@ -1,0 +1,21 @@
+{
+  "_comment": "Jobs check-scheduler-liveness.py watches at session start. Placeholders: {repo} {vault} {capture}. A job is skipped silently when its skip_if_absent path does not exist (not installed here). start/finish markers enable the 'started but never finished' check; the finish marker must print on EVERY exit path. See CONFIGURATION.md.",
+  "jobs": [
+    {
+      "label": "Capture pipeline",
+      "target": "{capture}/state/scheduled-run.log",
+      "overdue_hours": 36,
+      "start_marker": "Run started:",
+      "finish_marker": "Run finished:",
+      "fire_windows": "cmd //c \"{capture}\\scheduled-capture.bat\"",
+      "fire_posix": "bash \"{capture}/scheduled-capture.sh\"",
+      "skip_if_absent": "{capture}"
+    }
+  ],
+  "backup": {
+    "enabled": false,
+    "status_file": "{repo}/state/last-brain-backup.json",
+    "overdue_days": 14,
+    "fire": "python scripts/backup-brain.py"
+  }
+}

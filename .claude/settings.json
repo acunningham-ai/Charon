@@ -132,6 +132,14 @@
           {
             "type": "command",
             "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/check-todo-freshness.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/check-commitments.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/check-scheduler-liveness.py\""
           }
         ]
       }

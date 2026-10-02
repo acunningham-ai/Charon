@@ -100,6 +100,24 @@ def _extract_memory_links(text):
     return out
 
 
+def _extract_wikilinks(text):
+    """Basenames of `[[wikilink]]` targets in `text`, as `<name>.md`.
+
+    Separate from `_extract_memory_links` on purpose: wikilinks point at memory
+    files AND authored vault notes, so one that resolves to nothing in the memory
+    dir is normal and must not become a broken-link finding. Feeds only the
+    orphan check. Without it, a file linked only by `[[name]]` from a sub-index is
+    reported as an orphan; on the reference deployment that was 52 of 60
+    reported orphans, which buried the real ones."""
+    out = set()
+    for raw in re.findall(r"\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]", text):
+        name = raw.strip()
+        if not name or name.startswith(("http://", "https://", "..", "/")):
+            continue
+        out.add(Path(name).name + ("" if name.endswith(".md") else ".md"))
+    return out
+
+
 def ondisk_memory_names():
     """Basenames of real memory files on disk (excludes MEMORY.md itself)."""
     return {f.name for f in MEMORY_DIR.glob("*.md") if f.name != "MEMORY.md"}
@@ -123,9 +141,20 @@ def indexed_memory_names(index_text=None):
         index_text = _read(MEMORY_DIR / "MEMORY.md")
     actual = ondisk_memory_names()
     memory_links = _extract_memory_links(index_text)
-    indexed = set(memory_links)
-    for sub in {n for n in memory_links if n.endswith("_index.md") and n in actual}:
-        indexed |= _extract_memory_links(_read(MEMORY_DIR / sub))
+    # A pointer counts however it is written: markdown link or [[wikilink]].
+    indexed = set(memory_links) | _extract_wikilinks(index_text)
+    # Sub-indexes are followed TRANSITIVELY: MEMORY.md may link one catalog
+    # sub-index (see scripts/memory_working_set.py), which links others. One
+    # level deep would call every file under the second level an orphan.
+    seen = set()
+    while True:
+        subs = {n for n in indexed if n.endswith("_index.md") and n in actual} - seen
+        if not subs:
+            break
+        for sub in subs:
+            sub_text = _read(MEMORY_DIR / sub)
+            indexed |= _extract_memory_links(sub_text) | _extract_wikilinks(sub_text)
+        seen |= subs
     return indexed
 
 

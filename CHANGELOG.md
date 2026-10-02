@@ -4,6 +4,93 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-10-02
+
+### Added — MEMORY.md stays small enough to be read in full
+
+`MEMORY.md` is the one memory file loaded into every session, and Claude Code reads
+only its first ~24 KB. Everything past that is dropped without a warning, and because
+new lines go at the end, it's always the newest memories that disappear. On the
+reference deployment the file reached 24,276 bytes, about 700 bytes from losing its
+tail, because it was doing two jobs: pointing at every memory, and holding what's
+urgent.
+
+Only the second job needs the always-loaded file. Retrieval already finds a memory by
+its description, and since v0.32.0 the end-of-turn check won't let a turn end until a
+new memory can be found that way. New `scripts/memory_working_set.py` rebuilds
+`MEMORY.md` to hold just your Pickups section (kept as you wrote it), what's due now
+from the commitments register, and one pointer to a catalog sub-index. Every other
+section moves into that catalog, which is searchable and counted by `/score-vault`. On
+the reference deployment that took the file from **24,276 to 10,921 bytes** with every
+memory still findable.
+
+It holds a **16 KB ceiling**. If pickups alone would cross it, the least urgent move to
+the catalog (first without 🔴, then without ⭐); they are moved, never deleted. It
+refuses to write if any link would be lost, backs up the previous file, and leaves an
+unchanged file alone. Between rebuilds, `deny-destructive.py` now asks before any
+write that would grow `MEMORY.md` past the ceiling, with the usual confirm-token
+escape. Opt-in: run it by hand or schedule it daily. See CONFIGURATION.md, "Keeping
+MEMORY.md small enough to be read". Tested in `scripts/test_memory_working_set.py`
+(12 cases, including an inflated 37 KB file landing under 16 KB with every 🔴 pickup
+kept).
+
+### Fixed — /score-vault reported memories as orphans when they weren't
+
+Two gaps, both producing false orphans. It didn't count `[[wikilink]]` pointers, only
+`[text](file.md)` ones, and it followed `*_index.md` sub-indexes only one level deep, so
+a memory listed in a sub-index that was itself listed in a sub-index looked unindexed.
+Both are fixed. The second matters as soon as you adopt the memory catalog, which links
+your existing domain sub-indexes.
+
+### Added — dated commitments surface at session start, instead of expiring quietly
+
+The dates that matter most to a harness — "review this shadow rule on the 17th",
+"decide the port by Friday" — are agreed inside working sessions. They are in no
+email or chat message, so nothing that scans your inbox can find them, and a date
+written only in a project doc reaches you only if someone remembers it. That is how
+a two-week shadow window quietly becomes permanent: nobody decided to let it
+expire, it just did.
+
+`scripts/commitments.py` is the register: `--add "..." --date YYYY-MM-DD`,
+`--done <id>`, `--list`, `--due`. The new **`check-commitments.py`** SessionStart
+hook reads it directly at every session start and lists anything overdue or due
+within 7 days — so a date can't be missed because a TODO regeneration failed or a
+morning job didn't run. Silent when nothing is due; nothing to configure.
+
+Ported with a fix the original lacked: it sorted `(date, entry)` pairs with a bare
+`sorted()`, so **two open commitments sharing a due date** made it compare the
+entries, raise, and — because a session-start hook must never break a session —
+exit silently. The busiest days were exactly the ones it said nothing on. On the
+reference deployment this was found live: 11 overdue commitments across three
+shared dates, and the hook printed nothing. Charon's port sorts by date only.
+
+### Added — you're told when a scheduled job stops running, or never finishes
+
+A scheduled task that silently stops firing looks exactly like one with nothing to
+do. On the reference deployment most scheduled tasks stopped for up to 12 days
+before anyone noticed — and the watchdog couldn't report it, because the watchdog
+was a scheduled task too.
+
+**`check-scheduler-liveness.py`** runs at session start, deliberately not on a
+schedule, and judges each job by the mtime of its own log — did real work happen —
+rather than by the scheduler's view of itself. It also catches runs that **started
+but never finished**: closing a visible console kills a job with `0xC000013A` and
+writes nothing, so a log that keeps growing can hide a job that dies halfway every
+day. Silence is not success. Optionally it checks the offline backup by its last
+*successful* run, never by its log.
+
+It reads `scripts/hooks/scheduler-liveness-config.json`, which ships watching the
+one job Charon schedules itself — the capture pipeline, skipped if you haven't
+installed it — with the backup check off. Add your own runners there; the
+format, marker rules and placeholders are in CONFIGURATION.md.
+
+### Not ported — `check-meeting-agendas.py`
+
+Its only job is to announce agendas that a scheduled meeting-prep drafter wrote
+overnight, and Charon doesn't ship that drafter (an unattended `claude -p` runner
+with its own security baseline). Shipping the hook without it would be a hook that
+can never fire. It waits for the drafter.
+
 ## [0.32.0] - 2026-10-02
 
 ### Added — a memory you save is checked for whether you'd ever find it again
@@ -1829,7 +1916,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.32.0...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.33.0...HEAD
+[0.33.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.33.0
 [0.32.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.32.0
 [0.31.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.31.1
 [0.31.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.31.0

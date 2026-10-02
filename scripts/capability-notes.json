@@ -10,6 +10,20 @@
       "questions": []
     },
     {
+      "id": "check-commitments",
+      "class": "hook",
+      "shipped_in": null,
+      "blurb": "Record a dated commitment with scripts/commitments.py and it surfaces at the start of every session once it is due within a week or overdue -- so review dates stop expiring quietly.",
+      "questions": []
+    },
+    {
+      "id": "check-scheduler-liveness",
+      "class": "hook",
+      "shipped_in": null,
+      "blurb": "Tells you at session start when a scheduled job has quietly stopped running -- or starts every day and dies halfway -- instead of letting it stay dead for days unnoticed.",
+      "questions": []
+    },
+    {
       "id": "enforce-memory-index-cochange",
       "class": "hook",
       "shipped_in": null,
@@ -24,10 +38,38 @@
       "questions": []
     },
     {
+      "id": "commitments",
+      "class": "script",
+      "shipped_in": null,
+      "blurb": "python scripts/commitments.py --add \"...\" --date YYYY-MM-DD records a dated commitment; --due lists what is overdue or due this week; --done closes one.",
+      "questions": []
+    },
+    {
       "id": "memory_reachability",
       "class": "script",
       "shipped_in": null,
       "blurb": "Run python scripts/memory_reachability.py to see which of your saved memories you could not actually find again, and why.",
+      "questions": []
+    },
+    {
+      "id": "memory_working_set",
+      "class": "script",
+      "shipped_in": null,
+      "blurb": "Keeps MEMORY.md small enough to be read in full: only your pickups and what's due now stay loaded, everything else moves to a searchable catalog, with a 16 KB ceiling.",
+      "questions": []
+    },
+    {
+      "id": "score-vault",
+      "class": "script",
+      "shipped_in": null,
+      "blurb": "/score-vault no longer reports memories as orphans when they are linked by [[wikilink]] or through a sub-index of a sub-index.",
+      "questions": []
+    },
+    {
+      "id": "test_memory_working_set",
+      "class": "script",
+      "shipped_in": null,
+      "blurb": "Tests that keep the MEMORY.md working set honest: run python scripts/test_memory_working_set.py.",
       "questions": []
     }
   ]

@@ -268,6 +268,9 @@ def has_posted_set(path_str: str) -> bool:
         return False
 
 
+MEMORY_TOTAL_MAX = 16 * 1024  # see the MEMORY.md ceiling block in main()
+
+
 def main() -> int:
     try:
         data = json.load(sys.stdin)
@@ -283,6 +286,39 @@ def main() -> int:
         return 0
 
     session_id = data.get("session_id", "") or ""
+
+    # MEMORY.md total-size ceiling. Claude Code reads only the first ~24.4 KB of
+    # MEMORY.md and silently drops the rest, so an index every memory joins will
+    # eventually lose its tail. scripts/memory_working_set.py keeps the file a small
+    # urgent working set; this stops a session growing it past MEMORY_TOTAL_MAX in
+    # the meantime. Only a write that GROWS the file past the ceiling asks.
+    if os.path.basename(file_path.replace("\\", "/")) == "MEMORY.md":
+        try:
+            existing = Path(file_path).read_text(encoding="utf-8") if os.path.exists(file_path) else ""
+            if tool_input.get("content") is not None:
+                after = tool_input.get("content") or ""
+            elif tool_input.get("old_string") and tool_input.get("old_string") in existing:
+                after = existing.replace(tool_input["old_string"], tool_input.get("new_string") or "",
+                                         -1 if tool_input.get("replace_all") else 1)
+            else:
+                after = existing + "\n" + (tool_input.get("new_string") or "")
+            size = len(after.encode("utf-8"))
+            if size > MEMORY_TOTAL_MAX and size > len(existing.encode("utf-8")):
+                if _consume_policy_confirm("memory-index-total-ceiling", session_id):
+                    return 0
+                emit_verdict(hook="deny-destructive", rule="memory-index-total-ceiling", verdict="ask",
+                             reason=f"MEMORY.md would grow to {size} bytes, over {MEMORY_TOTAL_MAX}",
+                             context={"target": file_path, "after_bytes": size}, session_id=session_id)
+                sys.stderr.write(
+                    f"ASK (memory-index-total-ceiling): this write would take MEMORY.md to {size} bytes, "
+                    f"over its {MEMORY_TOTAL_MAX}-byte ceiling. Claude Code silently drops everything past "
+                    f"~24.4 KB. A new memory needs no line here: put the pointer in "
+                    f"reference_memory_catalog_index.md, or run `python scripts/memory_working_set.py`. "
+                    f"If this genuinely belongs in MEMORY.md, confirm with a token for rule "
+                    f"'memory-index-total-ceiling' (same command as above) and retry.\n")
+                return 2
+        except Exception:
+            pass  # a hygiene guard must never break a write it cannot evaluate
 
     for glob in PROTECTED_GLOBS:
         if matches(glob, file_path):

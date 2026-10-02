@@ -44,16 +44,31 @@ All hooks wired in by default. Disable a hook by removing its entry from the `ho
 
 ### Hook config files
 
-Three hooks read a JSON file beside them in `scripts/hooks/`. **All three ship
-empty or disabled**, because their correct values depend on your machine and your
+Four hooks read a JSON file beside them in `scripts/hooks/`. **Three ship empty or
+disabled**, because their correct values depend on your machine and your
 organisation — a default guessed for you would be wrong in a way you would not
-notice. Until you fill them in, those hooks are inert or maximally cautious.
+notice. Until you fill them in, those hooks are inert or maximally cautious. The
+fourth, `scheduler-liveness-config.json`, ships watching the one job Charon itself
+schedules and nothing else.
 
 | File | Hook | Ships as | What it decides |
 |---|---|---|---|
 | `phase-gate-config.json` | `phase-gate.py` | empty glob list → **never fires** | Which artefacts are high-stakes enough to warrant a confirm beat before a write lands |
 | `validate-interactive-write-config.json` | `validate-interactive-write.py` | empty → only universal roots allowed | Which directories *outside* this project a command may still write to |
 | `poisoning-scan-read-config.json` | `poisoning-scan-read.py` | empty → every sender treated as external | Which mail domains are your own, and therefore logged rather than blocked |
+| `scheduler-liveness-config.json` | `check-scheduler-liveness.py` | the capture pipeline only (skipped if not installed); backup check **off** | Which scheduled jobs to watch for "stopped running" and "started but never finished", and whether to nag about the offline backup |
+
+**`scheduler-liveness-config.json`** — one entry per scheduled job: `label`,
+`target` (its log file, or an output folder), `overdue_hours` (36 suits a daily job:
+a missed day plus slack; ~204 a weekly one), optional `start_marker` /
+`finish_marker` for the never-finished check, the manual fire command
+(`fire_windows` / `fire_posix`), and `skip_if_absent` so a job you haven't installed
+isn't reported. Paths take `{repo}`, `{vault}` and `{capture}` placeholders. Two rules
+for markers: the finish marker must print on **every** exit path, including early
+ones (a failed-but-reported run is complete; only a killed run should look
+incomplete), and the start marker must not be a substring of the finish marker. Set
+`"backup": {"enabled": true}` once you use `/backup-brain`; it is judged by the last
+**successful** backup, not the log, which is written even when no drive was found.
 
 **`phase-gate-config.json`** — add globs for the documents you would not want to
 land half-finished (a published policy, board papers, a decision record), then
@@ -76,7 +91,9 @@ internal account** sending an injection would be recorded, not blocked. If that
 sits high in your threat model, leave this empty and accept the extra prompts.
 Common newsletter/ESP senders are recognised automatically and never need listing.
 
-**All three fail in the safe direction.** A missing or malformed config allows
+**The three gate configs fail in the safe direction.** (The liveness config is a
+detector, not a gate: if it is missing or malformed it watches nothing, so keep it
+valid JSON.) A missing or malformed gate config allows
 *nothing* extra: no configured roots means no external writes, and no configured
 domains means every sender counts as external, so *more* findings enforce, not
 fewer. Corrupting one of these files tightens the gate — it cannot quietly widen it.
@@ -328,6 +345,8 @@ schtasks /Create /SC DAILY /ST 07:30 /TN "Harness Audit" /TR "python C:\path\to\
 schtasks /Create /SC MONTHLY /D 1 /ST 06:00 /TN "Harness Archive" /TR "python C:\path\to\scripts\archive-captures.py --execute"
 ```
 
+**Knowing when one stops.** A scheduled task that silently stops firing looks exactly like one with nothing to do. `check-scheduler-liveness.py` runs at every session start — deliberately *not* as a scheduled task, since a watchdog scheduled by the mechanism that failed can't report it failing — and tells you when a job's log has gone quiet or its last run never finished. When you add a runner here, add it to `scripts/hooks/scheduler-liveness-config.json` too (see *Hook config files* above).
+
 **Hard rule (per the harness security baseline):** scheduled tasks must be **interactive-only** — never "run whether user is logged on or not", never with stored credentials, never wake-from-sleep. The harness is opinionated about this: automation in your shell is fine; daemonised background processes with admin rights are not.
 
 #### Reliability enhancement — missed-run catchup (logon + unlock)
@@ -423,6 +442,31 @@ The next `/draft-linkedin` will pick it up.
 ## Memory hygiene
 
 Run `/score-vault` periodically. Targets 90+/100 for a healthy install. Quarterly `scheduled-audit.py` will surface drift.
+
+### Keeping MEMORY.md small enough to be read
+
+`MEMORY.md` is the one memory file loaded into every session, and Claude Code reads only its first ~24 KB. Past that, lines are dropped without any warning. An index that every new memory joins will get there eventually, and the lines it loses are the newest ones.
+
+A new memory doesn't need a line in `MEMORY.md` to be found. Retrieval finds it by its `description:`, and the end-of-turn check (`enforce-memory-index-cochange.py`) won't let a turn end until the description is good enough to find it. So `MEMORY.md` can shrink to just what's urgent:
+
+```
+python scripts/memory_working_set.py --dry-run   # see sizes and what would move
+python scripts/memory_working_set.py             # rebuild
+```
+
+After a rebuild, `MEMORY.md` holds three things:
+
+| Section | Where it comes from |
+|---|---|
+| `## 📌 Pickups (read first)` | Yours. Kept exactly as written; edit it freely |
+| `## ⏰ Due now` | Regenerated from `state/commitments.json`: anything overdue or due within 7 days |
+| `## Everything else` | One line pointing at `reference_memory_catalog_index.md` |
+
+Every other section moves into that catalog, a normal memory file with its own description, so it stays searchable and `/score-vault` still counts everything it links as indexed. Lines you or the assistant add later are moved there on the next run.
+
+**The ceiling is 16 KB** (`CEILING_BYTES`), a third below the read limit. If your pickups alone would exceed it, the least urgent ones move to the catalog: first those without 🔴, then those without ⭐. They are moved, never deleted, and `state/memory-index-overflow.flag` records it. Between rebuilds, `deny-destructive.py` asks before any write that would grow the file past the ceiling. The script refuses to write if any link would be lost, and backs up the previous file to `state/memory-index-backups/` whenever it changes something.
+
+Run it daily alongside your other scheduled tasks (see [Scheduled tasks](#scheduled-tasks)): it is deterministic, makes no API calls, and an unchanged file is left alone. Tests: `python scripts/test_memory_working_set.py`.
 
 For deeper hygiene: `/promote-rule status` lists feedback rules that have accumulated enough use to consider promoting to path-rules; `/curate-skills` reviews skill staleness.
 
