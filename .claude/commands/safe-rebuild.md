@@ -10,8 +10,8 @@ Closes the loop the security review skills leave open: `/cerberus-vet` and the O
 
 ## When to use
 
-- After `/cerberus-vet` returns a 🔴 on a skill/agent/hook/command/MCP artifact and you want a structured fix, not an ad-hoc edit.
-- After `/secure-code-review` / `/owasp-llm-review` / `/owasp-agentic-review` flags a 🔴 on a harness artifact you intend to keep.
+- After `/cerberus-vet` returns a ❌ on a skill/agent/hook/command/MCP artifact and you want a structured fix, not an ad-hoc edit.
+- After `/secure-code-review` / `/owasp-llm-review` / `/owasp-agentic-review` flags a ❌ on a harness artifact you intend to keep.
 - Any time you'd otherwise hand-patch a flagged artifact and risk losing the audit trail or breaking its function.
 
 ## When NOT to use
@@ -34,7 +34,7 @@ If no artifact path: ask *"Which artifact am I rebuilding? Give me the path plus
 **Nothing prints to screen in this phase until step 1d.** The whole analysis runs silently; nothing is surfaced until the findings have been false-positive-verified and the report is written.
 
 - **1a. Full analysis (silent).** Read the artifact. Restate its **intent** (what job it does) — this becomes a hard constraint so the fix doesn't break function. Restate each **finding as a hard constraint** to design out (cite the V-layer / ASI / C-control + the remediation pattern where one exists). Surface the **root cause**, not just the symptom — a structural fix, not a patch-over.
-- **1b. `/fp-check` gates the input (load-bearing).** Run `/fp-check` over the incoming findings BEFORE anything is surfaced. Withdraw/downgrade findings that don't ground in real code. **Never re-spec or rebuild against a false positive.** Only fp-verified 🔴 proceed. If every finding withdraws → write the report (1c) noting "all findings FP — no rebuild needed" and stop.
+- **1b. `/fp-check` gates the input (load-bearing).** Run `/fp-check` over the incoming findings BEFORE anything is surfaced. Withdraw/downgrade findings that don't ground in real code. **Never re-spec or rebuild against a false positive.** Only fp-verified ❌ proceed. If every finding withdraws → write the report (1c) noting "all findings FP — no rebuild needed" and stop.
 - **1c. Write the report.** The re-spec (intent + fp-verified findings-as-constraints + root cause + planned approach) is written to a stored report. Path: co-locate with the artifact's existing `security-reviews/` trail if it has one; else `08-Projects/<project>/security-reviews/{YYYY-MM-DD}-{artifact-slug}.md`. **That stored report is the surface — not ad-hoc screen text.**
 - **1d. Checkpoint (blocking).** Point the user at the stored report and ask them to confirm before any rebuild. If a finding can only be cleared by **reducing the artifact's capability**, surface that trade-off here for their call — never silently de-scope. *The agent proposes; the human approves.*
 
@@ -47,8 +47,8 @@ If no artifact path: ask *"Which artifact am I rebuilding? Give me the path plus
 ### 3. VERIFICATION GATE — blocking (the load-bearing piece)
 
 - Re-run the relevant reviewer(s) on the rebuilt copy: `/cerberus-vet` (artifact), and/or `/secure-code-review` + `/owasp-llm-review` + `/owasp-agentic-review` as the surface dictates.
-- Run `/fp-check` on any residual 🔴. (`/fp-check` runs at **both** ends — gating the input in Inception AND verifying the output here.)
-- **Cannot mark done until:** (a) every original fp-verified finding is cleared, AND (b) no NEW 🔴 introduced. If the gate fails → loop back to Construction (or to Inception if the approach itself was wrong).
+- Run `/fp-check` on any residual ❌. (`/fp-check` runs at **both** ends — gating the input in Inception AND verifying the output here.)
+- **Cannot mark done until:** (a) every original fp-verified finding is cleared, AND (b) no NEW ❌ introduced. If the gate fails → loop back to Construction (or to Inception if the approach itself was wrong).
 - The gate going green is a **precondition**. The user's confirm authorises the swap-in (step 4). The skill orchestrates the reviewers; the *done* decision is the user's.
 
 ### 4. COMPLETION — ritual

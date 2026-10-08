@@ -61,7 +61,36 @@ import sys
 # Expect roughly 1-2 fires a month once calibrated. Findings on files OUTSIDE your
 # project root are never downgraded — a cloned repo's config is exactly the threat
 # this exists for, so a fire there is working as intended, not noise.
-SHADOW = True
+#
+# ENFORCING since v0.34.0, on the reference deployment's evidence: 2 fires in the
+# four weeks after the last calibration, both understood (see point 1).
+#
+# THE ANSWER CHANNEL (point 2), wired in v0.34.0. Until then this hook only TOLD
+# you to re-issue the edit — and the re-issued edit was flagged again, so a
+# legitimate flagged edit could never land. A plain retry is the wrong channel for
+# a config WRITE: an injected agent can retry as easily as you can. So the escape
+# is the operator-only confirm token, rule id `cerberus-config-edit`, checked with
+# deny-destructive.py's own implementation (TTL + grace window + audit line).
+# Revert = set this back to True (one line).
+SHADOW = False
+
+CONFIRM_RULE_ID = "cerberus-config-edit"
+
+
+def _confirmed(session_id: str) -> bool:
+    """True if you issued a confirm token for this rule. Reuses deny-destructive.py's
+    _consume_policy_confirm so there is exactly one token implementation. Any error
+    -> False: the ask stands, which is the safe direction."""
+    try:
+        import importlib.util
+        dd = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                          "deny-destructive.py")
+        spec = importlib.util.spec_from_file_location("_dd_confirm", dd)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return bool(mod._consume_policy_confirm(CONFIRM_RULE_ID, session_id))
+    except Exception:
+        return False
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE)
@@ -255,13 +284,20 @@ def main() -> None:
         session_id=session_id,
     )
 
+    if effective == "ask" and _confirmed(session_id):
+        sys.exit(0)  # you confirmed out of band; deny-destructive logged the token use
     if effective == "ask":
         write_ask_stderr(
             rule=rule_id,
             reason=reason,
             retry_hint=(
-                "If you are intentionally adding this content, re-issue the edit; "
-                "otherwise remove the flagged pattern. Run /cerberus-vet for a full assessment."
+                "If this content is intentional, YOU (not the assistant) confirm it by running, "
+                "in your own terminal from the project root: "
+                "python -c \"import json,time,pathlib; pathlib.Path('state').mkdir(exist_ok=True); "
+                "pathlib.Path('state/policy-confirm.json').write_text(json.dumps("
+                "{'rule_id':'" + CONFIRM_RULE_ID + "','issued_epoch':time.time(),'granted_by':'me'}))\" "
+                "— then re-issue the edit. Otherwise remove the flagged pattern; "
+                "/cerberus-vet gives a full assessment."
             ),
         )
     elif effective == "deny":

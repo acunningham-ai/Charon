@@ -52,8 +52,8 @@
   .nav-in{display:flex;align-items:center;height:64px;gap:8px}
   .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:17px;letter-spacing:-.02em}
   .brand .glyph{width:22px;height:22px;display:grid;place-items:center;color:var(--accent)}
-  .nav-links{display:flex;gap:2px;margin-left:26px}
-  .nav-links a{padding:7px 11px;border-radius:7px;color:var(--ink-2);font-size:14.5px;font-weight:450;transition:background .15s,color .15s}
+  .nav-links{display:flex;gap:2px;margin-left:18px}
+  .nav-links a{padding:7px 8px;border-radius:7px;color:var(--ink-2);font-size:14px;font-weight:450;white-space:nowrap;transition:background .15s,color .15s}
   .nav-links a:hover,.nav-links a.on{background:var(--bg-3);color:var(--ink)}
   .nav-right{margin-left:auto;display:flex;align-items:center;gap:6px}
   .nav-ghost{padding:7px 12px;border-radius:7px;color:var(--ink-2);font-size:14px;font-weight:450;transition:background .15s}
@@ -63,7 +63,8 @@
   .btn-dark:hover{background:#000;transform:translateY(-1px);box-shadow:var(--shadow-md)}
   .btn-line{background:#fff;border-color:var(--line-2);color:var(--ink)}
   .btn-line:hover{border-color:var(--faint);background:var(--bg-2)}
-  @media(max-width:880px){.nav-links{display:none}}
+  @media(max-width:1200px){.nav-ghost{display:none}}
+  @media(max-width:1060px){.nav-links{display:none}}
 
   /* scroll progress bar */
   .prog{position:fixed;top:64px;left:0;height:2px;background:var(--accent);width:0;z-index:60;transition:width .1s linear}
@@ -243,6 +244,18 @@
   .code-full::before{content:"";position:absolute;top:0;left:0;right:0;height:32px;background:var(--t-bar,#151B22);border-bottom:1px solid var(--t-line,#20272F);border-radius:12px 12px 0 0}
   .code-full::after{content:"";position:absolute;top:12px;left:16px;width:9px;height:9px;border-radius:50%;background:#E0685A;box-shadow:16px 0 0 #D6A44B,32px 0 0 #54B98A}
   .copy2{top:9px}
+  /* What's new in this build (replaced each release) */
+  .wn{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+  @media(max-width:860px){.wn{grid-template-columns:1fr}}
+  .wn-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:26px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column}
+  .wn-card .wn-tag{align-self:flex-start;background:var(--accent-weak);color:var(--accent-ink);font-weight:600;font-size:11.5px;padding:3px 10px;border-radius:100px;margin-bottom:14px}
+  .wn-card h3{font-size:20px;letter-spacing:-.02em}
+  .wn-card dl{margin-top:14px;display:grid;gap:12px}
+  .wn-card dt{color:var(--accent);font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.04em}
+  .wn-card dd{color:var(--ink-2);font-size:14.5px;line-height:1.55;margin:3px 0 0}
+  .wn-card .wn-more{margin-top:auto;padding-top:16px;color:var(--accent-ink);font-weight:600;font-size:14.5px}
+  .wn-card .wn-more:hover{text-decoration:underline}
+  .wn-also{max-width:72ch;margin:26px auto 0;text-align:center;color:var(--muted);font-size:14.5px}
 </style>
 
 <div class="prog" id="prog"></div>
@@ -255,6 +268,7 @@
     </a>
     <div class="nav-links">
       <a href="memory.html">Memory</a>
+      <a href="self-healing.html">Self-healing</a>
       <a href="capture.html">Capture</a>
       <a href="security.html">Security</a>
       <a href="cerberus.html">Cerberus</a>
@@ -299,11 +313,91 @@
   </div>
 </section>
 
+<!-- WHAT'S NEW IN THIS BUILD (replaced each release) -->
+<section class="band tall alt" id="whats-new">
+  <div class="wrap">
+    <div class="sec-head reveal"><p class="kicker">What's new in v0.34.0</p><h2>It remembers what matters, and tells you what broke.</h2><p>This release closes two gaps every long-running assistant has: rules that only work if you remember them, and failures that happen quietly. Here's what's new, how you'll use it, and why it's worth having.</p></div>
+    <div class="wn">
+      <article class="wn-card reveal" style="--i:1">
+        <span class="wn-tag">Self-healing</span>
+        <h3>You find out from the system, not from the damage.</h3>
+        <dl>
+          <dt>What it is</dt><dd>A failed scheduled run is queued automatically. A review turns each one into a note with the likely cause and fixes ranked most-likely first. The watch grows to 11 detectors, including one for a review queue nobody drains.</dd>
+          <dt>How you'll use it</dt><dd>Run <code>/harness-review --drain</code> when it suits you. Your next session tells you a proposal is waiting; accept, decline or defer it with <code>/harness-fix</code>.</dd>
+          <dt>Why it matters</dt><dd>Silent failures are the expensive kind. And nothing fixes itself: the review proposes, <code>/harness-heal</code> is propose-only, and you decide.</dd>
+        </dl>
+        <a class="wn-more" href="self-healing.html">How self-healing works →</a>
+      </article>
+      <article class="wn-card reveal" style="--i:2">
+        <span class="wn-tag">Memory</span>
+        <h3>The rule shows up when you act, not when you remember.</h3>
+        <dl>
+          <dt>What it is</dt><dd>When the assistant writes a file, the rule you wrote about that file is put in front of it. At the end of the turn, it checks that files which must change together did.</dd>
+          <dt>How you'll use it</dt><dd>Write your couplings once in plain JSON: "if this changes, that must too". Three ship; copy the examples for decision logs and reports.</dd>
+          <dt>Why it matters</dt><dd>A rule that only fires when someone remembers it isn't a control. It never blocks the write, and holds the turn open once, never twice.</dd>
+        </dl>
+        <a class="wn-more" href="#memory">See it in the memory section →</a>
+      </article>
+      <article class="wn-card reveal" style="--i:3">
+        <span class="wn-tag">Memory</span>
+        <h3>A read-first list that stays short enough to read.</h3>
+        <dl>
+          <dt>What it is</dt><dd>Your memories' links join the knowledge graph, and finished or long-quiet read-first items are proposed for retirement.</dd>
+          <dt>How you'll use it</dt><dd>Run <code>pickup_sweep.py --report</code> to see what it would retire; <code>--apply</code> only when you agree. It suits a daily schedule.</dd>
+          <dt>Why it matters</dt><dd>A list that only grows stops being read. Anything unfinished is written to your commitments before it leaves, so tidying never drops an open thread.</dd>
+        </dl>
+        <a class="wn-more" href="memory.html">Explore memory →</a>
+      </article>
+      <article class="wn-card reveal" style="--i:4">
+        <span class="wn-tag">Security</span>
+        <h3>Two security gates now act, not just watch.</h3>
+        <dl>
+          <dt>What it is</dt><dd>Reading a captured message that the scanner flags asks you first. Writing a config file that it flags needs a confirmation only you can give.</dd>
+          <dt>How you'll use it</dt><dd>For a flagged capture, re-issue the read to go ahead. For a flagged config, confirm it yourself; an agent retrying is deliberately not enough.</dd>
+          <dt>Why it matters</dt><dd>Instructions hidden in an email, or a poisoned settings file, are how an assistant that reads your inbox gets turned against you.</dd>
+        </dl>
+        <a class="wn-more" href="security.html">Explore security →</a>
+      </article>
+    </div>
+    <p class="wn-also reveal">Also in this build: a red circle now means one thing, <b>unverified</b>. Good and bad get ✅ ⚠️ ❌. Users told us the shared red was confusing.</p>
+  </div>
+</section>
+
 <!-- SELF-HEALING & SELF-IMPROVEMENT -->
 <section class="band" id="resilience">
   <div class="wrap">
-    <div class="sec-head reveal"><p class="kicker">Self-healing &amp; self-improvement</p><h2>The harness watches itself — and gets better — with you keeping the final say.</h2><p>A harness that reads your files and runs tools grows its own moving parts. Charon turns that surface back on itself two ways: it checks its own health, and it surfaces where it could work better. Both only ever <b>observe and propose</b> — nothing is auto-fixed, nothing auto-applied.</p></div>
+    <div class="sec-head reveal"><p class="kicker">Self-healing &amp; self-improvement</p><h2>You find out from the system, not from the damage.</h2><p>A harness that reads your files and runs tools grows its own moving parts, and they break quietly. Charon watches itself: a failed run is queued, reviewed into a likely cause and ranked fixes, and put in front of you when your next session opens. It <b>proposes; you decide</b>. Nothing fixes itself.</p></div>
     <div class="row" style="margin-top:8px">
+      <div class="col-text reveal">
+        <p class="role">Self-healing · <code>/harness-review</code> → <code>/harness-fix</code></p>
+        <h3>A broken run becomes a decision, not a mystery.</h3>
+        <p>When a scheduled run fails, it is queued. <code>/harness-review --drain</code> reads the failure, the recent runs and the command that broke, and writes a note with the <b>likely root cause and ranked fixes</b>. Your next session opens by telling you it is waiting. Accept a fix with <code>/harness-fix</code> and it goes to the top of your work queue.</p>
+        <p class="note">Surface-only by design: the review engine cannot load the module that applies fixes (its self-test proves it), and <code>/harness-heal</code> ships propose-only. You run the review; it never runs itself.</p>
+      </div>
+      <div class="visual reveal" style="--i:1">
+        <div class="term" role="img" aria-label="Example: a failed run reviewed into ranked fixes, then one fix accepted">
+          <div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">review → decide</span></div>
+          <div class="term-body">
+<div class="line"><span class="prompt">$ python scripts/harness_autoreview.py --drain</span></div>
+<div class="line"><span class="dim">--- reviewing nightly-sync (exit 1) -&gt; 00-Inbox/_harness/…-review-…md</span></div>
+<div class="line"><span class="ok">Done. 1/1 review artefact(s) produced.</span></div>
+<div class="line"> </div>
+<div class="line"><span class="prompt">$ python scripts/harness_fix.py --list</span></div>
+<div class="line">1 open proposal(s):</div>
+<div class="line">  &lt;id&gt;</div>
+<div class="line"><span class="dim">    nightly-sync · exit 1 · &lt;date&gt;</span></div>
+<div class="line">      1. bounded retry on the fetch</div>
+<div class="line">      2. split the sync into smaller batches</div>
+<div class="line"><span class="dim">    recommended: 1 — the fetch timed out, no retry</span></div>
+<div class="line"> </div>
+<div class="line"><span class="prompt">$ python scripts/harness_fix.py --accept &lt;id&gt; --option 1</span></div>
+<div class="line"><span class="ok">✅ Queued: nightly-sync — option 1: bounded retry</span></div>
+<div class="line"><span class="you">   Nothing was executed; this is work to implement.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row flip" style="margin-top:40px">
       <div class="col-text reveal">
         <p class="role">Self-healing · <code>/harness-doctor</code></p>
         <h3>It names the limits of its own vision.</h3>
@@ -316,19 +410,19 @@
           <div class="term-body">
 <div class="line"><span class="dim">▸ scanning harness…</span></div>
 <div class="line"><span class="ok">  ✓</span> static validity   <span class="you">all scripts compile · 3 workflows named</span></div>
-<div class="line"><span class="ok">  ✓</span> config validity   <span class="you">55 commands · 18 rules · 10 agents</span></div>
+<div class="line"><span class="ok">  ✓</span> config validity   <span class="you">58 commands · 18 rules · 10 agents</span></div>
 <div class="line"><span class="amber">  ⚠ [ observe ]</span> capture token 26d old — reauth this week</div>
 <div class="line">      <span class="dim">fix: re-run your capture auth flow</span></div>
 <div class="line"> </div>
 <div class="line"><span class="dim">— coverage self-report —</span></div>
 <div class="line">  blind spots: <span class="you">none</span></div>
-<div class="line">  detector self-tests: <span class="ok">8/8 proven fire-capable</span></div>
+<div class="line">  detector self-tests: <span class="ok">11/11 proven fire-capable</span></div>
 <div class="line"><span class="dim">  nothing auto-fixed — you decide.</span></div>
           </div>
         </div>
       </div>
     </div>
-    <div class="row flip" style="margin-top:40px">
+    <div class="row" style="margin-top:40px">
       <div class="col-text reveal">
         <p class="role">Self-improvement · <code>/harness-improve</code></p>
         <h3>Where it could do what it already does — better.</h3>
@@ -346,7 +440,7 @@
         </div>
       </div>
     </div>
-    <p class="term-cap reveal">Example scans — real capability, illustrative data. Both are read-only: they propose, you dispose.</p>
+    <p class="term-cap reveal">Real commands and output format; the failure and the scan results are illustrative. All three propose — you dispose.</p>
   </div>
 </section>
 
@@ -370,6 +464,22 @@
         </div>
       </div>
     </div>
+    <div class="row flip" style="margin-top:40px">
+      <div class="col-text reveal"><h3>It shows up when you act.</h3><p>A rule you wrote down months ago is worth nothing if it only loads when you remember to ask. Charon puts it in front of the assistant <b>at the moment it writes</b> the file the rule is about, and checks at the end of the turn that files which must change together did. You write the couplings; they are plain JSON.</p><p class="note">The rule never blocks the write. The end-of-turn check holds the turn open once to ask for the missing change, never twice, so it can't trap you. Each coupling surfaces once per session.</p></div>
+      <div class="visual reveal" style="--i:1">
+        <div class="code-mini">
+<span class="c"># what the assistant is shown, mid-write</span>
+RULE APPLIES to <span class="a">06-Decisions/vendor-x.md</span>
+ — surfaced once per session:
+<span class="t">-</span> <span class="g">decision-needs-log-entry</span>
+  A decision record changed but the decision
+  log did not. Readers find decisions through the log.
+<span class="c"># This is not a block. Re-issue the write;</span>
+<span class="c"># account for the co-change in the same change.</span>
+        </div>
+      </div>
+    </div>
+    <p class="term-cap reveal">Uses the shipped example coupling <code>decision-needs-log-entry</code> — copy it from <code>_EXAMPLES</code> into your couplings to switch it on.</p>
     <p class="explore reveal"><a href="memory.html">Explore Memory → files &amp; frontmatter, semantic search, and the optional typed graph</a></p>
   </div>
 </section>
@@ -565,7 +675,7 @@ V8 deps vs registry <span class="g">✓ clean</span>
 <!-- FULL SURFACE -->
 <section class="band alt tall" id="everything">
   <div class="wrap">
-    <div class="sec-head reveal"><p class="kicker">The full surface</p><h2>Everything it does.</h2><p><b>55 commands · 18 rules · 19 hooks · 10 agents · 3 workflows · 4 MCP servers</b>, plus a working capture pipeline. Six pillars have deep-dive pages; the rest of the toolbox is below — nothing hidden, nothing oversold.</p></div>
+    <div class="sec-head reveal"><p class="kicker">The full surface</p><h2>Everything it does.</h2><p><b>58 commands · 18 rules · 22 hooks · 10 agents · 3 workflows · 4 MCP servers</b>, plus a working capture pipeline. Six pillars have deep-dive pages; the rest of the toolbox is below — nothing hidden, nothing oversold.</p></div>
     <div class="scap">
       <a class="scard link reveal" style="--i:1" href="memory.html"><h4>Memory →</h4><p>Durable plain-markdown memory, save-on-mention, on-device semantic search, optional typed graph, and an always-loaded index kept small enough to be read in full.</p></a>
       <a class="scard link reveal" style="--i:1" href="capture.html"><h4>Capture →</h4><p>Email inbox + sent into the vault, voice notes, screenshots — all untrusted by default.</p></a>
@@ -583,14 +693,14 @@ V8 deps vs registry <span class="g">✓ clean</span>
       <div class="scard reveal" style="--i:2"><h4>Content</h4><p>Draft posts, stakeholder bulletins, tweets and emails in your voice — then capture the analytics back into the record.</p></div>
       <div class="scard reveal" style="--i:2"><h4>Security review · 5</h4><p>A baseline secure-coding pass, an OWASP LLM Top-10 lens, an OWASP agentic lens, a false-positive gate, and a finding-driven safe rebuild.</p></div>
       <div class="scard reveal" style="--i:3"><h4>Cerberus · 5</h4><p>Harden a new setup, audit your posture — including permission rules that let any script run or any file leave without asking — vet a plugin or MCP before install, check dependencies against a compromise registry, and recover after a leak.</p></div>
-      <div class="scard reveal" style="--i:3"><h4>Guardrail hooks · 19</h4><p>Deterministic checks that run on their own — allowlist every write, block edits to protected zones, flag injection attempts, keep memory well-formed and findable, redact secrets, load the right rules per prompt — and tell you at session start when a dated commitment is overdue or a scheduled job has quietly stopped running.</p></div>
+      <div class="scard reveal" style="--i:3"><h4>Guardrail hooks · 22</h4><p>Deterministic checks that run on their own — allowlist every write, block edits to protected zones, flag injection attempts, keep memory well-formed and findable, redact secrets, load the right rules per prompt — and tell you at session start when a dated commitment is overdue or a scheduled job has quietly stopped running.</p></div>
       <div class="scard reveal" style="--i:3"><h4>Local &amp; private</h4><p>On-device semantic search and voice notes transcribed locally — audio never leaves the machine — plus a typed knowledge graph you can query.</p></div>
       <div class="scard reveal" style="--i:1"><h4>Data layer · 4 MCP servers</h4><p>The model reaches your vault through narrow, audited tools: read-only search, safe scoped edits, and entity/relationship queries — plus an opt-in, read-only calendar reader that is off until you wire it.</p></div>
       <div class="scard reveal" style="--i:2"><h4>Hygiene &amp; ops</h4><p>Audit vault health, catch broken links and tag drift, retire stale skills, promote proven rules, roll up usage, and archive old captures.</p></div>
       <div class="scard reveal" style="--i:3"><h4>Proof &amp; setup</h4><p>16 behaviour scenarios + 36 deterministic checks run every release, a ~20-minute first-run wizard, updates that tell you in plain words what you gained (and ask only what a new capability needs), and MIT — all readable.</p></div>
     </div>
     <div class="scap" style="margin-top:16px">
-      <div class="scard reveal" style="--i:1"><h4>Self-healing &amp; self-improvement</h4><p><code>/harness-doctor</code> checks the harness's own health with a coverage self-report; <code>/harness-improve</code> surfaces where it could work better — both observe-only, you keep the final say. <a class="link" href="#resilience">See above ↑</a></p></div>
+      <div class="scard reveal" style="--i:1"><h4>Self-healing &amp; self-improvement</h4><p>Failed runs are queued and reviewed into ranked fixes you accept or decline (<code>/harness-review</code>, <code>/harness-fix</code>); <code>/harness-heal</code> checks a pre-approved fix, propose-only; <code>/harness-doctor</code> runs 11 self-tested detectors; <code>/harness-improve</code> surfaces what could work better. You keep the final say. <a class="link" href="self-healing.html">Deep dive →</a></p></div>
       <div class="scard reveal" style="--i:2"><h4>Docs &amp; web · 4</h4><p>Convert PDFs/Office docs to clean Markdown locally (zero egress), fetch a URL as Markdown behind an SSRF guard, resolve a library's current official docs from the registry, and evaluate a skill before you ship it.</p></div>
       <div class="scard reveal" style="--i:3"><h4>Design system</h4><p>An always-on accessibility floor, a selection reference, and a per-surface brand contract — so visual builds render on-brand and never below WCAG AA.</p></div>
     </div>
@@ -629,7 +739,7 @@ V8 deps vs registry <span class="g">✓ clean</span>
         <a class="brand" href="#top"><span class="glyph" style="color:var(--accent)" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 13c1.5 1 3 1 4.5 0S10.5 12 12 13s3 1 4.5 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4.5 9.5 10 3l5.5 6.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="7.5" r="1.1" fill="currentColor"/></svg></span> Charon</a>
         <p>The ferryman carried what had to survive the crossing. This one carries your context.</p>
       </div>
-      <div class="foot-col"><h4>Product</h4><a href="memory.html">Memory</a><a href="capture.html">Capture</a><a href="security.html">Security</a><a href="cerberus.html">Cerberus</a><a href="skills.html">Skills &amp; Hooks</a><a href="agents.html">Agents</a><a href="workflows.html">Workflows</a><a href="whats-next.html">What's next</a></div>
+      <div class="foot-col"><h4>Product</h4><a href="memory.html">Memory</a><a href="self-healing.html">Self-healing</a><a href="capture.html">Capture</a><a href="security.html">Security</a><a href="cerberus.html">Cerberus</a><a href="skills.html">Skills &amp; Hooks</a><a href="agents.html">Agents</a><a href="workflows.html">Workflows</a><a href="whats-next.html">What's next</a></div>
       <div class="foot-col"><h4>Project</h4><a href="https://github.com/acunningham-ai/Charon">GitHub</a><a href="https://github.com/acunningham-ai/Charon/blob/main/SECURITY.md">SECURITY.md</a><a href="https://github.com/acunningham-ai/Charon">License · MIT</a></div>
     </div>
     <div class="foot-base"><span>Open source · MIT · built by a practising CISO</span><span class="mono">Charon · KAIR-ən · Χάρων</span></div>

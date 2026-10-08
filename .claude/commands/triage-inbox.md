@@ -58,19 +58,19 @@ For files that survive the cheap pass, read the body. Classify each:
 
 | Bucket | Definition |
 |---|---|
-| **🔴 Action today / this week** | User is asked to do / decide / reply something time-bound |
-| **🟡 Watch / FYI matters** | Status update on something the user tracks; not actioned but should know |
-| **🟢 Reference only** | Information for the corpus; no action |
+| **⚠️ Action today / this week** | User is asked to do / decide / reply something time-bound |
+| **⚠️ Watch / FYI matters** | Status update on something the user tracks; not actioned but should know |
+| **ℹ️ Reference only** | Information for the corpus; no action |
 | **⚫ Noise** | Skip — vendor spam, auto-confirmations, irrelevant CCs |
 
 ### 4. Surface output
 Produce a triage table. Format:
 
 ```markdown
-## 🔴 Action items
+## ⚠️ Action items
 - **{What's needed}** — {why now} → `path/to/capture.md` (from {sender}, {date})
 
-## 🟡 Watch / FYI
+## ⚠️ Watch / FYI
 - {one-liner} → path
 
 ## Memory facts surfaced
@@ -80,7 +80,7 @@ Produce a triage table. Format:
 Don't list noise. The user doesn't need to see what was filtered out unless they ask.
 
 ### 5. Cross-check vs current TODO
-For each 🔴 action item, check if it's already in `TODO.md`. If yes, mark it `[already in TODO]`. If no, mark it `[new — add via /refresh-todo]`.
+For each ❌ action item, check if it's already in `TODO.md`. If yes, mark it `[already in TODO]`. If no, mark it `[new — add via /refresh-todo]`.
 
 ## Done criteria
 - Action items are decision-ready (the user can read each line and know what to do)

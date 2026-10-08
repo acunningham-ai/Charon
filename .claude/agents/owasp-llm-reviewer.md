@@ -57,17 +57,17 @@ Return a single markdown report with this shape:
 
 ## Summary
 - Files reviewed: N
-- 🔴 findings: N · 🟡: N · 🟢 (passing controls): N
+- ❌ findings: N · ⚠️: N · ✅ (passing controls): N
 
 ## LLM01 — Prompt injection
-### 🔴 <short finding title> (`file.py:42`) — `AML.T0051.001`
+### ❌ <short finding title> (`file.py:42`) — `AML.T0051.001`
 <one paragraph: what's wrong, why it's LLM01, what to do>
 
 ## LLM02 — ...
 
 ## Passing controls (highlights)
-- 🟢 `file.py:10` confirms `trust: untrusted` wrapper on captured-content reads
-- 🟢 ...
+- ✅ `file.py:10` confirms `trust: untrusted` wrapper on captured-content reads
+- ✅ ...
 ```
 
 ## Search discipline

@@ -13,7 +13,7 @@ Reviews code through OWASP Top 10 for LLM Applications 2025 (LLM01-LLM10). Disti
 
 Both lenses often apply. If the code under review has agentic surface, run both.
 
-Output: structured report with 🟢/🟡/🔴 findings, `file:line` citations, LLM category tag per finding, hand-off to `/fp-check` on 🔴 findings.
+Output: structured report with ✅/⚠️/❌ findings, `file:line` citations, LLM category tag per finding, hand-off to `/fp-check` on ❌ findings.
 
 ## Scope
 
@@ -73,58 +73,58 @@ Each finding cites a `file:line` and tags one LLM category.
 **Search discipline:** case-insensitive (`-i`) on security terms (`UNTRUSTED`/`untrusted`, `injection`, `secret`, `password`, `api[_-]?key`, `token`, `bearer`). Case-sensitive misses cause fabricated findings.
 
 **LLM01 — Prompt Injection** *(separate trusted instructions from untrusted data, filter outputs)*
-- System prompt contains explicit injection-recognition rule + protected-file allowlist (C-1). Grep `--system-prompt`, `system=`. 🔴 absent on unattended LLM calls.
-- Untrusted input (external data feeds, email body, user input, captured content) wrapped in delimited "UNTRUSTED" blocks before reaching the LLM. 🔴 on raw untrusted strings concatenated into prompt.
-- Output filtering: LLM output checked for unexpected control characters / instruction-shaped content before downstream use. 🟡 if absent.
+- System prompt contains explicit injection-recognition rule + protected-file allowlist (C-1). Grep `--system-prompt`, `system=`. ❌ absent on unattended LLM calls.
+- Untrusted input (external data feeds, email body, user input, captured content) wrapped in delimited "UNTRUSTED" blocks before reaching the LLM. ❌ on raw untrusted strings concatenated into prompt.
+- Output filtering: LLM output checked for unexpected control characters / instruction-shaped content before downstream use. ⚠️ if absent.
 
 **LLM02 — Sensitive Information Disclosure** *(sanitise context, strip PII)*
-- Data with PII (TFN, SSN, full DOB, account numbers) is NEVER unredacted in LLM prompts. 🔴 on unredacted PII in prompt construction.
-- No credentials in system prompts or context (overlaps LLM07). 🔴 if API keys / passwords / hostnames-with-creds in prompt strings.
-- RAG retrievals from sensitive sources scrubbed of secrets before LLM consumption. 🟡 if scrubber absent.
+- Data with PII (TFN, SSN, full DOB, account numbers) is NEVER unredacted in LLM prompts. ❌ on unredacted PII in prompt construction.
+- No credentials in system prompts or context (overlaps LLM07). ❌ if API keys / passwords / hostnames-with-creds in prompt strings.
+- RAG retrievals from sensitive sources scrubbed of secrets before LLM consumption. ⚠️ if scrubber absent.
 
 **LLM03 — Supply Chain** *(model provenance + third-party hubs)*
-- LLM invoked through Anthropic SDK or `claude -p` only (provenance: Anthropic). 🔴 on arbitrary HuggingFace pulls / unvetted model endpoints in production paths.
-- **Third-party** MCP servers in `.mcp.json` pass the MCP evaluation rubric. 🟡 if any third-party MCP lacks documented eval. **Local-internal MCPs** (`scripts/mcp/**`) exempt — review via `/secure-code-review` against source.
-- No `curl ... | bash` install of LLM-related frameworks. 🔴 on framework auto-install.
+- LLM invoked through Anthropic SDK or `claude -p` only (provenance: Anthropic). ❌ on arbitrary HuggingFace pulls / unvetted model endpoints in production paths.
+- **Third-party** MCP servers in `.mcp.json` pass the MCP evaluation rubric. ⚠️ if any third-party MCP lacks documented eval. **Local-internal MCPs** (`scripts/mcp/**`) exempt — review via `/secure-code-review` against source.
+- No `curl ... | bash` install of LLM-related frameworks. ❌ on framework auto-install.
 
 **LLM04 — Data and Model Poisoning** *(validate sources, anomaly-detect)*
 - No fine-tuning on uncurated data.
-- Captured content (untrusted) NOT auto-incorporated into authoritative reference docs without user review. 🔴 on direct auto-write from `_captured/**` to `MEMORY.md` / `CLAUDE.md` / `07-References/**` / `TODO.md`.
-- Anomaly detection on incoming captures (unusually large items, injection-shaped content, abnormal frequency). 🟡 if absent.
+- Captured content (untrusted) NOT auto-incorporated into authoritative reference docs without user review. ❌ on direct auto-write from `_captured/**` to `MEMORY.md` / `CLAUDE.md` / `07-References/**` / `TODO.md`.
+- Anomaly detection on incoming captures (unusually large items, injection-shaped content, abnormal frequency). ⚠️ if absent.
 
 **LLM05 — Improper Output Handling** *(treat output as untrusted)*
-- LLM output validated / sanitised before being used as input to another system. 🟡 if no validation step.
-- No `eval(LLM_output)` / `exec(LLM_output)` / `subprocess(shell=True, cmd=LLM_output)`. 🔴 on direct execution of LLM output.
-- Generated SQL / regex / file paths from LLM output validated against allowlist. 🟡 if absent.
-- Structured-output writers (frontmatter values, tags, labels, classifications) constrained to closed enum (C-3.1). 🟡 on free-text writes to structured fields.
+- LLM output validated / sanitised before being used as input to another system. ⚠️ if no validation step.
+- No `eval(LLM_output)` / `exec(LLM_output)` / `subprocess(shell=True, cmd=LLM_output)`. ❌ on direct execution of LLM output.
+- Generated SQL / regex / file paths from LLM output validated against allowlist. ⚠️ if absent.
+- Structured-output writers (frontmatter values, tags, labels, classifications) constrained to closed enum (C-3.1). ⚠️ on free-text writes to structured fields.
 
 **LLM06 — Excessive Agency** *(minimise tools/permissions, require approval)*
-- `allowedTools` minimal (C-2). 🔴 on `Bash` allowed AND no deterministic wrapper invocation visible in body. 🟡 if Bash granted but never used.
-- Destructive / state-changing actions require human approval — write-path validation hook gates writes. 🔴 if Write enabled without allowlist.
-- Tools granted match actual usage in body. 🟡 if granted but not invoked.
+- `allowedTools` minimal (C-2). ❌ on `Bash` allowed AND no deterministic wrapper invocation visible in body. ⚠️ if Bash granted but never used.
+- Destructive / state-changing actions require human approval — write-path validation hook gates writes. ❌ if Write enabled without allowlist.
+- Tools granted match actual usage in body. ⚠️ if granted but not invoked.
 
 **LLM07 — System Prompt Leakage** *(no secrets/keys/auth in prompt)*
-- No credentials in `--system-prompt` flags or `system=` parameter strings. Grep `--system-prompt.*pass`, `system=.*key`, `system=.*token`. 🔴 on any match.
-- No API keys, passwords, hostnames-with-creds, secret-bearing URLs in prompt body literals. 🔴 on match.
-- Credentials read at moment of need from configured secrets dir — never embedded in prompt template. 🟢 confirms pattern.
+- No credentials in `--system-prompt` flags or `system=` parameter strings. Grep `--system-prompt.*pass`, `system=.*key`, `system=.*token`. ❌ on any match.
+- No API keys, passwords, hostnames-with-creds, secret-bearing URLs in prompt body literals. ❌ on match.
+- Credentials read at moment of need from configured secrets dir — never embedded in prompt template. ✅ confirms pattern.
 
 **LLM08 — Vector and Embedding Weaknesses** — applies only if the harness uses embeddings. Tenant-isolate vector stores, access-control on retrieval, sanitise retrieved content before prompt injection.
 
 **LLM09 — Misinformation** *(cite sources, surface confidence, AI provenance)*
-- Stakeholder-facing outputs (board, exec, governance docs) carry confidence tags 🟢/🟡/🔴 per `confidence-tags.md`. 🟡 if outputs lack provenance markers.
-- Source citations on board reports / exec briefs / governance synthesis. 🟡 if absent on derived claims.
-- AI-provenance disclosure on user-facing material where appropriate. 🟡 if absent.
+- Stakeholder-facing outputs (board, exec, governance docs) carry confidence tags 🟢/🟡/🔴 per `confidence-tags.md`. ⚠️ if outputs lack provenance markers.
+- Source citations on board reports / exec briefs / governance synthesis. ⚠️ if absent on derived claims.
+- AI-provenance disclosure on user-facing material where appropriate. ⚠️ if absent.
 
 **LLM10 — Unbounded Consumption** *(rate limits, token caps, tool-call caps)*
-- Budget cap on every unattended LLM call (C-4). 🔴 if missing on unattended invocations.
-- Loop / retry logic has step counter or depth limit. 🟡 if unbounded loop possible.
-- Provider extra-usage cap monitoring — alert recipients defined. 🟢 confirms.
+- Budget cap on every unattended LLM call (C-4). ❌ if missing on unattended invocations.
+- Loop / retry logic has step counter or depth limit. ⚠️ if unbounded loop possible.
+- Provider extra-usage cap monitoring — alert recipients defined. ✅ confirms.
 
-### 3. Confidence-tag findings
+### 3. Severity of findings (status: ✅ ⚠️ ❌ — not confidence)
 
-- 🔴 violates LLM category + no compensating control — blocks merge
-- 🟡 partial coverage / risk-flagged — needs review or explicit acceptance
-- 🟢 load-bearing pass — include only for material passes; skip noise
+- ❌ violates LLM category + no compensating control — blocks merge
+- ⚠️ partial coverage / risk-flagged — needs review or explicit acceptance
+- ✅ load-bearing pass — include only for material passes; skip noise
 
 ### 4. Output
 
@@ -136,16 +136,16 @@ Each finding cites a `file:line` and tags one LLM category.
 **LLM categories N/A at this path:** <e.g. LLM08, LLM10>
 **Files reviewed:** <count>
 
-### 🔴 Critical findings
+### ❌ Critical findings
 - **[LLM<NN>] <title>** — `<file>:<line>`
   - **Why it matters:** <one sentence linking to LLM category>
   - **Fix:** <one sentence — control to add>
   - **FP-check:** run `/fp-check "<finding citation>"` before treating as block
 
-### 🟡 Warnings
+### ⚠️ Warnings
 - (same shape, no FP-check requirement)
 
-### 🟢 Load-bearing passes
+### ✅ Load-bearing passes
 - (same shape, no Fix)
 
 ### Recommendations
@@ -159,7 +159,7 @@ If the user says "save it" → write to `08-Projects/<project>/security-reviews/
 
 ### 5. Hand-off
 
-- 🔴 findings → run `/fp-check` before blocking merge
+- ❌ findings → run `/fp-check` before blocking merge
 - Agentic surface present → run `/owasp-agentic-review` for complementary ASI lens
 - General secure-coding gap → run `/secure-code-review` for C-1..C-8 + general checks
 
@@ -172,7 +172,7 @@ If the user says "save it" → write to `08-Projects/<project>/security-reviews/
 - **Use case-sensitive grep on security terms** — always `-i`.
 - **Apply LLM03 supply-chain checks to local-internal MCPs.** `scripts/mcp/**` is local code; use `/secure-code-review`.
 - **Re-derive ASI checks here.** Overlap categories (LLM01/05/06/09) cover the LLM-app lens; agentic-specific behaviour is `/owasp-agentic-review`'s job.
-- **Flag `Bash` grants as 🔴 when the skill body shows a deterministic wrapper invocation.** The wrapper IS the justification.
+- **Flag `Bash` grants as ❌ when the skill body shows a deterministic wrapper invocation.** The wrapper IS the justification.
 
 ## Co-change couplings
 

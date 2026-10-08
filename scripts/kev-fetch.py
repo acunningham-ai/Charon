@@ -172,7 +172,7 @@ def render_markdown(rows: list[dict], data: dict, window_days: int, now: datetim
             "|---|---|---|---|---|---|---|\n"]
     for r in rows:
         v = r["v"]
-        ransom = "🔴 known" if str(v.get("knownRansomwareCampaignUse","")).lower() == "known" else "—"
+        ransom = "❌ known" if str(v.get("knownRansomwareCampaignUse","")).lower() == "known" else "—"
         cve = _clean(v.get("cveID", ""), 20)
         vp = _clean(f"{v.get('vendorProject','')}/{v.get('product','')}", 48)
         added = _clean(v.get("dateAdded", ""), 12)

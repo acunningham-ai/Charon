@@ -64,19 +64,19 @@ Three complementary skills cover the security surface. Use them together, not in
 | `/secure-code-review <path>` | Default — before any merge/deploy | C-1..C-8 baseline + general secure-coding (input validation, SQL, XSS, auth, crypto, dangerous functions, path traversal). Add `--diff` to scope; `--strict` to escalate warnings. |
 | `/owasp-llm-review <path>` | When the path has LLM-consumer surface (SDK calls, prompt construction, RAG, budget controls) | OWASP Top 10 for LLM Applications 2025 (LLM01-LLM10) — prompt injection, sensitive info disclosure, supply chain, data/model poisoning, improper output handling, excessive agency, system prompt leakage, vector weaknesses, misinformation, unbounded consumption |
 | `/owasp-agentic-review <path>` | When the path has agentic surface (system prompts, tool dispatch, memory, sub-agents, MCP) | OWASP Agentic AI Security 2026 (ASI01-ASI10) — goal hijack, tool misuse, identity/privilege abuse, supply chain, code execution, memory poisoning, inter-agent comms, cascading failures, human-agent trust, rogue agents |
-| `/fp-check <finding-or-report>` | After every 🔴 finding from any of the three review skills, before treating as block | False-positive verification — re-reads cited `file:line`, reproduces or downgrades. Forces evidence on every block-merge claim. |
+| `/fp-check <finding-or-report>` | After every ❌ finding from any of the three review skills, before treating as block | False-positive verification — re-reads cited `file:line`, reproduces or downgrades. Forces evidence on every block-merge claim. |
 
 **Flow for a typical deploy gate:**
 
 1. `/secure-code-review <path>` → general baseline + secure-coding findings
 2. `/owasp-llm-review <path>` → LLM01-LLM10 lens (if LLM-consumer surface present)
 3. `/owasp-agentic-review <path>` → ASI01-ASI10 lens (if agentic surface present)
-4. `/fp-check` on each 🔴 from any skill
-5. Only un-WITHDRAWN, un-DOWNGRADED 🔴 findings block merge
+4. `/fp-check` on each ❌ from any skill
+5. Only un-WITHDRAWN, un-DOWNGRADED ❌ findings block merge
 
 The LLM and agentic lenses are complementary, not alternatives — if the code both uses an LLM AND has agentic behaviour, run both.
 
-🔴 findings block ship. 🟡 need review (or `--strict` escalates to fail). 🟢 load-bearing passes get reported for material controls only.
+❌ findings block ship. ⚠️ need review (or `--strict` escalates to fail). ✅ load-bearing passes get reported for material controls only.
 
 ## Anti-patterns (auto-flag if I'm drifting)
 

@@ -1,0 +1,15 @@
+{
+  "_comment": "Closed remediation list: the ONLY fixes harness_autoheal.py may ever propose. No model-composed commands, ever. Each entry must be idempotent, reversible and deterministically post-checkable. Adding one is a deliberate human edit, followed by its own /secure-code-review. While PROPOSE_ONLY = True in harness_autoheal.py, apply() executes nothing regardless of what is listed here.",
+  "remediations": [
+    {
+      "id": "R1-capture-rerun",
+      "trigger_rule": "capture-gap",
+      "action": { "kind": "script", "path": "capture-pipeline/scheduled-capture.bat", "unix_path": "capture-pipeline/scheduled-capture.sh" },
+      "preconditions": ["auth_healthy", "not_running"],
+      "post_check": { "kind": "mtime_advanced", "path": "capture-pipeline/state/captured.json" },
+      "rollback": null,
+      "approval": "per_apply",
+      "note": "Additive: the capture cursor does not double-capture, and fetch-mail.lock prevents a concurrent run. No rollback needed."
+    }
+  ]
+}

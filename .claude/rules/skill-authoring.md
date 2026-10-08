@@ -70,7 +70,7 @@ For MCP tools, also declare in the rendered `inputSchema` exactly what fields ar
 
 ## First-run calibration — assume miscalibration
 
-When a newly authored review/audit skill runs against the harness for the first time, **default position: the skill is miscalibrated until proven otherwise**. Run `/fp-check` on every 🟡/🔴 finding before applying any fix. New skills are easy to write but hard to calibrate without runtime feedback.
+When a newly authored review/audit skill runs against the harness for the first time, **default position: the skill is miscalibrated until proven otherwise**. Run `/fp-check` on every ⚠️/❌ finding before applying any fix. New skills are easy to write but hard to calibrate without runtime feedback.
 
 ## Run before shipping a new skill / hook / MCP
 
@@ -79,7 +79,7 @@ When a newly authored review/audit skill runs against the harness for the first 
 | `/secure-code-review <path>` | C-1..C-8 baseline + general secure-coding (input validation, dangerous functions, secrets handling, path traversal) |
 | `/owasp-llm-review <path>` | LLM01-LLM10 if path has LLM-consumer surface (`claude -p`, Anthropic SDK calls, prompt construction) |
 | `/owasp-agentic-review <path>` | ASI01-ASI10 if path has agentic surface (system prompts, tool dispatch, memory, sub-agents, MCP) |
-| `/fp-check` | On every 🔴 finding from any of the three review skills, before merge |
+| `/fp-check` | On every ❌ finding from any of the three review skills, before merge |
 | `/score-vault` | Hygiene check before shipping the change |
 
 Companion rule: `secure-code.md` (auto-fires on these paths) — read it for the full review flow.
@@ -92,7 +92,7 @@ Companion rule: `secure-code.md` (auto-fires on these paths) — read it for the
 - **Free-form $ARGUMENTS parsing** without an empty-input behaviour. Skills that hang waiting for input when none was provided are friction.
 - **Output without source citations.** Synthesis without provenance is opinion, not insight.
 - **Unquoted YAML scalars** in LLM-generated frontmatter.
-- **Bash granted without inline wrapper invocation** — the wrapper IS the justification (`.bat`, `python scripts/...`, `ssh <alias>`). Ad-hoc shell without a documented pattern is the 🔴.
+- **Bash granted without inline wrapper invocation** — the wrapper IS the justification (`.bat`, `python scripts/...`, `ssh <alias>`). Ad-hoc shell without a documented pattern is the ❌.
 - **`curl ... | bash` install of third-party agent frameworks** — borrow patterns, don't install untrusted packages into the harness.
 - **Skipping `/fp-check` on first-run findings** — first runs are calibration; verify before acting.
 

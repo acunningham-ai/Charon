@@ -1,0 +1,122 @@
+<div class="phero">
+  <div class="wrap">
+    <span class="eyebrow">Self-healing</span>
+    <h1 class="big">You find out from the system, not from the damage.</h1>
+    <p class="sub">A harness that reads your files and runs scheduled jobs grows its own moving parts, and they break quietly. Charon watches itself. A failed run is <b>queued, reviewed into a likely cause and ranked fixes, and put in front of you</b> when your next session opens. It proposes; you decide. Nothing fixes itself.</p>
+
+    <div class="loop">
+      <div class="step">
+        <span class="n">1</span>
+        <h3>It notices</h3>
+        <p>A failed scheduled run is queued with its exit code and log. A queue that nobody drains is itself a finding.</p>
+        <span class="k">on-error.py · watch</span>
+      </div>
+      <div class="step">
+        <span class="n">2</span>
+        <h3>It explains</h3>
+        <p>One command turns each failure into a note: the likely root cause and fixes ranked most-likely first.</p>
+        <span class="k">/harness-review</span>
+      </div>
+      <div class="step">
+        <span class="n">3</span>
+        <h3>You decide</h3>
+        <p>Your next session tells you it's waiting. Accept, decline or defer a fix; the decision is recorded.</p>
+        <span class="k">/harness-fix</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="termscene">
+  <div class="wrap">
+    <div class="term" role="img" aria-label="Example: a failed run reviewed, surfaced at session start, and a fix accepted">
+      <div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">claude code — ~/vault — charon</span></div>
+      <div class="term-body">
+<div class="line"><span class="prompt">$ python scripts/harness_autoreview.py --drain</span></div>
+<div class="line"><span class="dim">--- reviewing nightly-sync (exit 1) -&gt; 00-Inbox/_harness/…-review-…md</span></div>
+<div class="line"><span class="ok">Done. 1/1 review artefact(s) produced.</span></div>
+<div class="line"> </div>
+<div class="line"><span class="dim">——— next session ———</span></div>
+<div class="line"><span class="prompt">charon ▸</span> One harness fix proposal is waiting: <span class="you">nightly-sync</span> failed (exit 1).</div>
+<div class="line">          Likely cause: the fetch timed out with no retry. Two ranked fixes.</div>
+<div class="line">          Decide with <span class="you">/harness-fix</span>.</div>
+<div class="line"> </div>
+<div class="line"><span class="prompt">$ python scripts/harness_fix.py --accept &lt;id&gt; --option 1</span></div>
+<div class="line"><span class="ok">✅ Queued: nightly-sync — option 1: bounded retry</span></div>
+<div class="line"><span class="you">   Top of the dev pipeline. Nothing was executed; this is work to implement.</span></div>
+      </div>
+    </div>
+    <p class="term-cap">Real commands and output format; the failure is illustrative. The session-start line is the assistant relaying the waiting proposal, so its wording varies.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">The loop</div>
+      <h2>Every stage stops for you before anything changes</h2>
+      <p>Each step hands a decision to the next, and the only step that could change your system is the one that asks you first.</p>
+    </div>
+    <div class="stages" aria-label="The self-healing flow">
+      <div class="stg"><div class="sn">01</div><h4>Failure queued</h4><p>A scheduled run exits with an error. <code>on-error.py</code> adds it to the review queue.</p></div>
+      <div class="stg"><div class="sn">02</div><h4>Review</h4><p>You run <code>/harness-review --drain</code>. A hardened, read-only pass writes a note per failure: likely cause, ranked fixes.</p></div>
+      <div class="stg"><div class="sn">03</div><h4>Told at session start</h4><p>A session-start hook lists proposals still waiting. Silent when nothing is.</p></div>
+      <div class="stg verify"><div class="sn">04</div><h4>You pick</h4><p><code>/harness-fix</code> accepts, declines or defers. Nothing has changed up to here.</p></div>
+      <div class="stg"><div class="sn">05</div><h4>Heal check</h4><p><code>/harness-heal</code> checks a pre-approved, reversible fix and its preconditions. Propose-only in this release.</p></div>
+      <div class="stg"><div class="sn">06</div><h4>The watch</h4><p>Notices when the loop itself stalls: five failures waiting, or the oldest a week old.</p></div>
+    </div>
+    <p class="honest-beat"><b>Why it's built this way.</b> The review reads; it cannot act. Its engine never imports the module that applies fixes, and <code>--selftest</code> proves it. Its control files are sealed by hash (<code>--seal</code>, once, after you've read them), so a tampered prompt is detected rather than obeyed. The apply step is a closed list of reversible fixes, each needing your approval, and in this release it applies nothing at all.</p>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">The watch &amp; the doctor</div>
+      <h2>It names the limits of its own vision</h2>
+      <p><code>/harness-doctor</code> runs every detector on demand and prints a coverage self-report: what it checked, what it has <i>no</i> check for yet, and a self-test proving each detector can still fire. A dead check can't quietly read as "all healthy".</p>
+    </div>
+    <div class="cards two">
+      <div class="card">
+        <div class="ctop"><span class="cmd">11 detectors</span><span class="pill ok">shipped</span></div>
+        <h4>Health signals, observe-only</h4>
+        <p>Token age, capture freshness, TODO freshness, error-log failures, a review queue nobody drains, a failure printed in a run that never reached the error log, out-of-scope writes found by the unattended-run audit, and more.</p>
+        <p class="out">Outcome: drift is reported before it becomes damage.</p>
+      </div>
+      <div class="card">
+        <div class="ctop"><span class="cmd">/harness-doctor</span><span class="pill ok">shipped</span></div>
+        <h4>A self-test for every detector</h4>
+        <p>Each detector is driven with a known-bad input and must fire. The report lists blind spots by name instead of hiding them.</p>
+        <p class="out">Outcome: "all healthy" means checked, not unchecked.</p>
+      </div>
+      <div class="card">
+        <div class="ctop"><span class="cmd">/harness-fix</span><span class="pill ok">shipped</span></div>
+        <h4>Your decision is recorded</h4>
+        <p>Accept puts the fix at the top of your work queue; decline means it stops surfacing; defer keeps it for later. Your note is kept with the decision.</p>
+        <p class="out">Outcome: a closed item stays closed.</p>
+      </div>
+      <div class="card">
+        <div class="ctop"><span class="cmd">/harness-heal</span><span class="pill ok">propose-only</span></div>
+        <h4>A pre-approved fix, checked not applied</h4>
+        <p>One reversible fix ships: re-run a missed capture. It is validated against a closed list, and its preconditions (auth healthy, nothing already running) are checked and shown.</p>
+        <p class="out">Outcome: you see exactly what would run, and why it's safe, before anything does.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">The honest edge</div>
+      <h2>What it does not do</h2>
+    </div>
+    <div class="cards two">
+      <div class="card"><h4>It does not run itself</h4><p>Failures queue automatically; reviewing them is a command you run, because each review calls the model and costs tokens.</p></div>
+      <div class="card"><h4>It does not apply fixes</h4><p>An accepted fix is work for you, or a session you start, to implement. <code>/harness-heal</code>'s apply step stays off until it earns trust.</p></div>
+      <div class="card"><h4>The watch only reports</h4><p>Every detector ships observe-only. Promoting one to ask before acting is your call, after your own shadow run.</p></div>
+      <div class="card"><h4>It can be wrong</h4><p>A root cause is labelled <i>likely</i>. The note shows its reasoning so you can disagree with it.</p></div>
+    </div>
+    <div class="explore"><a href="index.html#install">Install Charon →</a> · <a href="whats-next.html">What's coming next →</a></div>
+  </div>
+</section>

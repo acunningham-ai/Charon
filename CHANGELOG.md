@@ -4,6 +4,138 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-10-08
+
+**Charon remembers what matters, and tells you what broke.** A failed scheduled run is now queued, reviewed into a likely cause and ranked fixes, and put in front of you when your next session opens; nothing fixes itself. Rules now surface at the moment the assistant writes the file they are about, two security gates move out of shadow, and a red circle now means only "unverified". Existing installs get every item through `/charon-update`, which says what you gained.
+
+### Changed — a red circle now means one thing: "unverified", never "bad"
+
+**Capability.** Coloured circles are reserved for confidence in a claim: 🟢 verified this turn, 🟡 from memory or
+earlier context, 🔴 unverified. Status (good or bad, pass or fail, severity, urgency, overdue) now always uses
+✅ ⚠️ ❌. The rule (`.claude/rules/confidence-tags.md`), every review command and agent (`/secure-code-review`,
+`/owasp-llm-review`, `/owasp-agentic-review`, `/fp-check`, `/safe-rebuild`, the reviewer agents), the triage, TODO,
+health and maintenance commands, and the scripts that generate markers (`commitments.py`, `check-commitments.py`,
+`memory_working_set.py`, `harness-watch.py`, `skill-curator.py`, `kev-fetch.py`) all follow it. The two combine:
+`❌ 3 tests failed 🟢` is a failure you verified.
+
+**Intent.** The confidence tag exists so you can see which claims are grounded and which are guesses. That only
+works if the symbol for "guess" means nothing else.
+
+**Why it matters.** Users told us the red circle was confusing: it marked both "the assistant has no source for
+this" and "this is failing / missing / overdue". A well-evidenced failure looked like a fabrication, and a guess
+looked like a known problem. Nothing to do on upgrade: `/refresh-todo` renames old 🔴/🟡 TODO headings in place, and
+`memory_working_set.py` still treats an older 🔴 pickup as urgent alongside ❌ and ⚠️.
+
+### Added — the rule shows up at the moment you act, not only when you remember it
+
+Most rules you write down are recall-dependent: they fire only if the assistant thinks
+to look them up mid-task, and that is exactly when it doesn't. On the reference
+deployment a rule saying "public docs must change with the code" existed, was indexed
+and was well written — and three hooks still shipped with a documentation change that
+amounted to editing "13 hooks" to "16 hooks". The rules that never get missed are the
+ones injected rather than recalled.
+
+Two new hooks share one data file, `scripts/hooks/cochange-couplings.json`, where each
+coupling says *"if you touched X, you should also touch one of Y"*.
+`jit-memory.py` (PreToolUse) surfaces a coupling **before** a matching write lands, so
+the rule is in front of the assistant when it acts. `enforce-cochange.py` (Stop) checks
+at the end of the turn that it was honoured, and won't let the turn end until the
+co-change is done or explained. Each coupling surfaces once per session per hook, the
+Stop check never blocks twice in a turn, and both fail open. Ships with three couplings
+that protect the harness itself (a hook needs docs, a command needs a catalogue entry,
+edit `site/pages/` rather than the generated `docs/`), two example shapes for typical
+vaults, and a CONFIGURATION.md section on writing your own. Both ran three weeks in
+shadow on the reference deployment before being promoted.
+
+### Added — your memories join the knowledge graph
+
+The entity extractor reads vault notes only, so the knowledge graph couldn't see a single
+memory file: the relationships between memories existed only as `[[wikilinks]]` in text.
+`scripts/memory_graph.py` transcribes those links into graph edges — deterministically,
+no model and no API cost, confidence 1.0 because nothing is inferred. It folds
+kebab-case slugs, snake_case filenames and frontmatter `name:` onto one key (on the
+reference deployment, skipping that fold dropped about 13% of real edges), and leaves
+dangling links alone rather than inventing entities. Re-runs add nothing.
+`scripts/graph_dedupe.py` removes the duplicate parallel edges that re-running any
+extractor accumulates (the store appends rather than updates), keeping the earliest of
+each so first-seen provenance survives. Both are dry-run first.
+
+### Added — the read-first list stays short
+
+The `## 📌 Pickups` section is the one part of MEMORY.md you write by hand, and nothing
+ever declared a pickup finished, so it only grew. `scripts/pickup_sweep.py` proposes
+archiving pickups that carry a done marker or whose memory hasn't been touched in 30
+days. It changes nothing until `--apply`, and on apply a quiet pickup isn't dropped: it
+moves to the commitments register as an undated "resume or close" follow-up, because
+quiet is not the same as finished. If it can't record them, it refuses to apply.
+
+### Added — when the harness breaks, it tells you why and what to do about it
+
+A scheduled run that fails has always been logged. What happened next depended on
+someone opening the log, diagnosing it from scratch, and remembering to come back.
+On the reference deployment that loop stalled: 43 failures were banked over two
+months and none reached a decision.
+
+v0.34.0 closes the loop, with you deciding at each step:
+
+- **Every failure is queued.** `on-error.py` now adds each failed run to
+  `capture-pipeline/state/review-queue.jsonl`. It only queues; it never runs a model.
+- **`/harness-review --drain` explains each one.** A hardened, unattended `claude -p`
+  reads the failing log and writes a note with the root cause (evidence-cited) and
+  2–4 ranked fix options, to `00-Inbox/_harness/`. The log is treated as untrusted
+  data; the run can read but not edit, can write only that note, is capped at $1.50
+  and 420 s, is audited afterwards, and is denied your secrets at the settings layer.
+  It refuses to run until you seal its three control files with `--seal`, and again
+  if any of them changes afterwards.
+- **`/harness-fix` records your decision.** Accept an option and it goes to the top of
+  the dev queue; decline it and it stops coming back. Nothing is executed — a fix is
+  ordinary reviewed work.
+- **`/harness-heal` checks a pre-approved fix, propose-only.** One reversible fix ships
+  (`R1-capture-rerun`): it is validated against a closed list and its preconditions
+  are checked. In this release it applies nothing.
+- **The watch notices a stalled loop.** `review-queue-backlog` fires when five failures
+  are waiting or the oldest is a week old — because a queue nobody drains looks
+  exactly like a queue with nothing in it.
+
+The watch also gains `scheduled-run-log-failure` (a failure printed in the latest run
+that never reached the error log) and `unattended-audit-anomalies` (the newest
+unattended-run audit found out-of-scope writes). All three are observe-only until
+you promote them. The review engine never imports the apply module; `--selftest`
+proves it.
+
+### Changed — two security gates out of shadow, each with a way past it
+
+`poisoning-scan-read.py` (untrusted captured content scanned as it is read) and
+`cerberus/scan-config-edits.py` (poisoned hooks, MCP descriptions and agent files
+caught at write time) now **ask** instead of only logging.
+
+Both were promoted on evidence. The read scan fired three times in the 25 days after
+its last calibration on the reference deployment, all on internal mail, and none of
+those would have interrupted. The config-edit scan fired twice in four weeks, both
+understood. Both shipped in shadow until now so you could run your own window; turn
+either back with one line (`SHADOW = True`).
+
+Each needed an answer channel first, and both were missing one: their ask told you to
+re-issue the action, and the re-issued action was flagged again. That makes an ask a
+block in disguise. Now:
+
+- **Reading a flagged capture:** re-issue the same Read in the same session and it
+  goes through, logged as acknowledged.
+- **Writing a flagged config:** a retry is deliberately not enough, because an agent
+  that has been talked into writing a poisoned hook can retry too. You confirm with
+  the operator-only token for rule `cerberus-config-edit` (the ask prints the
+  command), then re-issue.
+
+Until you list your own mail domains in `poisoning-scan-read-config.json`, every
+sender counts as external, so the read scan asks more often. That's the safe
+direction; configuring it is a one-line change.
+
+### Fixed — the watch reported failed runs with a blank name
+
+`check_error_log_recent` read each failure's runner from the `bat` field, but
+`on-error.py` writes `runner`. Every recent-failure finding named no runner. It now
+reads either.
+
 ## [0.33.0] - 2026-10-02
 
 ### Added — MEMORY.md stays small enough to be read in full
@@ -1916,7 +2048,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.33.0...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.34.0...HEAD
+[0.34.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.34.0
 [0.33.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.33.0
 [0.32.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.32.0
 [0.31.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.31.1

@@ -121,7 +121,7 @@ Per `.claude/rules/skill-authoring.md` — the same ten-pattern discipline appli
 
 - **Persona subagents** ("act as a senior CISO"). Subagents are scoped operating modes, not personas.
 - **Overgranted tools.** Default-deny; add tools only as the task demands.
-- **Skipping `/fp-check` on subagent findings.** Subagents are easy to write but hard to calibrate — run FP-check on every 🔴 from a new subagent.
+- **Skipping `/fp-check` on subagent findings.** Subagents are easy to write but hard to calibrate — run FP-check on every ❌ from a new subagent.
 - **No when-NOT-to-use section.** Every subagent declares when the parent should pick a different one.
 - **Subagent that writes outside its declared scope.** The `Write` permission gates the path; if a subagent's scope is `07-References/` only, it shouldn't be writing elsewhere.
 

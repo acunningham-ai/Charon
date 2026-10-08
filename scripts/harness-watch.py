@@ -239,13 +239,205 @@ def check_error_log_recent() -> Optional[dict]:
                     continue
                 if when < cutoff:
                     continue
+                # on-error.py writes `runner`; `bat` is the legacy key. Reading only
+                # `bat` left every reported runner name blank (fixed for v0.34.0).
+                runner = _sanitize_runner(entry.get("runner") or entry.get("bat", ""))
                 if "device_code_expired" in (entry.get("tail") or ""):
-                    device_code_hits.append({"ts": ts, "runner": _sanitize_runner(entry.get("bat", ""))})
+                    device_code_hits.append({"ts": ts, "runner": runner})
                 else:
-                    other_failures.append({"ts": ts, "runner": _sanitize_runner(entry.get("bat", ""))})
+                    other_failures.append({"ts": ts, "runner": runner})
     except Exception:
         return None
     return _judge_error_log(device_code_hits, other_failures)
+
+
+# --- Scheduled-run log: failures that never reached error-log.jsonl --------
+# A runner can print a failure and still exit 0 (a `call` to a missing script, an
+# unhandled stack trace inside a step that swallows its exit code). Those never
+# reach on-error.py, so error-log.jsonl stays clean while the run was broken.
+# This reads only the LATEST run block of the capture runner's own log.
+
+SCHED_RUN_LOG_FRESH_HOURS = 30   # only judge a run from roughly the last day
+SCHED_RUN_FAILURE_MARKERS = (
+    "is not recognized",
+    "FAILED with exit code",
+    "Fatal error",
+    "*** AUTH",
+    "Assertion failed",
+    "Traceback (most recent call last)",
+)
+
+
+def _judge_scheduled_run_log(text, age_hours) -> Optional[dict]:
+    """Pure: scan only the latest `Run started:` block for failure markers."""
+    if text is None:
+        return None
+    if age_hours is None or age_hours > SCHED_RUN_LOG_FRESH_HOURS:
+        return None  # latest run predates the window; don't re-alarm on old blocks
+    idx = text.rfind("Run started:")
+    block = text[idx:] if idx != -1 else text[-4000:]
+    hits = [line.strip()[:160] for line in block.splitlines()
+            if any(m in line for m in SCHED_RUN_FAILURE_MARKERS)]
+    if not hits:
+        return None
+    return {
+        "rule": "scheduled-run-log-failure",
+        "declared": "ask",
+        "reason": (f"{len(hits)} failure marker(s) in the latest scheduled capture run that "
+                   f"did NOT reach error-log.jsonl: " + " | ".join(hits[:3])),
+        "context": {
+            "hits": hits[:8],
+            "fix_options": [
+                "read capture-pipeline/state/scheduled-run.log for the failing step",
+                "if a `call` target is 'not recognized', confirm the script exists and the working directory is the capture pipeline",
+                "route the failing step through on-error.py so it also lands in error-log.jsonl",
+            ],
+        },
+    }
+
+
+def check_scheduled_run_log() -> Optional[dict]:
+    if not _capture_configured():
+        return None
+    path = capture_state("scheduled-run.log")
+    if not path.exists():
+        return None
+    age = _mtime_age(path)
+    age_hours = None if age is None else age.total_seconds() / 3600
+    try:
+        with path.open("rb") as f:  # bounded tail read: the last run block is all we need
+            f.seek(0, 2)
+            size = f.tell()
+            f.seek(max(0, size - 300_000))
+            text = f.read().decode("utf-8", errors="replace")
+    except Exception:
+        return None
+    return _judge_scheduled_run_log(text, age_hours)
+
+
+# --- Unattended-run audit anomalies -----------------------------------------
+# scripts/audit-unattended-run.py writes one note per unattended run into
+# 00-Inbox/_captured/_audit/ with `severity:` frontmatter and a list of writes that
+# fell outside that automation's allowlist. Those notes are easy to never open.
+# This surfaces the newest one when it found something.
+
+AUDIT_FRESH_HOURS = 18   # only the most recent run's audit is judged
+
+
+def _judge_audit(severity, unexpected, audit_name):
+    if severity in ("LOW", "UNKNOWN") and unexpected == 0:
+        return None
+    declared = "ask" if severity == "HIGH" else "observe"
+    return {"rule": "unattended-audit-anomalies", "declared": declared,
+            "reason": (f"the latest unattended-run audit ({audit_name}) is severity {severity} "
+                       f"with {unexpected} out-of-scope write(s)"),
+            "context": {"severity": severity, "out_of_scope_writes": unexpected,
+                        "audit_file": audit_name}}
+
+
+def check_audit_anomalies_today(phase: str) -> Optional[dict]:
+    if phase != "post":
+        return None
+    audit_dir = vault_path("00-Inbox/_captured/_audit")
+    if not audit_dir.exists():
+        return None
+    # Newest audit by mtime, any automation. Filenames are UTC-stamped, so local
+    # "today" can differ from the file's date; age decides freshness instead.
+    matches = sorted(audit_dir.glob("*.md"), key=lambda p: p.stat().st_mtime)
+    if not matches:
+        return None
+    latest = matches[-1]
+    age = _mtime_age(latest)
+    if age is None or age.total_seconds() > AUDIT_FRESH_HOURS * 3600:
+        return None
+    try:
+        if latest.stat().st_size > 2_000_000:
+            return None  # bounded-read guard
+        text = latest.read_text(encoding="utf-8")
+    except Exception:
+        return None
+    sev_match = re.search(r"^severity:\s*(\w+)", text, re.MULTILINE)
+    severity = sev_match.group(1).upper() if sev_match else "UNKNOWN"
+    unexpected = 0
+    for blk in re.split(r"^##\s+", text, flags=re.MULTILINE):
+        if blk.lower().startswith("out-of-scope changes"):
+            after = re.split(r"unexpected writes:\s*", blk, flags=re.IGNORECASE)
+            if len(after) > 1:
+                unexpected = len(re.findall(r"^\s*-\s+`", after[1], re.MULTILINE))
+            break
+    return _judge_audit(severity, unexpected, _sanitize_runner(latest.name))
+
+
+# --- Self-healing review queue ----------------------------------------------
+# on-error.py queues every logged failure for `/harness-review --drain`. Draining
+# is human-triggered by design, which means a queue nobody drains looks exactly
+# like a queue with nothing in it. This is that missing signal: read-only, it
+# surfaces a backlog and never drains it.
+
+REVIEW_QUEUE_STALE_DAYS = 7    # nobody has drained in a week: the loop has stalled
+REVIEW_QUEUE_DEPTH_ASK = 5     # or it has simply banked up
+
+
+def _judge_review_queue(entries: list, now: datetime) -> Optional[dict]:
+    """Pure. entries = [{ts, bat}]. Returns a finding, or None when healthy."""
+    if not entries:
+        return None
+    ages, bats = [], {}
+    for e in entries:
+        name = _sanitize_runner(e.get("bat") or e.get("runner") or "?")
+        bats[name] = bats.get(name, 0) + 1
+        try:
+            when = datetime.fromisoformat((e.get("ts") or "").replace("Z", "+00:00"))
+        except Exception:
+            continue
+        ages.append((now - when).days)
+    depth = len(entries)
+    oldest = max(ages) if ages else 0
+    if depth < REVIEW_QUEUE_DEPTH_ASK and oldest < REVIEW_QUEUE_STALE_DAYS:
+        return None
+    top = sorted(bats.items(), key=lambda kv: -kv[1])[:4]
+    return {
+        "rule": "review-queue-backlog",
+        "declared": "ask",
+        "reason": (f"{depth} harness failure(s) waiting in the review queue, oldest "
+                   f"{oldest}d old. Failures are being captured, but nothing reviews "
+                   f"them until you run /harness-review --drain."),
+        "context": {
+            "depth": depth,
+            "oldest_days": oldest,
+            "by_automation": dict(top),
+            "fix_options": [
+                "run `/harness-review --drain` to turn these into {root cause + ranked "
+                "fix options} notes under 00-Inbox/_harness/",
+                "expect some to be fixed already: the queue keeps resolved failures too, "
+                "so check the latest runs before acting on an old one",
+                "if one automation dominates the queue, fix that automation rather than "
+                "reviewing the same failure many times",
+            ],
+        },
+    }
+
+
+def check_review_queue_depth() -> Optional[dict]:
+    if not _capture_configured():
+        return None
+    path = capture_state("review-queue.jsonl")
+    if not path.exists():
+        return None
+    entries = []
+    try:
+        with path.open("r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entries.append(json.loads(line))
+                except Exception:
+                    continue
+    except OSError:
+        return None  # unreadable: no signal, never a manufactured finding
+    return _judge_review_queue(entries, datetime.now(timezone.utc))
 
 
 # --- Scheduled-task + process health (Windows-first) -------------------
@@ -687,7 +879,30 @@ def _selftest_config() -> bool:
             and _judge_config_file("c.md", "---\ndescription: x\n---\nbody\n", "description") is None)
 
 
+def _selftest_scheduled_run_log() -> bool:
+    bad = "Run started: x\nRunning step...\n'missing-step.bat' is not recognized\nRun finished: x\n"
+    good = "Run started: x\nAll steps ok\nRun finished: x\n"
+    return (_judge_scheduled_run_log(bad, 1) is not None
+            and _judge_scheduled_run_log(good, 1) is None
+            and _judge_scheduled_run_log(bad, 99) is None)  # stale log stays quiet
+
+
+def _selftest_audit() -> bool:
+    return _judge_audit("HIGH", 0, "a") is not None and _judge_audit("LOW", 0, "a") is None
+
+
+def _selftest_review_queue() -> bool:
+    """Fires on a stalled queue; stays quiet on a small fresh one."""
+    now = datetime.now(timezone.utc)
+    stale = [{"ts": (now - timedelta(days=30)).isoformat(), "bat": "scheduled-capture"}]
+    fresh = [{"ts": now.isoformat(), "bat": "scheduled-capture"}]
+    return bool(_judge_review_queue(stale, now)) and not _judge_review_queue(fresh, now)
+
+
 SELFTESTS: dict = {
+    "check_scheduled_run_log": _selftest_scheduled_run_log,
+    "check_audit_anomalies_today": _selftest_audit,
+    "check_review_queue_depth": _selftest_review_queue,
     "check_scheduled_task_health": _selftest_scheduled_tasks,
     "check_process_health": _selftest_processes,
     "check_token_age": _selftest_token,
@@ -735,6 +950,9 @@ SIGNAL_FUNCS: list[tuple[str, Callable, bool]] = [
     ("check_capture_freshness", check_capture_freshness, False),
     ("check_todo_freshness", check_todo_freshness, True),
     ("check_error_log_recent", check_error_log_recent, False),
+    ("check_scheduled_run_log", check_scheduled_run_log, False),
+    ("check_audit_anomalies_today", check_audit_anomalies_today, True),
+    ("check_review_queue_depth", check_review_queue_depth, False),
     ("check_scheduled_task_health", check_scheduled_task_health, False),
     ("check_process_health", check_process_health, False),
     ("check_static_validity", check_static_validity, False),
@@ -744,7 +962,7 @@ SIGNAL_FUNCS: list[tuple[str, Callable, bool]] = [
 # --- Vault note + toast ------------------------------------------------
 
 SEVERITY_RANK = {"deny": 4, "ask": 3, "observe": 2, "allow": 1}
-SEVERITY_EMOJI = {"deny": "🔴", "ask": "🟡", "observe": "🟢", "allow": ""}
+SEVERITY_EMOJI = {"deny": "❌", "ask": "⚠️", "observe": "ℹ️", "allow": ""}  # status marks, never confidence circles
 
 
 def write_vault_note(
@@ -828,9 +1046,9 @@ def write_vault_note(
             f"{coverage.get('detectors_total', 0)} proven fire-capable.\n"
         )
         if dead:
-            body.append(f"- 🔴 STRUCTURALLY DEAD (selftest failed — cannot fire): {', '.join(dead)}\n")
+            body.append(f"- ❌ STRUCTURALLY DEAD (selftest failed — cannot fire): {', '.join(dead)}\n")
         if unver:
-            body.append(f"- 🟡 unverified (no selftest — add a pure `_judge` + fixture): {', '.join(unver)}\n")
+            body.append(f"- ⚠️ unverified (no selftest — add a pure `_judge` + fixture): {', '.join(unver)}\n")
         body.append("\n")
 
     body.append(

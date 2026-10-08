@@ -51,6 +51,7 @@ def fixture(extra_pickups=0):
              "## 📌 Pickups (read first)",
              "- ⭐🔴 [Backup not tested](bugs_backup_untested.md) — restore before the laptop swap",
              "- 🔴 [Renewal due](project_renewal.md) — sign by Friday",
+             "- ⚠️ [Access review open](project_access_review.md) — new-style urgent mark",
              "- ⭐ [Release plan](project_release.md) — next minor"]
     lines += ["- [Follow-up %d](followup_%d.md) — routine item %d" % (i, i, i) for i in range(extra_pickups)]
     n = 0
@@ -105,6 +106,7 @@ r4 = ws4.build(date.today())
 check("inflated input is over the ceiling (%d bytes)" % r4["old_bytes"], r4["old_bytes"] > ws4.CEILING_BYTES)
 check("output under the ceiling (%d <= %d)" % (r4["new_bytes"], ws4.CEILING_BYTES), r4["new_bytes"] <= ws4.CEILING_BYTES)
 check("every 🔴 pickup kept", "bugs_backup_untested.md" in r4["new"] and "project_renewal.md" in r4["new"])
+check("a ⚠️ pickup is urgent too and is kept", "project_access_review.md" in r4["new"])
 check("overflow moved, not deleted", r4["overflow"] > 0 and "followup_599.md" in r4["catalog"] and not r4["lost"])
 
 print("%d/%d pass" % (ok, total))

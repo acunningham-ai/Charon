@@ -70,12 +70,12 @@ def main() -> int:
     # except, and the hook goes silent on exactly the busiest days.
     for due, it in sorted(overdue, key=lambda t: t[0]):
         days = (today - due).days
-        out.append("- 🔴 **OVERDUE %d day%s** — %s (%s, due %s)"
+        out.append("- ❌ **OVERDUE %d day%s** — %s (%s, due %s)"
                    % (days, "" if days == 1 else "s", it.get("what", ""), it.get("id", ""), due))
     for due, it in sorted(soon, key=lambda t: t[0]):
         days = (due - today).days
         when = "today" if days == 0 else ("tomorrow" if days == 1 else "in %d days" % days)
-        out.append("- 🟡 due %s — %s (%s, %s)" % (when, it.get("what", ""), it.get("id", ""), due))
+        out.append("- ⚠️ due %s — %s (%s, %s)" % (when, it.get("what", ""), it.get("id", ""), due))
     out.append("")
     out.append("_Close with_ `python scripts/commitments.py --done <id>`")
     sys.stdout.write("\n".join(out) + "\n")

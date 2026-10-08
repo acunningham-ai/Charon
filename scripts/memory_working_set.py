@@ -21,7 +21,7 @@ So MEMORY.md keeps only the second job. This script:
   3. moves every other section, pointers and all, into the catalog sub-index
      `reference_memory_catalog_index.md` (searchable, reachable, not preloaded);
   4. enforces CEILING_BYTES: if the working set would exceed it, the least urgent
-     pickups (no 🔴, then no ⭐) move to the catalog. Moved, logged, never deleted;
+     pickups (no urgent ❌/⚠️ mark, then no ⭐) move to the catalog. Moved, logged, never deleted;
   5. refuses to write if any link target in the old file would be lost.
 
 The previous MEMORY.md is backed up to state/memory-index-backups/ on every write.
@@ -30,7 +30,7 @@ Usage:
     python scripts/memory_working_set.py --dry-run   # sizes and moves, writes nothing
     python scripts/memory_working_set.py             # rebuild (schedule it daily; see CONFIGURATION.md)
 
-Exit codes: 0 ok · 1 refused (lossless check failed) · 3 still over ceiling (all 🔴)
+Exit codes: 0 ok · 1 refused (lossless check failed) · 3 still over ceiling (all urgent)
 """
 from __future__ import annotations
 
@@ -130,7 +130,7 @@ def due_now_block(today: date) -> list[str]:
     out = []
     for due, c in rows[:MAX_DUE_LINES]:
         d = (today - due).days
-        when = ("🔴 %dd overdue" % d) if d > 0 else ("🟡 due today" if d == 0 else "🟡 due %s" % due)
+        when = ("❌ %dd overdue" % d) if d > 0 else ("⚠️ due today" if d == 0 else "⚠️ due %s" % due)
         # 80 chars keeps the whole bullet inside deny-destructive's 120-byte
         # per-bullet prose budget -- the generator obeys the same rule as a human.
         what = re.sub(r"\s+", " ", c.get("what", ""))
@@ -231,11 +231,13 @@ def build(today: date) -> dict:
     items = pickup_items(pickups_body)
     overflow = []
     new = render([ln for it in items for ln in it])
-    for tier in ("🔴", "⭐"):  # first move items lacking 🔴, then those lacking ⭐
+    # Urgent = a status mark (❌ / ⚠️). 🔴 is still read as urgent: it was the urgent mark until
+    # 2026-10-08, when coloured circles became confidence-only (status uses ✅ ⚠️ ❌).
+    for marks in (URGENT_MARKS, ("⭐",)):  # first move items with no urgent mark, then those with no ⭐
         i = len(items) - 1
         while len(new.encode("utf-8")) > CEILING_BYTES and i >= 0:
             it = items[i]
-            if it[0].startswith("- ") and tier not in it[0]:
+            if it[0].startswith("- ") and not any(m in it[0] for m in marks):
                 overflow.append(items.pop(i))
                 new = render([ln for x in items for ln in x])
             i -= 1
@@ -251,6 +253,9 @@ def build(today: date) -> dict:
     return {"old": old, "new": new, "catalog": cat_text, "moved": moved, "overflow": len(overflow),
             "lost": sorted(lost), "old_bytes": len(old.encode("utf-8")),
             "new_bytes": len(new.encode("utf-8")), "catalog_bytes": len(cat_text.encode("utf-8"))}
+
+
+URGENT_MARKS = ("❌", "⚠️", "⚠", "🔴")
 
 
 def main() -> int:
@@ -294,7 +299,7 @@ def main() -> int:
         OVERFLOW_FLAG.write_text(
             "%s MEMORY.md %d bytes, %d pickup(s) moved to the catalog%s\n"
             % (stamp, r["new_bytes"], r["overflow"],
-               "; STILL OVER the ceiling: every remaining pickup is 🔴" if over else ""),
+               "; STILL OVER the ceiling: every remaining pickup is urgent" if over else ""),
             encoding="utf-8")
     elif OVERFLOW_FLAG.exists():
         OVERFLOW_FLAG.unlink()

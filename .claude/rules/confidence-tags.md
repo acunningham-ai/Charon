@@ -11,7 +11,7 @@ Tag substantive factual claims so the user can see what's grounded vs assumed.
 
 - 🟢 **verified** — read the source / confirmed / ran the command **this turn**
 - 🟡 **medium** — in memory or prior context; not freshly checked
-- 🔴 **assumed** — extrapolated. Needs check before acting.
+- 🔴 **unverified** — assumed or extrapolated, with no source this turn. Needs a check before acting. (Not "bad" — see below.)
 
 ## Tag when
 
@@ -34,6 +34,22 @@ Tag substantive factual claims so the user can see what's grounded vs assumed.
 ## Placement
 
 Inline at sentence end ("forum is 20 May 2026 🟢"), bullet prefix ("- 🟡 ..."), or as a table column.
+
+## Coloured circles mean CONFIDENCE only — status uses ✅ ⚠️ ❌
+
+Added 2026-10-08 after user feedback: a red circle was being used both for "unverified" and for "bad /
+failing / missing", so a reader could not tell a guess from a problem. Users found it confusing.
+
+| You are saying… | Use | Never |
+|---|---|---|
+| how sure you are of a claim | 🟢 verified · 🟡 from memory · 🔴 unverified | — |
+| whether a thing is good or bad | ✅ passing / done · ⚠️ needs attention / open / partial · ❌ failing / missing / blocked | a coloured circle |
+
+- Severity scales (blocking / amber / green, pass / warn / fail, RED / YELLOW / GREEN clause tags) are
+  **status** → ❌ / ⚠️ / ✅.
+- Urgent, overdue or open items are **status** → ⚠️ / ❌, not 🔴.
+- The two combine: `❌ 3 tests failed 🟢` is a bad result you verified; `⚠️ owner may have changed 🔴` is an
+  open item you haven't checked.
 
 ## Anti-patterns
 

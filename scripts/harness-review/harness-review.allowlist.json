@@ -1,0 +1,7 @@
+{
+  "automation": "harness-autoreview",
+  "purpose": "Auto-review engine: one surface-only claude -p per harness failure writes a ranked-options note. The ONLY place it may write.",
+  "write_globs": [
+    "**/00-Inbox/_harness/????-??-??-review-*.md"
+  ]
+}

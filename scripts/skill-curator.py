@@ -173,7 +173,7 @@ def render_report(rows: list[dict]) -> str:
     lines.append("")
     if not has_telemetry:
         lines.append(
-            "> 🔴 No telemetry data yet — every row uses file mtime as a "
+            "> ⚠️ No telemetry data yet — every row uses file mtime as a "
             "proxy for last-used. Expect false positives (git pulls and "
             "edits move mtime). Wait for the skill-usage-log hook to "
             "accumulate ~30 days of data before treating this report as "

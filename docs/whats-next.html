@@ -15,6 +15,7 @@
     </a>
     <div class="nav-links">
       <a href="memory.html" data-nav="memory">Memory</a>
+      <a href="self-healing.html" data-nav="self-healing">Self-healing</a>
       <a href="capture.html" data-nav="capture">Capture</a>
       <a href="security.html" data-nav="security">Security</a>
       <a href="cerberus.html" data-nav="cerberus">Cerberus</a>
@@ -34,57 +35,54 @@
     <a class="back" href="index.html">← Back to overview</a>
     <div class="eyebrow">Roadmap · what just shipped &amp; what's coming</div>
     <h1 class="big">What's next for Charon</h1>
-    <p class="sub">Charon ships in tranches — each capability proven on the author's own vault first, then genericised. Here's the self-healing work coming next, and the retrieval tools <b>already in your hands</b>.</p>
-    <p class="asof">As of v0.33.0 · the pills below move with each release.</p>
+    <p class="sub">Charon ships in tranches — each capability proven on the author's own vault first, then genericised. Here's what <b>just landed</b>, and what is still being proven before it ships.</p>
+    <p class="asof">As of v0.34.0 · the pills below move with each release.</p>
   </div>
 </header>
-
-<section class="termscene">
-  <div class="wrap">
-    <div class="term" role="img" aria-label="Example of the auto-review engine turning a failure into ranked fixes">
-      <div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">charon — /harness-review</span><span class="mock-tag">illustrative · not a live run</span></div>
-      <div class="term-body">
-<div class="line"><span class="prompt">$ /harness-review --drain</span></div>
-<div class="line"><span class="dim">⟳ reviewing 1 logged failure — nightly-sync (exit 1)</span></div>
-<div class="line"><span class="dim">  reading: the failure queue · recent runs · the command that broke</span></div>
-<div class="line"><span class="ok">✎ wrote 00-Inbox/_harness/&lt;date&gt;-nightly-sync.md</span></div>
-<div class="line"><span class="dim">  root cause (likely): the fetch timed out mid-run with no retry</span></div>
-<div class="line"><span class="dim">  ranked fixes:</span></div>
-<div class="line"><span class="amber">   1. wrap the fetch in a bounded retry</span><span class="dim">   ← pre-approved remediation</span></div>
-<div class="line"><span class="dim">   2. split the sync into smaller batched calls</span></div>
-<div class="line"><span class="dim">   3. skip this run, surface a stale-data flag instead</span></div>
-<div class="line"><span class="you">→ you pick. nothing was changed.</span></div>
-      </div>
-    </div>
-    <p class="term-cap">mock — a scripted illustration, not real output · the capability is in shadow on the author's harness, not yet in Charon</p>
-  </div>
-</section>
 
 <section>
   <div class="wrap">
     <div class="sec-head">
-      <div class="kicker">Coming next · the marquee</div>
-      <h2>A harness that reviews its own failures</h2>
-      <p>When an automation breaks, Charon will read the wreck for you — the failure, the recent runs, the command that broke — and hand you a ranked set of fixes. It <b>surfaces and stops</b>. You pick; a separate, gated step applies. It never quietly fixes itself.</p>
+      <div class="kicker">Just shipped &middot; v0.34.0</div>
+      <h2>It remembers what matters, and tells you what broke</h2>
+      <p>A harness that reviews its own failures, and memory that shows up at the moment you act rather than when you remember to ask. Everything here <b>proposes; you decide</b>.</p>
     </div>
-    <div class="stages" aria-label="The self-healing flow">
-      <div class="stg"><div class="sn">01</div><h4>Failure</h4><p>A scheduled run exits with an error and logs it.</p></div>
-      <div class="stg"><div class="sn">02</div><h4>Auto-review</h4><p>A hardened, read-only pass finds the likely root cause.</p></div>
-      <div class="stg"><div class="sn">03</div><h4>Ranked options</h4><p>A decision-ready note: cause + fixes, most-likely first.</p></div>
-      <div class="stg verify"><div class="sn">04</div><h4>You pick</h4><p>The human gate. Nothing has changed up to here.</p></div>
-      <div class="stg"><div class="sn">05</div><h4>Gated apply</h4><p>A separate, allow-listed step makes the reversible fix.</p></div>
-      <div class="stg"><div class="sn">06</div><h4>Monitor</h4><p>A deterministic check confirms the problem actually fell.</p></div>
+    <div class="cards two">
+      <div class="card">
+        <div class="ctop"><span class="cmd">/harness-review</span><span class="pill ok">shipped</span></div>
+        <h4>A broken run becomes a decision</h4>
+        <p>Failed runs are queued; one command reviews each into a likely cause and ranked fixes, and your next session tells you they're waiting.</p>
+        <p class="out">Outcome: you find out from the system, not from the damage.</p>
+      </div>
+      <div class="card">
+        <div class="ctop"><span class="cmd">/harness-fix · /harness-heal</span><span class="pill ok">shipped</span></div>
+        <h4>You pick; it records</h4>
+        <p>Accept, decline or defer a fix. <code>/harness-heal</code> checks a pre-approved, reversible fix and its preconditions, and applies nothing.</p>
+        <p class="out">Outcome: a closed item stays closed, and nothing changes without you.</p>
+      </div>
+      <div class="card">
+        <div class="ctop"><span class="cmd">jit-memory · enforce-cochange</span><span class="pill ok">shipped</span></div>
+        <h4>The rule shows up when you act</h4>
+        <p>A rule about a file is put in front of the assistant as it writes that file, and the end of the turn checks that files which must change together did.</p>
+        <p class="out">Outcome: a rule you wrote months ago still fires today.</p>
+      </div>
+      <div class="card">
+        <div class="ctop"><span class="cmd">memory graph · pickup lifecycle</span><span class="pill ok">shipped</span></div>
+        <h4>Memory that connects, and a read-first list that stays short</h4>
+        <p>Your memories' links join the knowledge graph. Finished or long-quiet pickups are proposed for retirement, and anything unfinished is recorded before it goes.</p>
+        <p class="out">Outcome: nothing open is dropped to keep the list tidy.</p>
+      </div>
     </div>
-    <p class="honest-beat"><b>Why it's built this way.</b> The review reads; it cannot act. The apply step is a closed allow-list of reversible fixes, each needing your say-so. The "did it work?" check answers from deterministic counts, not the model grading its own homework — so the loop can't talk itself into a win.</p>
+    <div class="explore"><a href="self-healing.html">See how self-healing works →</a></div>
   </div>
 </section>
 
 <section class="alt">
   <div class="wrap">
     <div class="sec-head">
-      <div class="kicker">Just shipped</div>
-      <h2>Four ways to get more out of your own vault — now live</h2>
-      <p>These landed in the latest release. Small, read-only tools for the moments a growing second brain starts to strain — finding, reconciling, pressure-testing, and handing off.</p>
+      <div class="kicker">Shipped in v0.22.0</div>
+      <h2>Four ways to get more out of your own vault</h2>
+      <p>Already in your hands. Small, read-only tools for the moments a growing second brain starts to strain — finding, reconciling, pressure-testing, and handing off.</p>
     </div>
     <div class="cards two">
       <div class="card">
@@ -258,12 +256,11 @@
       <table>
         <thead><tr><th>Capability</th><th>What it gives you</th><th>Status</th></tr></thead>
         <tbody>
-          <tr><td><span class="v">/harness-review</span></td><td class="cwhat">Reviews a logged failure into a ranked-fix note; you pick, a gated step applies.</td><td><span class="pill shadow">in shadow</span></td></tr>
           <tr><td><span class="v">Prompt-aware recall</span></td><td class="cwhat">Brings the handful of notes that relate to what you asked &mdash; without being told which, and without loading everything.</td><td><span class="pill shadow">in shadow</span></td></tr>
-          <tr><td><span class="v">Commitment register</span></td><td class="cwhat">Dated reviews and follow-ups surface daily and at session start; a passed date reads as overdue, not pending.</td><td><span class="pill shadow">in shadow</span></td></tr>
-          <tr><td><span class="v">Pickup lifecycle</span></td><td class="cwhat">Retires finished or long-quiet items from your read-first list, recording anything unfinished before it goes.</td><td><span class="pill shadow">in shadow</span></td></tr>
           <tr><td><span class="v">Voice interface</span></td><td class="cwhat">Hold a key, speak, and it arrives in the session as typed text &mdash; the whole system by speech, transcribed locally.</td><td><span class="pill plan">planned</span></td></tr>
-          <tr><td><span class="v">/harness-heal</span></td><td class="cwhat">Applies a pre-approved, reversible fix — the gated apply step, on its own high bar.</td><td><span class="pill plan">planned</span></td></tr>
+          <tr><td><span class="v">/harness-review</span></td><td class="cwhat">Turns a logged failure into a note with the likely cause and ranked fixes. You run it; you pick the fix.</td><td><span class="pill ok">shipped</span></td></tr>
+          <tr><td><span class="v">/harness-heal</span></td><td class="cwhat">Checks a pre-approved, reversible fix against the failure and proposes it. Propose-only: applying stays behind its own gate.</td><td><span class="pill ok">shipped</span></td></tr>
+          <tr><td><span class="v">Pickup lifecycle</span></td><td class="cwhat">Retires finished or long-quiet items from your read-first list, recording anything unfinished before it goes.</td><td><span class="pill ok">shipped</span></td></tr>
           <tr><td><span class="v">Memory you can read in full</span></td><td class="cwhat">MEMORY.md keeps only your pickups and what&rsquo;s due now, under a 16&nbsp;KB ceiling, so Claude Code never silently cuts off its tail.</td><td><span class="pill ok">shipped</span></td></tr>
           <tr><td><span class="v">Commitments at session start</span></td><td class="cwhat">Overdue and due-soon reviews, gates and follow-ups appear when a session opens, instead of expiring quietly.</td><td><span class="pill ok">shipped</span></td></tr>
           <tr><td><span class="v">Scheduled-job liveness</span></td><td class="cwhat">Says when a scheduled job has stopped producing output, rather than letting it stay dead for days.</td><td><span class="pill ok">shipped</span></td></tr>
@@ -280,7 +277,7 @@
         </tbody>
       </table>
     </div>
-    <p class="tbl-note"><b>shipped</b> = in the current release <b>v0.33.0</b>, live now, <code>git pull</code> to get it · <b>in shadow</b> = running silently on a real vault while it earns trust · <b>planned</b> = designed, gated on the highest bar because it can change files.</p>
+    <p class="tbl-note"><b>shipped</b> = in the current release <b>v0.34.0</b>, live now, <code>git pull</code> to get it · <b>in shadow</b> = running silently on a real vault while it earns trust · <b>planned</b> = designed, gated on the highest bar because it can change files.</p>
   </div>
 </section>
 
@@ -310,6 +307,7 @@
       <div class="foot-col">
         <h4>Product</h4>
         <a href="memory.html">Memory</a>
+        <a href="self-healing.html">Self-healing</a>
         <a href="capture.html">Capture</a>
         <a href="security.html">Security</a>
         <a href="cerberus.html">Cerberus</a>

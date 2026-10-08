@@ -1,0 +1,69 @@
+{
+  "_README": "Co-change couplings: 'if you touched X this turn, you should also have touched one of Y'. Read by jit-memory.py (PreToolUse: surfaces the rule BEFORE the write) and enforce-cochange.py (Stop: catches the omission at end of turn). Data, not code: adding a coupling is a data edit, no hook change needed.",
+  "_WHY": "Most rules you write down are recall-dependent: they only fire if the assistant thinks to consult them at the moment of acting, and that is exactly when it doesn't. A coupling turns 'remember to also do Y' into something checked every time. The ones below ship as examples that protect the harness itself; replace or extend them with your own.",
+  "_SEMANTICS": "A coupling fires when at least one `when_touched` glob matched a file written this turn AND no `requires_one_of` glob did. `requires_one_of` is deliberately generous: the point is to catch 'you did none of these', not to police which one. Globs match forward-slashed absolute paths, case-insensitively; `**/` matches any depth. Each coupling is surfaced at most once per session per hook.",
+  "_HOW_TO_ADD_YOUR_OWN": "Copy an entry, give it a unique `id`, list the files that trigger it in `when_touched`, the files that satisfy it in `requires_one_of`, a one-sentence `reason` the assistant will read, and a `rule` pointer (a memory file, rule file or doc that explains it). See _EXAMPLES for shapes that fit common vaults. If a coupling fires where the omission was legitimate, narrow its globs; do not switch the hooks off.",
+  "_EXAMPLES": [
+    {
+      "id": "decision-needs-log-entry",
+      "when_touched": ["**/06-Decisions/*.md"],
+      "requires_one_of": ["**/06-Decisions/decision-log.md", "**/TODO.md"],
+      "reason": "A decision record changed but the decision log did not. Readers find decisions through the log.",
+      "rule": "06-Decisions/README.md"
+    },
+    {
+      "id": "report-needs-source-note",
+      "when_touched": ["**/08-Projects/*/reports/*.md"],
+      "requires_one_of": ["**/08-Projects/*/sources.md", "**/07-References/**"],
+      "reason": "A report changed with no change to the notes it cites. Numbers in a report need a traceable source.",
+      "rule": ".claude/rules/quarterly-report.md"
+    }
+  ],
+  "couplings": [
+    {
+      "id": "hook-needs-docs",
+      "when_touched": [
+        "**/scripts/hooks/*.py",
+        "**/scripts/hooks/*.json",
+        "**/.claude/settings.json"
+      ],
+      "requires_one_of": [
+        "**/CAPABILITIES.md",
+        "**/CONFIGURATION.md",
+        "**/SECURITY.md",
+        "**/CHANGELOG.md",
+        "**/.claude/rules/**"
+      ],
+      "reason": "A hook or its wiring changed with nothing written down about it. Hooks are the least discoverable part of the harness: undocumented, a hook is behaviour nobody can predict or audit.",
+      "rule": "CONFIGURATION.md#co-change-couplings"
+    },
+    {
+      "id": "command-needs-docs",
+      "when_touched": [
+        "**/.claude/commands/*.md",
+        "**/.claude/agents/*.md",
+        "**/.claude/workflows/*.js"
+      ],
+      "requires_one_of": [
+        "**/CAPABILITIES.md",
+        "**/README.md",
+        "**/CHANGELOG.md"
+      ],
+      "reason": "A command, agent or workflow changed but the capability catalogue did not. If it isn't in CAPABILITIES.md, nobody knows it exists or what it does.",
+      "rule": "CONFIGURATION.md#co-change-couplings"
+    },
+    {
+      "id": "site-source-not-generated",
+      "when_touched": [
+        "**/docs/*.html"
+      ],
+      "requires_one_of": [
+        "**/site/pages/**",
+        "**/site/partials/**",
+        "**/docs/index.html"
+      ],
+      "reason": "docs/*.html is generated from site/pages/ by site/build.mjs, so an edit to the published copy is overwritten by the next build. Edit site/pages/ and rebuild. (docs/index.html is the exception: it is standalone.)",
+      "rule": "site/build.mjs"
+    }
+  ]
+}

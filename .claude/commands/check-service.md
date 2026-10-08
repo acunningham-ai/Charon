@@ -66,7 +66,7 @@ If any `ssh <alias>` command fails with auth error:
 Compact summary, not raw dumps:
 
 ```markdown
-## <Service> status: {🟢 healthy | 🟡 degraded-but-known | 🔴 needs attention}
+## <Service> status: {✅ healthy | ⚠️ degraded-but-known | ❌ needs attention}
 
 - <unit1>: {active|stopped|failed}
 - <unit2>: {active|stopped|failed}

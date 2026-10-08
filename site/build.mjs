@@ -16,6 +16,7 @@ const PAGES_SRC = join(SITE, 'pages');
 
 const PAGES = [
   { name: 'memory',    title: 'Charon — Memory',          active: 'memory'    },
+  { name: 'self-healing', title: 'Charon — Self-healing', active: 'self-healing' },
   { name: 'capture',   title: 'Charon — Capture',         active: 'capture'   },
   { name: 'security',  title: 'Charon — Security',        active: 'security'  },
   { name: 'cerberus',  title: 'Charon — Cerberus',        active: 'cerberus'  },

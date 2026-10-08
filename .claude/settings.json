@@ -56,6 +56,10 @@
           {
             "type": "command",
             "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/cerberus/scan-config-edits.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/jit-memory.py\""
           }
         ]
       },
@@ -118,6 +122,10 @@
           {
             "type": "command",
             "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/enforce-memory-index-cochange.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/enforce-cochange.py\""
           }
         ]
       }
@@ -140,6 +148,10 @@
           {
             "type": "command",
             "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/check-scheduler-liveness.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/surface-harness-proposals.py\""
           }
         ]
       }

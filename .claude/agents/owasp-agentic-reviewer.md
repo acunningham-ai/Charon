@@ -54,17 +54,17 @@ unclear**. An honest gap beats a confident mis-citation.
 
 ## Summary
 - Files reviewed: N
-- 🔴 findings: N · 🟡: N · 🟢 (passing controls): N
+- ❌ findings: N · ⚠️: N · ✅ (passing controls): N
 
 ## ASI01 — Goal hijack
-### 🔴 <finding title> (`file.py:42`) — `AML.T0053`
+### ❌ <finding title> (`file.py:42`) — `AML.T0053`
 <what's wrong, why it's ASI01, what to do>
 
 ## ASI02 — ...
 
 ## Passing controls
-- 🟢 `scripts/hooks/validate-write-path.py:47` — PreToolUse write-path allowlist closes ASI02
-- 🟢 ...
+- ✅ `scripts/hooks/validate-write-path.py:47` — PreToolUse write-path allowlist closes ASI02
+- ✅ ...
 ```
 
 ## Cross-references

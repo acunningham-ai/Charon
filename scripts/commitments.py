@@ -144,7 +144,7 @@ def cmd_done(args) -> int:
 def render(rows, header=True) -> str:
     if not rows:
         return "_(no open commitments)_"
-    mark = {"overdue": "🔴 OVERDUE", "due-soon": "🟡 due", "open": "· open"}
+    mark = {"overdue": "❌ OVERDUE", "due-soon": "⚠️ due", "open": "· open"}
     lines = []
     for st, it in rows:
         due = it.get("due") or "no date"

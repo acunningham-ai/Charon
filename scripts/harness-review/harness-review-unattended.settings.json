@@ -1,0 +1,15 @@
+{
+  "$comment": "Run-scoped settings for the UNATTENDED review engine (scripts/harness_autoreview.py), passed via `claude -p --settings`. The run uses --dangerously-skip-permissions, which suppresses permission PROMPTS but not explicit DENY rules. The engine's input is the tail of a FAILING log, which is untrusted (a prompt-injection surface): without these denies an injected instruction could make the agent read ~/.secrets and copy it into the review note. `~/` is your home directory; `./` is the vault (the engine runs with cwd = vault). Edit only deliberately, then re-seal: python scripts/harness_autoreview.py --seal",
+  "permissions": {
+    "deny": [
+      "Read(~/.secrets/**)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.claude/settings*.json)",
+      "Read(./CLAUDE.md)",
+      "Read(./TODO.md)",
+      "Read(./.claude/settings*.json)",
+      "Read(./.claude/rules/**)"
+    ]
+  }
+}

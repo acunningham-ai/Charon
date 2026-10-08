@@ -148,7 +148,7 @@ Discipline applies).
 
 ## Recommended reading (email beat)
 - <item> — one-line "so what" + [source].
-- 🔴 <item> — flag if it warrants escalation; the user decides (never auto-acted).
+- ⚠️ <item> — flag if it warrants escalation; the user decides (never auto-acted).
 
 ## Ledger delta
 - N worked, M new candidates, P parked. Email beat: S senders scanned.

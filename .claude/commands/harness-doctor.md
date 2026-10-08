@@ -29,10 +29,10 @@ python scripts/harness-watch.py --phase post --doctor
 2. **Coverage self-report** — inventory counts, **blind spots** (classes
    discovered with no health detector), and **selftests X/Y verified
    fire-capable**.
-3. **🔴 STRUCTURALLY DEAD** — a detector whose selftest failed. That is a
+3. **❌ STRUCTURALLY DEAD** — a detector whose selftest failed. That is a
    silent-rot bug: the detector can no longer fire. Flag it to fix its
    `_judge`/selftest before trusting its silence.
-4. **🟡 unverified** — no selftest. Candidate for a pure `_judge` + fixture so it
+4. **⚠️ unverified** — no selftest. Candidate for a pure `_judge` + fixture so it
    can prove it still fires.
 
 ## What it checks (the shipped set, observe-only)

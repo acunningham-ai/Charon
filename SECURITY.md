@@ -117,7 +117,7 @@ Ask the assistant to name every file it will touch *before* you issue the token,
 check the log afterwards: each pass is a separate `policy-confirmed-bypass` line
 with a rising `reuse_count`.
 
-#### Config-edit poisoning scan (`cerberus/scan-config-edits.py`) — ships in shadow
+#### Config-edit poisoning scan (`cerberus/scan-config-edits.py`) — enforcing since v0.34.0
 
 Runs the three Cerberus detection engines against writes to config and
 agent-instruction files, so a poisoned settings hook, MCP tool description or agent
@@ -134,7 +134,18 @@ findings are **never** downgraded, in any zone — a single fire on a legitimate
 is the cheaper side of that trade. On a cloned or foreign config, nothing is
 downgraded at all: that is the case the control exists for.
 
-#### Untrusted content scanned at read time (`poisoning-scan-read.py`) — ships in shadow
+**What it blocks, and how you get past it.** When a finding survives calibration, the
+write stops with an `ask`. A plain retry does **not** get through, deliberately: the
+threat here is an agent that has been talked into writing a poisoned hook or rule,
+and that agent can retry as easily as you can. The escape is the operator-only
+confirm token — rule `cerberus-config-edit`, the same token mechanism, TTL and audit
+line as the protected-zone gate (`deny-destructive.py`, whose implementation this
+hook reuses). The ask prints the exact command; you run it in your own terminal,
+then re-issue the edit. Before v0.34.0 the ask told you to re-issue the edit and the
+re-issued edit was flagged again, so a legitimate flagged edit could never land —
+an `ask` with no working answer is a `deny` in disguise.
+
+#### Untrusted content scanned at read time (`poisoning-scan-read.py`) — enforcing since v0.34.0
 
 `poisoning-scan.py` was re-scoped off your own typed prompts because a person
 *describing* injection is not attempting one. That removed noise but also removed
@@ -153,6 +164,16 @@ attacks to buy quiet. Sender does separate them. Only `high` severity from an
 **The residual trade, stated rather than buried:** a compromised internal account
 sending an injection is logged, not blocked. Leave `internal_sender_domains` empty
 if that matters more to you than the extra prompts.
+
+**What it blocks, and how you get past it.** A flagged capture from an external
+sender stops the Read with an `ask`, so the assistant has to say it is reading the
+file as data before it does. Re-issuing the same Read in the same session goes
+through and is logged `poisoning-read:acknowledged`; a new session asks again. A
+retry is the right escape here, unlike for config writes: the risk is the content
+being *followed*, not being *seen*, and the pause is what makes that distinction
+explicit. Promoted on the reference deployment's evidence: in the 25 days after its
+last calibration it fired three times, all on internal mail, and none of those would
+have interrupted.
 
 #### Interactive write confinement (`validate-interactive-write.py`) — ships in shadow
 

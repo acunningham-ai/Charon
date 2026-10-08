@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-02",
+  "generated": "2026-10-08",
   "schema": 1,
   "capabilities": [
     {
@@ -7,6 +7,27 @@
       "class": "command",
       "shipped_in": null,
       "blurb": "The security audit now checks your permission ALLOW rules too -- rules that silently never match, and ones that let any script run or any file leave the machine without asking -- and can show you the warning Claude Code flashes at startup that is gone before you can read it.",
+      "questions": []
+    },
+    {
+      "id": "harness-fix",
+      "class": "command",
+      "shipped_in": null,
+      "blurb": "New /harness-fix: approve, decline or defer a review's fix options.",
+      "questions": []
+    },
+    {
+      "id": "harness-heal",
+      "class": "command",
+      "shipped_in": null,
+      "blurb": "New /harness-heal (propose-only): checks a pre-approved fix's preconditions before you run it.",
+      "questions": []
+    },
+    {
+      "id": "harness-review",
+      "class": "command",
+      "shipped_in": null,
+      "blurb": "New /harness-review: turns each failed scheduled run into a root cause and ranked fixes you can choose from.",
       "questions": []
     },
     {
@@ -24,10 +45,24 @@
       "questions": []
     },
     {
+      "id": "enforce-cochange",
+      "class": "hook",
+      "shipped_in": null,
+      "blurb": "Files you've said must change together are checked at the end of each turn: touch one without the other and the turn can't end until the co-change is done or explained.",
+      "questions": []
+    },
+    {
       "id": "enforce-memory-index-cochange",
       "class": "hook",
       "shipped_in": null,
       "blurb": "When you save a memory, it now checks you'd actually find it again -- by searching with the file's own description -- and won't let the turn end until it would. No index line needed.",
+      "questions": []
+    },
+    {
+      "id": "jit-memory",
+      "class": "hook",
+      "shipped_in": null,
+      "blurb": "The rule that applies to a file now shows up before you write to it, so a \"remember to also update X\" is in front of you at the moment you act, once per session.",
       "questions": []
     },
     {
@@ -38,10 +73,87 @@
       "questions": []
     },
     {
+      "id": "on-error",
+      "class": "hook",
+      "shipped_in": null,
+      "blurb": "Failed scheduled runs are now queued for /harness-review automatically.",
+      "questions": []
+    },
+    {
+      "id": "poisoning-scan-read",
+      "class": "hook",
+      "shipped_in": null,
+      "blurb": "The read-time injection scan now pauses on suspicious external mail; re-reading it in the same session goes through.",
+      "questions": []
+    },
+    {
+      "id": "scan-config-edits",
+      "class": "hook",
+      "shipped_in": null,
+      "blurb": "A config file that the scanner flags as possibly poisoned now needs your confirmation before it is written; an agent simply retrying is not enough.",
+      "questions": []
+    },
+    {
+      "id": "surface-harness-proposals",
+      "class": "hook",
+      "shipped_in": null,
+      "blurb": "Your session now opens by telling you when /harness-review has a fix proposal waiting for your decision, and says nothing when there isn't one.",
+      "questions": []
+    },
+    {
+      "id": "confidence-tags",
+      "class": "rule",
+      "shipped_in": null,
+      "blurb": "A red circle now means one thing: unverified. Whether something is good or bad is shown with a tick, a warning sign or a cross instead.",
+      "questions": []
+    },
+    {
       "id": "commitments",
       "class": "script",
       "shipped_in": null,
       "blurb": "python scripts/commitments.py --add \"...\" --date YYYY-MM-DD records a dated commitment; --due lists what is overdue or due this week; --done closes one.",
+      "questions": []
+    },
+    {
+      "id": "graph_dedupe",
+      "class": "script",
+      "shipped_in": null,
+      "blurb": "Removes the duplicate edges that re-running the graph extractor builds up, so counts and retrieval stop being skewed by repeats.",
+      "questions": []
+    },
+    {
+      "id": "harness-watch",
+      "class": "script",
+      "shipped_in": null,
+      "blurb": "The harness watch now spots failures that never reached the error log, risky unattended-run audits, and a review queue nobody has drained.",
+      "questions": []
+    },
+    {
+      "id": "harness_autoheal",
+      "class": "script",
+      "shipped_in": null,
+      "blurb": "/harness-heal checks whether a pre-approved, reversible fix (a capture re-run) is safe right now. Propose-only: it applies nothing yet.",
+      "questions": []
+    },
+    {
+      "id": "harness_autoreview",
+      "class": "script",
+      "shipped_in": null,
+      "blurb": "When a scheduled run fails, /harness-review explains why and gives you ranked fix options, from a hardened run that can't touch anything but its own note.",
+      "questions": []
+    },
+    {
+      "id": "harness_fix",
+      "class": "script",
+      "shipped_in": null,
+      "blurb": "/harness-fix records your call on each review: accept puts the fix at the top of the dev queue, decline stops it coming back.",
+      "questions": []
+    },
+    {
+      "id": "memory_graph",
+      "class": "script",
+      "shipped_in": null,
+      "blurb": "Your memories now join the knowledge graph: the wikilinks you write between memory files become graph edges, with no model and no API cost.",
       "questions": []
     },
     {
@@ -56,6 +168,13 @@
       "class": "script",
       "shipped_in": null,
       "blurb": "Keeps MEMORY.md small enough to be read in full: only your pickups and what's due now stay loaded, everything else moves to a searchable catalog, with a 16 KB ceiling.",
+      "questions": []
+    },
+    {
+      "id": "pickup_sweep",
+      "class": "script",
+      "shipped_in": null,
+      "blurb": "Your read-first Pickups list stays short: finished or long-quiet items are proposed for archive, and quiet ones move to the commitments register instead of disappearing.",
       "questions": []
     },
     {

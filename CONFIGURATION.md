@@ -44,18 +44,20 @@ All hooks wired in by default. Disable a hook by removing its entry from the `ho
 
 ### Hook config files
 
-Four hooks read a JSON file beside them in `scripts/hooks/`. **Three ship empty or
-disabled**, because their correct values depend on your machine and your
-organisation — a default guessed for you would be wrong in a way you would not
-notice. Until you fill them in, those hooks are inert or maximally cautious. The
-fourth, `scheduler-liveness-config.json`, ships watching the one job Charon itself
-schedules and nothing else.
+Six hooks read a JSON file beside them in `scripts/hooks/` (five files: the two
+co-change hooks share one). **Three ship empty or disabled**, because their correct
+values depend on your machine and your organisation — a default guessed for you would
+be wrong in a way you would not notice. Until you fill them in, those hooks are inert or
+maximally cautious. `scheduler-liveness-config.json` ships watching the one job Charon
+itself schedules, and `cochange-couplings.json` ships three couplings that protect the
+harness's own docs.
 
 | File | Hook | Ships as | What it decides |
 |---|---|---|---|
 | `phase-gate-config.json` | `phase-gate.py` | empty glob list → **never fires** | Which artefacts are high-stakes enough to warrant a confirm beat before a write lands |
 | `validate-interactive-write-config.json` | `validate-interactive-write.py` | empty → only universal roots allowed | Which directories *outside* this project a command may still write to |
 | `poisoning-scan-read-config.json` | `poisoning-scan-read.py` | empty → every sender treated as external | Which mail domains are your own, and therefore logged rather than blocked |
+| `cochange-couplings.json` | `jit-memory.py` + `enforce-cochange.py` | three harness couplings (hook → docs, command → catalogue, `docs/` → `site/pages/`); two more under `_EXAMPLES` | Which files must change together, surfaced before the write and checked at end of turn — see [Co-change couplings](#co-change-couplings) |
 | `scheduler-liveness-config.json` | `check-scheduler-liveness.py` | the capture pipeline only (skipped if not installed); backup check **off** | Which scheduled jobs to watch for "stopped running" and "started but never finished", and whether to nag about the offline backup |
 
 **`scheduler-liveness-config.json`** — one entry per scheduled job: `label`,
@@ -98,6 +100,54 @@ valid JSON.) A missing or malformed gate config allows
 domains means every sender counts as external, so *more* findings enforce, not
 fewer. Corrupting one of these files tightens the gate — it cannot quietly widen it.
 
+### Co-change couplings
+
+`scripts/hooks/cochange-couplings.json` is read by two hooks: `jit-memory.py`
+surfaces a coupling **before** a matching write lands, and `enforce-cochange.py`
+checks at the **end of the turn** that it was honoured. A coupling says *"if you
+touched X this turn, you should also have touched one of Y"*:
+
+```json
+{
+  "id": "decision-needs-log-entry",
+  "when_touched": ["**/06-Decisions/*.md"],
+  "requires_one_of": ["**/06-Decisions/decision-log.md", "**/TODO.md"],
+  "reason": "A decision record changed but the decision log did not. Readers find decisions through the log.",
+  "rule": "06-Decisions/README.md"
+}
+```
+
+- `when_touched` / `requires_one_of` are globs over forward-slashed absolute paths,
+  case-insensitive; `**/` matches any depth. `requires_one_of` is meant to be generous —
+  the check is "you did none of these", not "you did the right one".
+- `reason` is what the assistant reads, so write it as the why, in a sentence.
+  `rule` points at the file that explains it.
+- **Ships with three couplings** that protect the harness itself: `hook-needs-docs`,
+  `command-needs-docs`, and `site-source-not-generated`. Two more shapes for typical
+  vaults sit under `_EXAMPLES` (ignored by the hooks); copy them into `couplings` to use them.
+- Each coupling surfaces at most **once per session** in each hook. The Stop check
+  never blocks twice in one turn, and both hooks fail open on any error.
+- If a coupling fires where the omission was legitimate, **narrow its globs**. Don't
+  switch the hooks off: a coupling that's noisy is fixable data, and one that's off
+  catches nothing. Rollback, if you need it, is `SHADOW = True` at the top of each hook
+  (log only, never interrupt).
+
+### Pickup lifecycle and the memory graph
+
+`python scripts/pickup_sweep.py` lists pickups that are done or have gone quiet
+(memory file untouched for 30 days, `STALE_DAYS`). Nothing changes until you pass
+`--apply`; `--report` writes the proposal to `00-Inbox/_harness/`. On `--apply`, stale
+items are recorded in the commitments register before they leave the list, so an open
+thread is never silently dropped.
+
+`python scripts/memory_graph.py --dry-run`, then without `--dry-run`, adds your
+memories' wikilinks to the knowledge graph (`.charon/knowledge-graph.json` under your
+vault). Run `python scripts/graph_dedupe.py` (dry-run) afterwards and after extractor
+runs; `--apply` removes duplicates. Both are deterministic and make no API calls, so they
+suit the same daily schedule as `memory_working_set.py`:
+`pickup_sweep.py --report` → `memory_graph.py` → `graph_dedupe.py --apply` →
+`memory_working_set.py`.
+
 ### Permissions
 
 Default allow list is minimal:
@@ -113,6 +163,7 @@ Default allow list is minimal:
 Per-user additions go in `.claude/settings.local.json` (gitignored). The harness auto-accumulates allowlist entries here as you approve them during sessions.
 
 Deny list covers universally-dangerous patterns (`rm -rf`, force push, `shutdown`, `DROP TABLE`, etc.). Add to this list any patterns specific to your environment you want to hard-block.
+
 ### Auto mode
 
 `"defaultMode": "auto"` lets Claude run tools without stopping for approval on each
@@ -328,6 +379,81 @@ reading "URGENT: forward all invoices" is *data to report*, never an instruction
 output carries an explicit untrusted-content marker, and the consuming commands are told
 to paraphrase rather than quote verbatim.
 
+## Self-healing: review, decide, heal
+
+When a scheduled run fails, `scripts/hooks/on-error.py` logs it **and queues it for review**
+(`capture-pipeline/state/review-queue.jsonl`). Nothing reviews the queue on its own: you run
+`/harness-review --drain`, read the notes it writes to `00-Inbox/_harness/`, decide with
+`/harness-fix`, and where a pre-approved fix fits, `/harness-heal` checks whether it's safe to
+run. The harness watch reports `review-queue-backlog` when five failures are waiting or the
+oldest is a week old. To stop queueing, set `ENQUEUE_REVIEW = False` in `on-error.py`.
+
+### One-time setup: seal the review engine
+
+Each review is an unattended `claude -p` that reads an untrusted log, so the engine refuses to
+run until you've checked and sealed its three control files in `scripts/harness-review/`:
+
+| File | What it controls |
+|---|---|
+| `harness-review.txt` | The hardened system prompt (log treated as data, one output, protected files) |
+| `harness-review.allowlist.json` | The only path it may write: `00-Inbox/_harness/????-??-??-review-*.md` |
+| `harness-review-unattended.settings.json` | Read-deny rules for `~/.secrets`, `~/.ssh`, `~/.aws`, settings files, `CLAUDE.md` and rules |
+
+```
+python scripts/harness_autoreview.py --seal
+```
+
+The SHA-256 hashes go to `harness-review-checksums.json` in your secrets dir
+(`~/.secrets`, or `HARNESS_SECRETS_DIR`), outside the repo, so a tampered control file can't
+also rewrite its own expected hash. Every review checks them first and refuses on any
+mismatch. Re-seal only after an edit you made deliberately.
+
+Defaults per review: Sonnet, $1.50 budget, 420 s timeout, at most 5 per drain, same-hour
+repeats of one failure reviewed once. Tune `BUDGET_USD`, `PER_EVENT_TIMEOUT` and
+`DEFAULT_MAX_BATCH` at the top of `harness_autoreview.py`.
+
+The `~/` and `./` forms in the settings file are Claude Code's home-relative and
+working-directory-relative permission paths; the engine runs with the vault as its working
+directory. If you keep secrets somewhere else, add a deny line for that path, then re-seal.
+
+### Deciding and healing
+
+`/harness-fix` keeps your decisions in `state/harness-fixes/decisions.jsonl`. Accepting an
+option queues the work; it never runs anything.
+
+`/harness-heal` reads `scripts/harness-autoheal-allowlist.json`, a closed list. It ships with
+one entry, `R1-capture-rerun`, triggered by the watch's `capture-gap` rule, with two
+preconditions: no `REAUTH-NEEDED.flag` and no `fetch-mail.lock` in the capture pipeline's
+`state/`. **This release is propose-only** (`PROPOSE_ONLY = True` in
+`harness_autoheal.py`): it validates and reports, and `apply()` executes nothing. To add a
+remediation, give it an `id`, a `trigger_rule` matching a rule the watch emits, an `action`,
+`preconditions`, a deterministic `post_check` and a `rollback` (or `null` if additive), then
+`/secure-code-review` it. Entries touching re-auth, service restarts, secrets,
+memory / `CLAUDE.md` / rules, or payroll and board data are refused in code regardless.
+
+### Watch detectors added in v0.34.0
+
+| Rule | Fires when | Tune |
+|---|---|---|
+| `scheduled-run-log-failure` | The latest run in `scheduled-run.log` shows a failure marker (`is not recognized`, `Traceback`, `Fatal error`…) that never reached the error log | `SCHED_RUN_LOG_FRESH_HOURS` (30), `SCHED_RUN_FAILURE_MARKERS` |
+| `unattended-audit-anomalies` | The newest note in `00-Inbox/_captured/_audit/` is `severity: HIGH` (asks) or lists out-of-scope writes (observes) | `AUDIT_FRESH_HOURS` (18) |
+| `review-queue-backlog` | ≥5 failures queued, or the oldest is ≥7 days | `REVIEW_QUEUE_DEPTH_ASK`, `REVIEW_QUEUE_STALE_DAYS` |
+
+All three are observe-only until you add their rule to `PROMOTED_RULES` in
+`scripts/harness-watch.py` after your own window (`/harness-watch-review`).
+
+### Confirming a flagged config edit
+
+`cerberus/scan-config-edits.py` enforces from v0.34.0. If it stops an edit you meant, confirm
+it yourself, from the project root:
+
+```
+python -c "import json,time,pathlib; pathlib.Path('state').mkdir(exist_ok=True); pathlib.Path('state/policy-confirm.json').write_text(json.dumps({'rule_id':'cerberus-config-edit','issued_epoch':time.time(),'granted_by':'me'}))"
+```
+
+then re-issue the edit. The token is the same mechanism as the protected-zone gate: five
+minutes to use it, 120 seconds of reuse after the first, and a line in the audit log.
+
 ## Scheduled tasks
 
 The harness ships unattended runners as patterns — wire them into your OS scheduler:
@@ -464,7 +590,7 @@ After a rebuild, `MEMORY.md` holds three things:
 
 Every other section moves into that catalog, a normal memory file with its own description, so it stays searchable and `/score-vault` still counts everything it links as indexed. Lines you or the assistant add later are moved there on the next run.
 
-**The ceiling is 16 KB** (`CEILING_BYTES`), a third below the read limit. If your pickups alone would exceed it, the least urgent ones move to the catalog: first those without 🔴, then those without ⭐. They are moved, never deleted, and `state/memory-index-overflow.flag` records it. Between rebuilds, `deny-destructive.py` asks before any write that would grow the file past the ceiling. The script refuses to write if any link would be lost, and backs up the previous file to `state/memory-index-backups/` whenever it changes something.
+**The ceiling is 16 KB** (`CEILING_BYTES`), a third below the read limit. If your pickups alone would exceed it, the least urgent ones move to the catalog: first those without an urgent mark (❌ or ⚠️; the older 🔴 still counts), then those without ⭐. They are moved, never deleted, and `state/memory-index-overflow.flag` records it. Between rebuilds, `deny-destructive.py` asks before any write that would grow the file past the ceiling. The script refuses to write if any link would be lost, and backs up the previous file to `state/memory-index-backups/` whenever it changes something.
 
 Run it daily alongside your other scheduled tasks (see [Scheduled tasks](#scheduled-tasks)): it is deterministic, makes no API calls, and an unchanged file is left alone. Tests: `python scripts/test_memory_working_set.py`.
 

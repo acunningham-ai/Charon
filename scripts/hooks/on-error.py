@@ -18,8 +18,14 @@ Usage:
 
 Failures inside this handler are silent (always returns 0) — must never
 cascade into making a failing automation fail harder.
+
+Also (ENQUEUE_REVIEW): appends a review request to
+capture-pipeline/state/review-queue.jsonl, which `/harness-review --drain` turns
+into a {root cause + ranked fix options} note. This handler never runs the
+review itself — it only queues it.
 """
 import json
+import re
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -35,6 +41,16 @@ ERROR_LOG = capture_pipeline_root() / "state" / "error-log.jsonl"
 # alongside that hook's live staleness check. Matched by substring so it fires
 # for whatever the user names their TODO-regen runner.
 TODO_FLAG = capture_pipeline_root() / "state" / "TODO-REGEN-FAILED.flag"
+
+# --- Self-healing front end (scripts/harness_autoreview.py) ----------------
+# Every logged failure also drops a review request into review-queue.jsonl. The
+# append is cheap and deterministic; this handler NEVER spawns a model itself
+# (that would put an unattended LLM inside the failure path and break the
+# always-return-0 contract). Reviews happen only when you run
+# `/harness-review --drain`. The harness watch reports when the queue backs up.
+# Set False to stop queueing; nothing else depends on it.
+ENQUEUE_REVIEW = True
+REVIEW_QUEUE = capture_pipeline_root() / "state" / "review-queue.jsonl"
 
 
 def append_jsonl(entry: dict) -> None:
@@ -115,6 +131,29 @@ def write_todo_flag(runner_name: str, exit_code: str, tail: str) -> None:
         pass
 
 
+def enqueue_review(runner_name: str, exit_code: str, tail: str, ts: str) -> None:
+    """Append one review request for `/harness-review --drain`. Fail-silent: a
+    queue-write error must never make the failing automation fail harder."""
+    if not ENQUEUE_REVIEW:
+        return
+    try:
+        digits = re.sub(r"[^0-9]", "", ts)[:14] or "00000000000000"
+        slug = re.sub(r"[^a-z0-9-]+", "-", str(runner_name).lower()).strip("-")[:40] or "unknown"
+        entry = {
+            "event_id": f"{digits}-{slug}"[:80],
+            "ts": ts,
+            "bat": runner_name,      # the field the review engine + queue detector read
+            "runner": runner_name,   # matches error-log.jsonl
+            "exit_code": exit_code,
+            "tail": tail,
+        }
+        REVIEW_QUEUE.parent.mkdir(parents=True, exist_ok=True)
+        with REVIEW_QUEUE.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
 def main() -> int:
     if len(sys.argv) < 3:
         return 0
@@ -130,6 +169,7 @@ def main() -> int:
     }
     append_jsonl(entry)
     show_toast(runner_name, exit_code)
+    enqueue_review(runner_name, exit_code, tail, entry["ts"])
     # A runner whose name mentions "todo" is a TODO-regeneration step; record the
     # failure durably so the freshness hook can name it at next session start.
     if "todo" in runner_name.lower():

@@ -35,8 +35,8 @@ nav{position:sticky;top:0;z-index:40;background:rgba(252,252,253,.82);backdrop-f
 .nav-in{display:flex;align-items:center;height:60px;gap:8px}
 .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:17px;letter-spacing:-.02em}
 .brand .glyph{width:22px;height:22px;display:grid;place-items:center;color:var(--accent)}
-.nav-links{display:flex;gap:4px;margin-left:26px}
-.nav-links a{padding:7px 11px;border-radius:7px;color:var(--ink-2);font-size:14.5px;font-weight:450;transition:background .15s,color .15s}
+.nav-links{display:flex;gap:2px;margin-left:18px}
+.nav-links a{padding:7px 8px;border-radius:7px;color:var(--ink-2);font-size:14px;font-weight:450;white-space:nowrap;transition:background .15s,color .15s}
 .nav-links a:hover{background:var(--bg-3);color:var(--ink)}
 .nav-links a.active{color:var(--accent-ink);background:var(--accent-weak)}
 .nav-right{margin-left:auto;display:flex;align-items:center;gap:6px}
@@ -48,7 +48,8 @@ nav{position:sticky;top:0;z-index:40;background:rgba(252,252,253,.82);backdrop-f
 .btn-dark:active{transform:translateY(0)}
 .btn-line{background:#fff;border-color:var(--line-2);color:var(--ink)}
 .btn-line:hover{border-color:var(--faint);background:var(--bg-2)}
-@media(max-width:880px){.nav-links{display:none}}
+@media(max-width:1200px){.nav-ghost{display:none}}
+@media(max-width:1060px){.nav-links{display:none}}
 
 /* ---------- hero (deep-dive) ---------- */
 .phero{position:relative;padding:74px 0 30px;overflow:hidden}

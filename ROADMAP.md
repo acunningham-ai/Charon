@@ -10,6 +10,8 @@ Where Charon is going. Status, rationale, and what isn't on the list.
 
 ## Done (recently shipped)
 
+- ✅ **Charon remembers what matters, and tells you what broke** (2026-10-08, `v0.34.0`). Failed scheduled runs are queued; `/harness-review --drain` turns each into a likely cause and ranked fixes; a session-start hook says when proposals are waiting; `/harness-fix` records your decision; `/harness-heal` checks a pre-approved fix, propose-only. The watch grows from 8 to 11 self-tested detectors, observe-only. `jit-memory` surfaces the rule for a file as it is written and `enforce-cochange` checks files that must change together did; the memory graph takes in your memories' links; the pickup lifecycle keeps the read-first list short without dropping open threads. Read-time injection scan and config-edit scan leave shadow, each with a way past it. New deep-dive: `site/pages/self-healing.html`.
+
 - ✅ **MEMORY.md stays small enough to be read, and dated commitments surface** (2026-10-02, `v0.33.0`). `scripts/memory_working_set.py` keeps the one always-loaded memory file to your pickups and what's due now, moves everything else into a searchable catalog, and holds a 16 KB ceiling under Claude Code's ~24 KB read limit, backed by an in-session ask in `deny-destructive.py`. Two new session-start checks: `check-commitments.py` lists overdue and due-soon commitments from `scripts/commitments.py`, and `check-scheduler-liveness.py` says when a scheduled job has stopped producing output. `/score-vault` stops reporting false orphans.
 
 - ✅ **A memory you save is checked for whether you'd find it again** (2026-10-02, `v0.32.0`). New Stop hook `enforce-memory-index-cochange.py`: at the end of each turn it searches your memory with each new file's own description, and won't let the turn end until the file comes back in the top 10. Being listed in an index is not being findable, so an index line doesn't satisfy it. `scripts/memory_reachability.py` runs the same test over your whole memory.
@@ -257,7 +259,9 @@ Design points that must survive the port:
 - **No result is ever dropped to save space.** Coverage is bounded by relevance;
   when the byte budget binds, per-item detail degrades before the list does.
 
-### 🚧 Commitment register — dated reviews stop expiring quietly
+### ✅ Commitment register — dated reviews stop expiring quietly
+
+**Shipped:** the register and session-start surfacing in `v0.33.0`; the pickup lifecycle in `v0.34.0`.
 
 A shadow window that nobody reviews silently becomes permanent. Dated
 commitments — promotion gates, reviews, ports — are agreed in working sessions,
@@ -324,7 +328,7 @@ The counterpart to self-healing: where healing *restores* a known-good state, th
 
 **Source / rationale:** 2026 research that LLMs can't reliably self-correct without external verification, and that training on unverified/own output drives model collapse — so "no clean signal, no learning loop."
 
-Cerberus already grades every finding `validation_status: theoretical | partial | validated` — nothing claims `validated` without a proof-of-concept. Extend the same discipline to `/secure-code-review` + `/owasp-{llm,agentic}-review`: a 🔴 should carry a **reproduction**, not just a `file:line` citation, before it blocks a merge. Raises the bar from "cite the line" to "show it's real" — the defensive mirror of the Artemis proof-by-exploitation principle, and a natural tightening of the existing `/fp-check` gate.
+Cerberus already grades every finding `validation_status: theoretical | partial | validated` — nothing claims `validated` without a proof-of-concept. Extend the same discipline to `/secure-code-review` + `/owasp-{llm,agentic}-review`: a ❌ should carry a **reproduction**, not just a `file:line` citation, before it blocks a merge. Raises the bar from "cite the line" to "show it's real" — the defensive mirror of the Artemis proof-by-exploitation principle, and a natural tightening of the existing `/fp-check` gate.
 
 ### 📅 Skill-catalog discovery skill
 

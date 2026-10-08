@@ -12,14 +12,14 @@ Sibling skill: `/secure-code-review`, `/owasp-llm-review`, and `/owasp-agentic-r
 
 ## When to use
 
-- After `/secure-code-review` on a 🔴 finding, before it blocks merge.
-- After `/owasp-llm-review` or `/owasp-agentic-review` on any 🔴 finding.
+- After `/secure-code-review` on a ❌ finding, before it blocks merge.
+- After `/owasp-llm-review` or `/owasp-agentic-review` on any ❌ finding.
 - Before reporting any security claim to a developer or stakeholder.
 - Before adding a finding to a `security-reviews/` artifact.
 
 ## When NOT to use
 
-- For 🟡 warnings — they're already calibrated as "needs context". Run FP-check only on 🔴.
+- For ⚠️ warnings — they're already calibrated as "needs context". Run FP-check only on ❌.
 - For deterministic-script exemptions already recorded in `07-References/security-baselines.md` §Exemptions — read that register first.
 - For findings without a `file:line` citation — upstream skills shouldn't produce those; this skill assumes citation discipline.
 - For design / architectural concerns — different shape; raise in a decision record instead.
@@ -30,7 +30,7 @@ Sibling skill: `/secure-code-review`, `/owasp-llm-review`, and `/owasp-agentic-r
 
 `$ARGUMENTS` — required. Two forms accepted:
 - **Inline finding** — quoted text containing one or more `<file>:<line>` references plus a claim
-- **Report path** — path to a `security-reviews/*.md` artifact (extract all 🔴 findings)
+- **Report path** — path to a `security-reviews/*.md` artifact (extract all ❌ findings)
 
 If empty: ask *"Paste a finding or a security-reviews path. Need at least one `file:line` citation."*
 
@@ -44,7 +44,7 @@ For each finding:
 ### 3. Check compensating context
 
 For each finding that grounds:
-- **Upstream sanitisation** — is there a validator / schema / `assert` / framework auto-escape between the untrusted input and the cited line? Grep up to the function entry; if found, the finding is mitigated → DOWNGRADE to 🟡 or WITHDRAW with reason.
+- **Upstream sanitisation** — is there a validator / schema / `assert` / framework auto-escape between the untrusted input and the cited line? Grep up to the function entry; if found, the finding is mitigated → DOWNGRADE to ⚠️ or WITHDRAW with reason.
 - **Framework default-safe** — React / Svelte auto-escape, Pydantic / Zod validation in route handlers, ORM parametrised queries — default-safe paths. → DOWNGRADE / WITHDRAW.
 - **Registered exemption** — read `07-References/security-baselines.md` §Exemptions. If the path or pattern has a documented exemption, → WITHDRAW citing the exemption ID.
 - **Test / fixture code** — paths under `tests/`, `fixtures/`, `__mocks__/`, `*.test.*` are generally exempt from C-1..C-8 (different threat model). → WITHDRAW unless the fixture *is* the production attack surface.
@@ -53,10 +53,10 @@ For each finding that grounds:
 
 | Original | Verification result | New grade |
 |---|---|---|
-| 🔴 | Citation grounds + no exemption + no mitigation | 🔴 VERIFIED |
-| 🔴 | Upstream mitigation found | 🟡 DOWNGRADED — name the mitigation |
-| 🔴 | Exemption registered | 🟢 WITHDRAWN — cite exemption ID |
-| 🔴 | Citation does not ground | 🟢 WITHDRAWN — finding fabricated |
+| ❌ | Citation grounds + no exemption + no mitigation | ❌ VERIFIED |
+| ❌ | Upstream mitigation found | ⚠️ DOWNGRADED — name the mitigation |
+| ❌ | Exemption registered | ✅ WITHDRAWN — cite exemption ID |
+| ❌ | Citation does not ground | ✅ WITHDRAWN — finding fabricated |
 
 ### 5. Output
 
@@ -65,14 +65,14 @@ For each finding that grounds:
 **Findings reviewed:** N
 **Verified:** N  |  **Downgraded:** N  |  **Withdrawn:** N
 
-### 🔴 VERIFIED
+### ❌ VERIFIED
 - **<title>** — `<file>:<line>` — original claim holds. Evidence: <quoted snippet>. No upstream mitigation, no exemption.
 
-### 🟡 DOWNGRADED
-- **<title>** — `<file>:<line>` — 🔴 → 🟡. Reason: <upstream sanitisation at <file>:<line> / framework auto-escape / etc.>.
+### ⚠️ DOWNGRADED
+- **<title>** — `<file>:<line>` — ❌ → ⚠️. Reason: <upstream sanitisation at <file>:<line> / framework auto-escape / etc.>.
 
-### 🟢 WITHDRAWN
-- **<title>** — `<file>:<line>` — 🔴 → 🟢. Reason: <exemption ID / fabricated citation / test fixture>.
+### ✅ WITHDRAWN
+- **<title>** — `<file>:<line>` — ❌ → ✅. Reason: <exemption ID / fabricated citation / test fixture>.
 ```
 
 If the user says "save it" → append to the source `security-reviews/*.md` artifact under a `## FP-check pass — {YYYY-MM-DD}` heading. **Don't overwrite the original verdict** — add the FP-pass alongside it so the audit trail survives.

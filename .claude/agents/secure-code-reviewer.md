@@ -51,25 +51,25 @@ You do not modify code; read-only inspection only. Findings only, with file:line
 
 ## Summary
 - Files reviewed: N · Lines: N
-- 🔴 findings (block merge): N · 🟡 (review): N · 🟢 (passing): N
+- ❌ findings (block merge): N · ⚠️ (review): N · ✅ (passing): N
 
 ## C-1..C-8 baseline
-### 🔴 / 🟡 / 🟢 findings grouped by control
+### ❌ / ⚠️ / ✅ findings grouped by control
 
 ## Secure-coding findings
-### 🔴 / 🟡 / 🟢 findings grouped by domain (Input / SQL / XSS / Auth / etc.)
+### ❌ / ⚠️ / ✅ findings grouped by domain (Input / SQL / XSS / Auth / etc.)
 
 ## Recommended next step
-- Run `/fp-check` on every 🔴 before treating as a block.
+- Run `/fp-check` on every ❌ before treating as a block.
 - Pair with `owasp-llm-reviewer` if LLM-consumer surface is present.
 - Pair with `owasp-agentic-reviewer` if agentic surface is present.
 ```
 
 ## Discipline
 
-- 🔴 = blocking. Must include evidence (`file:line` + relevant snippet excerpt).
-- 🟡 = needs review. Could be a finding or a false positive — the parent runs `/fp-check`.
-- 🟢 = passing control worth surfacing (load-bearing protections).
+- ❌ = blocking. Must include evidence (`file:line` + relevant snippet excerpt).
+- ⚠️ = needs review. Could be a finding or a false positive — the parent runs `/fp-check`.
+- ✅ = passing control worth surfacing (load-bearing protections).
 
 ## When NOT to fire
 
@@ -80,6 +80,6 @@ You do not modify code; read-only inspection only. Findings only, with file:line
 ## Anti-patterns
 
 - Findings without `file:line`
-- Marking everything 🔴 — graduates findings by severity
+- Marking everything ❌ — graduates findings by severity
 - Writing fixes — produce findings only
 - Defaulting to 🟢 without freshly re-reading the cited file

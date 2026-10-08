@@ -39,9 +39,15 @@ try:
 except Exception:
     pass
 
-# Shadow phase: log-only. Flip to False to enforce `ask`. Run your own window
-# first — see the calibration note below for what to look for.
-SHADOW = True
+# ENFORCING since v0.34.0 — promoted after the reference deployment's 25-day
+# post-recalibration window: 3 high-severity fires, all false positives on
+# internal mail, all of which only log (internal senders never interrupt). An
+# unknown external sender carrying real markers now stops the Read and asks.
+# Re-issuing the same Read in the same session goes through (see _acknowledge),
+# so the ask is a speed bump, never a wall. List your own mail domains in
+# poisoning-scan-read-config.json to stop colleagues' mail asking.
+# Revert = set this back to True (one line).
+SHADOW = False
 
 # Never read more than this into memory. A captured state file can be many MB; an
 # injection payload that needs more than 256 KB of preamble to work is not the
@@ -176,6 +182,35 @@ def _sender_class(text: str) -> tuple:
     return ("external", "<no sender header>")
 
 
+_ACK_PATH = Path(__file__).resolve().parents[2] / "state" / "poisoning-read-asked.json"
+
+
+def _acknowledge(session_id: str, target: str) -> bool:
+    """The answer channel for the ask. True if this file was already flagged once in
+    this session, so this Read is the deliberate re-issue the ask message invites.
+    Otherwise record it and return False (ask now). Any error -> False, i.e. ask:
+    the safe direction. Without this, the re-issued Read would be blocked again and
+    a flagged capture could never be opened — a deny pretending to be an ask."""
+    if not session_id:
+        return False
+    key = session_id + "|" + str(target).replace("\\", "/").lower()
+    try:
+        seen = json.loads(_ACK_PATH.read_text(encoding="utf-8")) if _ACK_PATH.exists() else {}
+    except Exception:
+        seen = {}
+    if key in seen:
+        return True
+    try:
+        seen[key] = 1
+        if len(seen) > 500:  # bounded: the latest 500 flags
+            seen = dict(list(seen.items())[-500:])
+        _ACK_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _ACK_PATH.write_text(json.dumps(seen), encoding="utf-8")
+    except Exception:
+        pass
+    return False
+
+
 def main() -> int:
     # Any missing dependency → not our gate. Never block a read.
     if scan is None or trust_zone is None:
@@ -252,6 +287,14 @@ def main() -> int:
     )
 
     if effective == "ask":
+        if _acknowledge(data.get("session_id", ""), target):
+            emit_verdict(
+                hook=HOOK_NAME, rule="poisoning-read:acknowledged", verdict="observe",
+                reason="flagged capture re-read after the ask: reading as data",
+                context={"target": str(target).replace("\\", "/"), "severity": result["severity"]},
+                session_id=data.get("session_id", ""),
+            )
+            return 0
         write_ask_stderr(
             rule=f"{HOOK_NAME} / poisoning-read:{result['severity']}",
             reason=reason,
