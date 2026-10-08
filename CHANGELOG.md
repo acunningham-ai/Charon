@@ -4,6 +4,43 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+## [0.35.1] - 2026-10-08
+
+**The policy rules now actually run.** A fix found while verifying v0.35.0: Charon shipped `scripts/policy/policy.json`
+and its engine, but no hook ever called the engine, so none of its rules ran. That includes the shell rules and the
+protected-config rule that `CLAUDE.md` says gates your settings.
+
+### Fixed — policy rules were shipped but never evaluated
+
+**What was wrong.** `deny-destructive.py` returned early for any tool call without a file path (every Bash call),
+never called `_policy.py`, and `settings.json` sent no Bash calls to it. Every rule in `policy.json` was inert:
+`protected-config-write` and its shell twin, the three Agent Org rules added in v0.35.0, and the watch-only rules.
+
+**What changed.** The hook runs the policy engine first, for Edit, Write and Bash, and `settings.json` now routes Bash
+to it. Rules marked `"enforce": true` act (asking before `CLAUDE.md` / `settings.json` change, and guarding Agent Org
+approvals and the roster); all others log a would-be verdict and allow, as designed.
+
+**Why it matters.** A control that's documented but not wired is worse than none: it reads as protection. New release
+check **D37** drives real payloads through the hook (a denied write, an asked redirect, a harmless command) and checks
+the Bash routing, so this can't go quiet again.
+
+### Changed — the Agent Org shell rule fires only on a real write
+
+`agent-org-control-write-via-shell` used to fire on any command line that merely *mentioned* an approval or roster path
+after a `>` character (a note or a description string was enough). It now needs a real redirect whose target is the
+file, including quoted paths with spaces. Real writes are still caught.
+
+### Changed — every agent inherits your model
+
+The four standing reviewers (`secure-code-reviewer`, `owasp-llm-reviewer`, `owasp-agentic-reviewer`,
+`knowledge-synthesizer`) pinned an older model id. They now use `model: inherit`, like every other agent: your model
+choice applies everywhere, and a model update never leaves them behind.
+
+### Fixed — `memory-retrieve` recognises unattended runs again
+
+It checked the author's environment variable name instead of Charon's `HARNESS_UNATTENDED_ALLOWLIST`, so an unattended
+run could have been treated as a person asking. Opt-in hook; one-line fix.
+
 ## [0.35.0] - 2026-10-08
 
 **Agent Org: see your agents work, with Zeus as Chief of Staff.** Charon's first capability built on Claude Code
@@ -2113,7 +2150,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.35.0...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.35.1...HEAD
+[0.35.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.35.1
 [0.35.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.35.0
 [0.34.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.34.0
 [0.33.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.33.0

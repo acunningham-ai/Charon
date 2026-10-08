@@ -177,7 +177,7 @@
     },
     {
       "id": "agent-org-control-write-via-shell",
-      "description": "The shell half of agent-org-approvals-write and agent-org-roster-write. Same known limits as protected-config-write-via-shell: regex over a shell string cannot tell quoting a path from writing it (false positives cost a confirmation), and interpreter writes (python -c, node -e) are only partly matched. Raises the cost of the obvious bypass; not complete mediation.",
+      "description": "The shell half of agent-org-approvals-write and agent-org-roster-write. Same known limits as protected-config-write-via-shell: regex over a shell string. The redirect pattern needs a real redirect (a > operator after whitespace, start, or ; & | ( ) whose target IS the control file, so text that merely mentions the path no longer fires; quoted targets with spaces still match. Interpreter writes (python -c, node -e) are only partly matched. Raises the cost of the obvious bypass; not complete mediation.",
       "applies_to": [
         "*"
       ],
@@ -186,7 +186,7 @@
           "Bash"
         ],
         "command_patterns": [
-          ">>?\\s*[^|;&\\n\\r]*agent-org[/\\\\](approvals\\.json|roster\\.json|specialists)",
+          "(?:^|[\\s;&|(])\\d?>>?\\s*(?:\\\"[^\\\"\\n\\r]*|'[^'\\n\\r]*|[^\\s|;&'\\\"]*)agent-org[/\\\\](approvals\\.json|roster\\.json|specialists)",
           "\\b(tee|cp|mv|rename|Copy-Item|Move-Item)\\b[^|;&\\n\\r]*agent-org[/\\\\](approvals\\.json|roster\\.json|specialists)",
           "\\bsed\\s+-i\\b[^|;&\\n\\r]*agent-org[/\\\\](approvals\\.json|roster\\.json|specialists)",
           "\\b(Set-Content|Add-Content|Out-File)\\b[^|;&\\n\\r]*agent-org[/\\\\](approvals\\.json|roster\\.json|specialists)"

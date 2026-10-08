@@ -2,7 +2,7 @@
 name: secure-code-reviewer
 description: General secure-code review over a specified path. Covers C-1..C-8 baseline + secure-coding fundamentals (input validation, SQL, XSS, auth, crypto, dangerous functions, path traversal). Use as the default pre-merge security review.
 tools: Read, Grep, Glob
-model: claude-sonnet-4-6
+model: inherit
 ---
 
 # Charon — Secure-Code Reviewer subagent

@@ -71,6 +71,15 @@
             "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/poisoning-scan-read.py\""
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/deny-destructive.py\""
+          }
+        ]
       }
     ],
     "PostToolUse": [

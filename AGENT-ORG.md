@@ -101,8 +101,8 @@ These are not instructions to the model. The mod refuses the spawn before it sta
 
 ### Looking ahead
 
-Zeus, the seats and every specialist run on the model you have set in Claude Code (the four standing reviewers name
-their own in their agent files). A natural next step is for Zeus to propose the
+Every agent, Zeus, the seats, the standing reviewers and every specialist, runs on the model you have set in
+Claude Code. A natural next step is for Zeus to propose the
 model for each agent based on what it needs to do: a small, fast one for a mechanical lookup, a stronger one for
 judgement. It would show on the approval card with its reason, it would never be silent, and your own model would
 stay the default. It's on the roadmap, not in this release.

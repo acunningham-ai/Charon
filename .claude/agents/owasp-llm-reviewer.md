@@ -2,7 +2,7 @@
 name: owasp-llm-reviewer
 description: OWASP Top 10 for LLM Applications 2025 review over a specified path. Use when the path has LLM-consumer surface (SDK calls, prompt construction, RAG, budget controls). Returns findings tagged by LLM01-LLM10 category with file:line citations.
 tools: Read, Grep, Glob
-model: claude-sonnet-4-6
+model: inherit
 ---
 
 # Charon — OWASP LLM Reviewer subagent

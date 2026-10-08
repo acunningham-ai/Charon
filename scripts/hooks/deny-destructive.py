@@ -38,6 +38,8 @@ except Exception:
     def emit_verdict(*args, **kwargs):  # type: ignore
         return kwargs.get("verdict", "allow")
 
+HOOK_NAME = "deny-destructive"
+
 
 # --- the confirmation channel ----------------------------------------------
 #
@@ -282,6 +284,51 @@ def main() -> int:
         or tool_input.get("notebook_path")
         or ""
     )
+    # --- Policy engine (scripts/policy/policy.json via _policy.py). Runs BEFORE the
+    # no-file-path return so Bash commands are evaluated too: until v0.35.1 this block
+    # was missing, the early return came first, and every rule in policy.json -- the
+    # Bash ones especially -- never ran. Rules with "enforce": true are acted on here;
+    # every other rule is logged as a would-be verdict (shadow) and allowed. Any
+    # failure in this block falls through to the hardcoded protections below, which
+    # remain the floor. ---
+    try:
+        from _policy import shadow_emit
+        _profile = "unattended" if os.environ.get("HARNESS_UNATTENDED_ALLOWLIST") else "interactive"
+        _decision = shadow_emit(HOOK_NAME, {
+            "tool": data.get("tool_name", ""),
+            "path": file_path,
+            "command": tool_input.get("command", ""),
+            "automation": _profile,
+        }, profile=_profile, session_id=data.get("session_id", ""))
+
+        if (_decision.get("enforce") and _decision.get("verdict") == "ask"
+                and _consume_policy_confirm(_decision.get("rule_id", ""),
+                                            data.get("session_id", ""))):
+            pass  # the user confirmed; token consumed and logged. Fall through to allow.
+        elif _decision.get("enforce") and _decision.get("verdict") in ("ask", "deny"):
+            try:
+                from _verdict import write_ask_stderr
+            except Exception:
+                write_ask_stderr = None
+            if _decision["verdict"] == "ask" and write_ask_stderr:
+                write_ask_stderr(
+                    rule=f"policy / {_decision.get('rule_id', '')}",
+                    reason=_decision.get("reason", ""),
+                    retry_hint=(
+                        f"re-issue the action once the user has confirmed it (rule "
+                        f"`{_decision.get('rule_id', '')}`). Do not route around this by "
+                        f"writing to a different path or running a different command."
+                    ),
+                )
+            else:
+                sys.stderr.write(
+                    f"BLOCKED by policy rule '{_decision.get('rule_id', '')}': "
+                    f"{_decision.get('reason', '')}\n"
+                )
+            return 2
+    except Exception:
+        pass
+
     if not file_path:
         return 0
 

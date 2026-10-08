@@ -2,7 +2,7 @@
 name: knowledge-synthesizer
 description: Synthesise a durable framework doc from scattered captures, memory, and project notes on a single topic. Use when the parent identifies a synthesis-worthy topic; runs in isolation with read-only vault access + write access to 07-References/ only.
 tools: Read, Grep, Glob, Write
-model: claude-sonnet-4-6
+model: inherit
 ---
 
 # Charon — Knowledge Synthesizer subagent

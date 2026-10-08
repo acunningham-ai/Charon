@@ -2,7 +2,7 @@
 name: owasp-agentic-reviewer
 description: OWASP Agentic AI Security 2026 (ASI01-ASI10) review over a specified path. Use when the path has agentic surface (system prompts, tool dispatch, memory, sub-agents, MCP). Returns findings tagged by ASI category with file:line citations.
 tools: Read, Grep, Glob
-model: claude-sonnet-4-6
+model: inherit
 ---
 
 # Charon — OWASP Agentic Reviewer subagent

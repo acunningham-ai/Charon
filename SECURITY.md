@@ -82,6 +82,8 @@ The `deny-destructive` PreToolUse hook protects, by default:
 
 Extend this list to match your additional protected zones — edit `PROTECTED_GLOBS` in `scripts/hooks/deny-destructive.py`.
 
+**Policy rules (`scripts/policy/policy.json`).** The same hook runs the policy engine (`_policy.py`) on every Edit, Write and **Bash** call. Rules marked `"enforce": true` act: `protected-config-write` and its shell twin ask before `CLAUDE.md`, `MEMORY.md`, `TODO.md` or `.claude/settings*.json` change, and the three Agent Org rules guard the approval and roster files. Every other rule logs a would-be verdict to `state/verdict/` and allows, so you can watch it before promoting it. Until v0.35.1 the engine was shipped but never called, so none of these rules ran. Release check D37 now drives real payloads through the hook so that can't recur silently.
+
 #### The confirmation channel — why an `ask` needs a way to say yes
 
 A gate that can only say **no** is a `deny` wearing an `ask`'s label. This hook used
@@ -236,8 +238,11 @@ access as Claude Code itself. It is in this repo for you to read (`plugins/agent
   parallel starts), at most 10 active, and an approval lapses after 24 hours.
 - **Policy rules** (`scripts/policy/policy.json`): `agent-org-approvals-write` **denies** agent Write/Edit to the
   approvals and proposal files; `agent-org-roster-write` **asks** before the roster changes;
-  `agent-org-control-write-via-shell` asks on shell writes to either. The shell rule is a regex over the command
-  text, so it can fire on a command that only *mentions* those paths. That costs a confirmation, never a silent miss.
+  `agent-org-control-write-via-shell` asks on shell writes to either (a redirect, `tee`, `cp`/`mv`, `sed -i`, or
+  PowerShell's `Set-Content`/`Out-File`). The shell rule is a regex over the command text: since v0.35.1 a redirect
+  must actually target the file, so a command that only *mentions* the path no longer fires. An interpreter writing
+  the file from inside a script (`python -c`, `node -e`) is only partly matched, so it raises the cost of a bypass but
+  is not complete mediation.
 
 **What it records.** Tool names, timings, outcomes and token counts, never prompts, answers, or tool inputs and
 outputs. A spawn's short description (capped at 120 characters) and another hook's deny reason (capped at 200) are

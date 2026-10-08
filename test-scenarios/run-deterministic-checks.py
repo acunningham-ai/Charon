@@ -2003,6 +2003,67 @@ def check_backup_brain_integrity():
                        "backup/restore present, marker-targeted, no credential-copy path")
 
 
+def check_policy_engine_live() -> CheckResult:
+    """The policy engine must actually run, for file tools AND for Bash.
+
+    Found 2026-10-08: Charon shipped scripts/policy/policy.json and _policy.py, but
+    deny-destructive.py never called the engine (and returned early for any tool call
+    with no file path), and settings.json routed no Bash calls to the gate. Every rule
+    in policy.json -- the Bash ones especially -- was inert, while CLAUDE.md told the
+    assistant those surfaces were gated. Nothing failed, because nothing was checked.
+
+    This drives real PreToolUse payloads through the hook (HARNESS_HOOK_TEST=1, so any
+    verdict lands in state/verdict/_test/, never the production log):
+      - settings.json must route Bash to deny-destructive;
+      - a Write to the Agent Org approvals file must be DENIED (exit 2; a deny has no
+        confirm token, so this can never consume one the user just issued);
+      - a shell redirect into the roster must be ASKED (exit 2);
+      - a harmless `ls` must pass (exit 0).
+    """
+    import json as _json
+    import os as _os
+    import subprocess as _sp
+
+    settings = REPO_ROOT / ".claude" / "settings.json"
+    hook = REPO_ROOT / "scripts" / "hooks" / "deny-destructive.py"
+    if not settings.is_file() or not hook.is_file():
+        return CheckResult("policy-engine-live", "FAIL", "settings.json or deny-destructive.py missing")
+    try:
+        cfg = _json.loads(settings.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return CheckResult("policy-engine-live", "FAIL", f"settings.json unreadable: {exc}")
+    bash_wired = any(
+        "Bash" in (g.get("matcher") or "").split("|")
+        and any("deny-destructive.py" in h.get("command", "") for h in g.get("hooks", []))
+        for g in (cfg.get("hooks") or {}).get("PreToolUse", [])
+    )
+    problems = [] if bash_wired else ["settings.json routes no Bash calls to deny-destructive.py"]
+
+    env = dict(_os.environ, HARNESS_HOOK_TEST="1", CLAUDE_PROJECT_DIR=str(REPO_ROOT))
+    env.pop("HARNESS_UNATTENDED_ALLOWLIST", None)
+    redirect = "echo x " + ">" + " state/agent-org/roster.json"
+    cases = [
+        ("Write to approvals.json is denied", {"tool_name": "Write", "tool_input": {
+            "file_path": str(REPO_ROOT / "state" / "agent-org" / "approvals.json"), "content": "{}"}}, 2),
+        ("shell redirect into the roster is asked", {"tool_name": "Bash", "tool_input": {"command": redirect}}, 2),
+        ("a harmless command passes", {"tool_name": "Bash", "tool_input": {"command": "ls"}}, 0),
+    ]
+    for label, payload, want in cases:
+        payload = dict(payload, hook_event_name="PreToolUse", session_id="d37-check", cwd=str(REPO_ROOT))
+        try:
+            r = _sp.run([sys.executable, str(hook)], input=_json.dumps(payload), capture_output=True,
+                        text=True, env=env, timeout=60)
+        except Exception as exc:
+            problems.append(f"{label}: hook did not run ({exc})")
+            continue
+        if r.returncode != want:
+            problems.append(f"{label}: exit {r.returncode}, expected {want}")
+    if problems:
+        return CheckResult("policy-engine-live", "FAIL", f"{len(problems)} problem(s)", problems)
+    return CheckResult("policy-engine-live", "PASS",
+                       "Bash routed to the gate; enforced rules deny and ask through real payloads; harmless command passes")
+
+
 def check_wired_hooks_are_documented() -> CheckResult:
     """Every wired hook must be DESCRIBED in CAPABILITIES.md; every hook config
     file must be described in CONFIGURATION.md.
@@ -2102,6 +2163,7 @@ CHECKS = [
     ("D34", check_no_stale_version_claim),
     ("D35", check_backup_brain_integrity),
     ("D36", check_wired_hooks_are_documented),
+    ("D37", check_policy_engine_live),
 ]
 
 

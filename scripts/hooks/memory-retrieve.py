@@ -384,7 +384,7 @@ def main() -> int:
     #      Logging them would skew the hit-rate the shadow window exists to
     #      measure. Retrieval is for a human asking something.
     # Same signal _policy.py uses to pick its profile.
-    if os.environ.get("SECONDBRAIN_UNATTENDED_ALLOWLIST"):
+    if os.environ.get("HARNESS_UNATTENDED_ALLOWLIST"):
         return 0
 
     index = load_index()
