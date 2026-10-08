@@ -17,14 +17,18 @@ export function setPaneView(view: PaneLive) {
 // pane (loads roster + approvals) -> reporter (enforces spawn rules)
 export const org: { data: OrgData | null } = { data: null }
 
-// A1 (security review): specialist types already started in THIS process. The
-// spawn hook checks and adds in one synchronous step, so two parallel starts of a
-// single-use specialist cannot both pass, with or without a pane to sync approvals.
+// A1 (security review): APPROVAL IDS already started. The spawn hook checks and adds
+// in one synchronous step, so two parallel starts of a single-use specialist cannot both
+// pass. Keyed by approval id, not type (model-sizing review B1): a re-proposed slug has a
+// new approval and may run once. Mirrored into a host atom so a hot reload keeps it (S2).
 export const usedSpecs = new Set<string>()
 
 // reporter -> pane: specialist lifecycle events the pane writes to approvals.json
 // (the pane is the ONLY writer of that file).
-export const lifecycle: { started: { agentType: string; at: string }[]; finished: { agentType: string; at: string }[] } = {
+export const lifecycle: {
+  started: { agentType: string; approvalId?: string; at: string }[]
+  finished: { agentType: string; approvalId?: string; at: string }[]
+} = {
   started: [],
   finished: [],
 }

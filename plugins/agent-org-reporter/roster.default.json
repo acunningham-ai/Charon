@@ -104,11 +104,31 @@
     }
   ],
   "specialistPolicy": {
-    "toolCeiling": ["Read", "Grep", "Glob", "WebSearch", "WebFetch"],
+    "toolCeiling": [
+      "Read",
+      "Grep",
+      "Glob",
+      "WebSearch",
+      "WebFetch"
+    ],
     "maxMinutes": 30,
     "maxActive": 10,
-    "spawnedBy": ["zeus"],
-    "refuseTypes": ["general-purpose", "fork", "zeus"],
-    "_decided": "Defaults: specialists get read-only + web tools at most, run once, up to 30 minutes each, at most 10 active at once; a specialist exists only after the user approves it by a pane press or a typed command."
+    "spawnedBy": [
+      "zeus"
+    ],
+    "refuseTypes": [
+      "general-purpose",
+      "fork",
+      "zeus"
+    ],
+    "_decided": "Defaults: specialists get read-only + web tools at most, run once, up to 30 minutes each, at most 10 active at once; a specialist exists only after the user approves it by a pane press or a typed command.",
+    "allowedTiers": [
+      "inherit",
+      "haiku",
+      "sonnet",
+      "opus"
+    ],
+    "requireTierReason": true,
+    "_tiers": "Model sizes Zeus may choose. inherit = your own model, the default. A smaller size needs a stated reason; a roster seat never runs above your model (only an approved specialist can, and its card says so). Zeus, the security reviewers, athena, prometheus and calliope never run below your model. 'fable' is not included by default because of its cost; add it here if you decide it's worth it."
   }
 }

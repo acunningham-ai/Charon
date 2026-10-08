@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, On } from 'claude-code'
 
 import type { PaneAmbient, PaneEvent, PaneOrg, PaneSpecialist } from '../types'
-import { PLUGIN, SPEC_PREFIX, checkProposal, chiefType } from './policy'
+import { PLUGIN, SPEC_PREFIX, TIER_REASON_MAX, approvalForType, checkProposal, chiefType, tierOf, tierRank } from './policy'
 import type { Approval, Roster } from './policy'
 import { findRoots, lifecycle, org, paneFeed, roots, series } from './shared'
 import { activityPanel, cells, clockPanel, feedPanel, gatesPanel, livePanel, orgPanel, waitingPanel } from './gfx'
@@ -77,6 +77,8 @@ type Proposal = {
   prompt: string
   proposedBy: string
   proposedAt: string
+  model?: string // inherit | haiku | sonnet | opus (allowedTiers)
+  modelReason?: string
 }
 
 const live = atom({ plugin: 'agent-org-reporter', key: 'live' } as const, null)
@@ -91,7 +93,9 @@ let demoOn = false
 let lastDemoFeedStep = -1
 
 let orgTimer: { cancel: () => void } | null = null
-const registered = new Set<string>() // specialist types registered in this module's life
+// APPROVAL IDS registered in this module's life (re-review NF-B): a re-approved slug
+// registers again, which replaces the old definition with the one just approved.
+const registered = new Set<string>()
 
 let ambientTimer: { cancel: () => void } | null = null
 
@@ -205,7 +209,14 @@ async function readAmbient($: $) {
 }
 
 function str(v: unknown, max: number) {
-  return typeof v === 'string' ? v.trim().slice(0, max) : ''
+  // Untrusted text: control characters out of every field (the brief already had this).
+  // C0, DEL and C1 controls (incl. the one-character CSI), bidi marks, overrides and
+  // isolates (review N1), and invisible characters: zero-width, word joiner, BOM, line and
+  // paragraph separators, and the tag block, which could hide text the card never shows
+  // (re-review NF-A).
+  return typeof v === 'string'
+    ? v.replace(/[\u0000-\u001f\u007f-\u009f\u061c\u200b-\u200f\u2028-\u202e\u2060-\u2069\ufeff\u{e0000}-\u{e007f}]+/gu, ' ').trim().slice(0, max)
+    : ''
 }
 
 function localStamp() {
@@ -249,12 +260,34 @@ async function readProposals($: $) {
     if (f.kind !== 'file' || !f.name.endsWith('.json')) continue
     try {
       const p = JSON.parse(await $.fs.read(`${SPEC_DIR}/${f.name}`)) as Proposal
-      if (p && typeof p.id === 'string' && typeof p.slug === 'string') out.push(p)
+      if (p && typeof p.id === 'string' && typeof p.slug === 'string') {
+        // read back from disk: clean again, never trust what intake cleaned (review N1)
+        out.push({ ...p, title: str(p.title, 80), purpose: str(p.purpose, 300), task: str(p.task, 600),
+          prompt: str(p.prompt, 4000), modelReason: str(p.modelReason, TIER_REASON_MAX) })
+      }
     } catch {
       // a bad file is skipped
     }
   }
   return out.sort((a, b) => (a.proposedAt < b.proposedAt ? 1 : -1))
+}
+
+// What the approval is made ON: a hash over every field the card shows. The decision is
+// refused if the proposal on disk no longer matches what was on the card.
+async function cardHash(p: Proposal) {
+  const text = JSON.stringify([p.slug, p.title, p.purpose, p.task, p.prompt, p.tools, p.maxMinutes, p.model ?? 'inherit', p.modelReason ?? ''])
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+let userTierCache: string | null = null
+
+function sizeNote(model: string | undefined, userTier: string | null) {
+  const m = model ?? 'inherit'
+  if (m === 'inherit') return 'your model'
+  if (!userTier) return `${m} (your model unknown)`
+  const d = tierRank(m) - tierRank(userTier)
+  return d === 0 ? `${m} (same as your model)` : d < 0 ? `${m}, below your model` : `${m}, ABOVE YOUR MODEL`
 }
 
 // The specialist's system prompt: Zeus's brief, wrapped in rules Zeus cannot remove.
@@ -284,9 +317,9 @@ async function registerSpecialist($: $, p: Proposal, a: Approval) {
     description: `Single-use specialist approved by the user: ${p.title}`.slice(0, 200),
     prompt: specialistPrompt(p, a),
     tools: a.tools,
-    model: 'inherit',
+    model: a.model ?? 'inherit', // the size on the approval card (design 2026-10-08)
   })
-  registered.add(a.agentType)
+  registered.add(a.id)
 }
 
 function displayStatus(a: Approval | undefined): PaneSpecialist['status'] {
@@ -299,11 +332,15 @@ function displayStatus(a: Approval | undefined): PaneSpecialist['status'] {
 // specialists registered, refresh the shared rules data and the pane's org view.
 async function syncOrg($: $) {
   if (!ORG) return
+  userTierCache = tierOf(await $.session.model().catch(() => null))
   const roster = await readRoster($)
   const approvals = await readApprovals($)
   let changed = false
+  // By approval id (review B1); the type lookup is only for events from before this change.
+  const byEvent = (ev: { agentType: string; approvalId?: string }) =>
+    (ev.approvalId ? approvals[ev.approvalId] : undefined) ?? Object.values(approvals).find(x => x.agentType === ev.agentType)
   for (const ev of lifecycle.started.splice(0)) {
-    const a = Object.values(approvals).find(x => x.agentType === ev.agentType)
+    const a = byEvent(ev)
     if (a && a.status === 'approved') {
       a.status = 'started'
       a.startedAt = ev.at
@@ -311,7 +348,7 @@ async function syncOrg($: $) {
     }
   }
   for (const ev of lifecycle.finished.splice(0)) {
-    const a = Object.values(approvals).find(x => x.agentType === ev.agentType)
+    const a = byEvent(ev)
     if (a && (a.status === 'started' || a.status === 'approved')) {
       a.status = 'retired'
       a.retiredAt = ev.at
@@ -321,8 +358,13 @@ async function syncOrg($: $) {
   if (changed) await writeApprovals($, approvals)
   const proposals = await readProposals($)
   for (const a of Object.values(approvals)) {
-    if (a.status !== 'approved' || registered.has(a.agentType) || Date.parse(a.startBy) < Date.now()) continue
+    if (a.status !== 'approved' || registered.has(a.id) || Date.parse(a.startBy) < Date.now()) continue
     const p = proposals.find(x => x.id === a.id)
+    if (p && a.cardHash && a.cardHash !== (await cardHash(p))) {
+      const note = `Approval ${a.id} not registered: the proposal changed after it was approved. Propose it again.`
+      await update($, webNote, () => note)
+      continue
+    }
     if (p) {
       await registerSpecialist($, p, a).catch(async err => {
         const note = `Approved ${a.id}, but it could not be registered (${err instanceof Error ? err.name : 'error'}); retrying.`
@@ -344,7 +386,7 @@ async function syncOrg($: $) {
       reportsTo: s.reportsTo,
       running: runningByType.get(s.agentType) ?? 0,
     })),
-    specialists: proposals.slice(0, 12).map(p => ({
+    specialists: await Promise.all(proposals.slice(0, 12).map(async p => ({
       id: p.id,
       slug: p.slug,
       title: p.title,
@@ -355,7 +397,11 @@ async function syncOrg($: $) {
       proposedAt: p.proposedAt,
       task: p.task,
       brief: p.prompt.slice(0, 600),
-    })),
+      model: p.model ?? 'inherit',
+      modelReason: p.modelReason ?? '',
+      sizeNote: sizeNote(p.model, userTierCache),
+      cardHash: await cardHash(p),
+    }))),
     loadedAt: new Date().toISOString(),
   }
   lastOrg = view
@@ -363,10 +409,19 @@ async function syncOrg($: $) {
 }
 
 // The user's decision. `via` records how it was made: a pane press or their typed command.
-async function decide($: $, id: string, approve: boolean, via: Approval['decidedVia']) {
+// `shown` is the card's hash as the person saw it: passed with a pane press, or the approve
+// code they typed (its first 8 characters). An approval binds to exactly that card (review S1).
+async function decide($: $, id: string, approve: boolean, via: Approval['decidedVia'], shown: string | null) {
   const proposals = await readProposals($)
   const p = proposals.find(x => x.id === id)
   if (!p) return `No specialist proposal ${id}.`
+  const now0 = await cardHash(p)
+  if (approve) {
+    if (!shown) return `Not approved: approve from the card (its button, or /agent-org approve ${id} <code shown on the card>).`
+    if (!now0.startsWith(shown.toLowerCase())) {
+      return `Not approved: proposal ${id} is not what the card showed (it changed, or the code is wrong). Look at the card again, then decide.`
+    }
+  }
   const approvals = await readApprovals($)
   const prior = approvals[id]
   if (prior && displayStatus(prior) !== 'pending') return `${id} is already ${displayStatus(prior)}.`
@@ -374,6 +429,12 @@ async function decide($: $, id: string, approve: boolean, via: Approval['decided
   if (!roster) return 'The roster could not be read, so nothing was approved.'
   const problems = checkProposal(p, roster.specialistPolicy)
   if (approve && problems.length) return `Not approved: ${problems.join('; ')}.`
+  // One live approval per specialist type (review B1).
+  const type = `${SPEC_PREFIX}${p.slug}`
+  const live = approvalForType({ roster, approvals, loadedAt: Date.now() }, type)
+  if (approve && live && live.id !== id && (displayStatus(live) === 'approved' || live.status === 'started')) {
+    return `Not approved: ${type} already has a live approval (${live.id}). Wait for it to run or lapse.`
+  }
   const now = new Date()
   const a: Approval = {
     id,
@@ -385,6 +446,8 @@ async function decide($: $, id: string, approve: boolean, via: Approval['decided
     startBy: new Date(now.getTime() + START_WINDOW_MS).toISOString(),
     maxMinutes: p.maxMinutes,
     tools: p.tools,
+    model: p.model ?? 'inherit',
+    cardHash: now0,
   }
   approvals[id] = a
   await writeApprovals($, approvals)
@@ -401,8 +464,8 @@ async function decide($: $, id: string, approve: boolean, via: Approval['decided
     : `Declined ${id}.`
 }
 
-async function onDecidePress($: $, id: string, approve: boolean) {
-  const note = await decide($, id, approve, 'pane').catch(
+async function onDecidePress($: $, id: string, approve: boolean, shownHash: string | null) {
+  const note = await decide($, id, approve, 'pane', shownHash).catch(
     err => `Could not record the decision (${err instanceof Error ? err.name : 'error'}).`,
   )
   await update($, webNote, () => note)
@@ -430,6 +493,8 @@ async function serveProposal($: $, e: Record<string, unknown>) {
     tools: Array.isArray(e.tools) ? e.tools.filter((t): t is string => typeof t === 'string').slice(0, 8) : [],
     maxMinutes: typeof e.maxMinutes === 'number' ? Math.round(e.maxMinutes) : 0,
     prompt: str(e.prompt, 4000),
+    model: str(e.model, 20) || 'inherit',
+    modelReason: str(e.modelReason, TIER_REASON_MAX),
     proposedBy: chief,
     proposedAt: new Date().toISOString(),
   }
@@ -544,15 +609,17 @@ async function drawPane($: $, surface: Parameters<$['ui']['resolve']>[0], width:
         <Box flexDirection="column">
           <Text color="yellow">{fit(`? ${x.title}`, w)}</Text>
           <Text dimColor>{fit(`  ${x.tools.join(', ')}, up to ${x.maxMinutes} min. ${x.id}`, w)}</Text>
+          <Text color={x.sizeNote.includes('ABOVE') ? 'yellow' : undefined} dimColor={x.model === 'inherit'}>{fit(`  Size: ${x.sizeNote}`, w)}</Text>
+          {x.model !== 'inherit' && <Text dimColor>{fit(`  Zeus's reason (unverified): ${x.modelReason}`, w)}</Text>}
           <Text dimColor>{fit(`  ${x.purpose}`, w)}</Text>
           <Text>{fit(`  Task: ${x.task}`, w)}</Text>
           {briefLines(x.brief, w - 4, 4).map(l => (
             <Text dimColor>{`  │ ${l}`}</Text>
           ))}
           <Box>
-            <Button key={`ok-${x.id}`} label="Approve" variant="primary" onPress={() => onDecidePress($, x.id, true)} />
+            <Button key={`ok-${x.id}`} label="Approve" variant="primary" onPress={() => onDecidePress($, x.id, true, x.cardHash)} />
             <Text> </Text>
-            <Button key={`no-${x.id}`} label="Decline" onPress={() => onDecidePress($, x.id, false)} />
+            <Button key={`no-${x.id}`} label="Decline" onPress={() => onDecidePress($, x.id, false, x.cardHash)} />
           </Box>
         </Box>
       ))}
@@ -685,7 +752,7 @@ function bucketSums(pairs: [number, number][], now: number, size: number, n: num
 }
 
 function specLimit(type: string) {
-  const a = org.data ? Object.values(org.data.approvals).find(x => x.agentType === type) : undefined
+  const a = org.data ? approvalForType(org.data, type) ?? undefined : undefined
   return a ? a.maxMinutes : null
 }
 
@@ -710,6 +777,8 @@ function toLane(a: Record<string, unknown>, session: string, own: boolean): Lane
     lastActivity: str(a.lastActivity) ?? str(a.startedAt) ?? new Date(0).toISOString(),
     toolCalls: typeof a.toolCalls === 'number' ? a.toolCalls : 0,
     limitMin: type.startsWith(SPEC_PREFIX) ? specLimit(type) : null,
+    tier: str(a.tier),
+    tierNote: str(a.tierNote),
   }
 }
 
@@ -718,13 +787,13 @@ function allLanes(now: number) {
   const own = (paneFeed.view?.agents ?? []).map(a => toLane(a as unknown as Record<string, unknown>, ownSession ?? 'this', true))
   // A 'running' lane that has gone silent for long is a session that died without
   // saying so; drop it rather than show a ghost.
-  return [...own, ...others].filter(l => l.state !== 'running' || now - Date.parse(l.lastActivity) < STALE_RUNNING_MS)
+  return [...own, ...others].filter(l => (l.state !== 'running' && l.state !== 'waiting') || now - Date.parse(l.lastActivity) < STALE_RUNNING_MS)
 }
 
 function runningByType() {
   const m = new Map<string, number>()
   for (const l of allLanes(Date.now())) {
-    if (l.state === 'running' && l.key !== 'main') m.set(l.type, (m.get(l.type) ?? 0) + 1)
+    if ((l.state === 'running' || l.state === 'waiting') && l.key !== 'main') m.set(l.type, (m.get(l.type) ?? 0) + 1)
   }
   return m
 }
@@ -958,10 +1027,10 @@ async function drawGraphical($: $, e: Parameters<$['ui']['resolve']>[0], width: 
   lastFeedVersion = -1
   const pending = demoOn ? [DEMO_PENDING] : (lastOrg?.specialists ?? []).filter(x => x.status === 'pending')
   // Demo buttons record nothing: the sample proposal has no file and no approval.
-  const press = (id: string, approve: boolean) =>
+  const press = (id: string, approve: boolean, hash: string) =>
     demoOn
       ? update($, webNote, () => `Demo mode: nothing was ${approve ? 'approved' : 'declined'}. In real use this press is the only way a specialist gets to run.`)
-      : onDecidePress($, id, approve)
+      : onDecidePress($, id, approve, hash)
   const R = (key: string, g: { w: number; h: number } & Parameters<typeof cells>[0]) => (
     <Raster key={key} columns={g.w} rows={g.h} cells={cells(g)} />
   )
@@ -977,16 +1046,18 @@ async function drawGraphical($: $, e: Parameters<$['ui']['resolve']>[0], width: 
         <Box flexDirection="column">
           <Text color="#E6ECF5">{fit(`? ${x.title}`, w)}</Text>
           <Text color="#9AA8BF">{fit(`  ${x.tools.join(', ')}, up to ${x.maxMinutes} min  ${x.id}`, w)}</Text>
+          <Text color={x.sizeNote.includes('ABOVE') ? '#F08A5D' : x.model === 'inherit' ? '#6C7A93' : '#E6ECF5'}>{fit(`  Size: ${x.sizeNote}`, w)}</Text>
+          {x.model !== 'inherit' && <Text color="#9AA8BF">{fit(`  Zeus's reason (unverified): ${x.modelReason}`, w)}</Text>}
           <Text color="#9AA8BF">{fit(`  ${x.purpose}`, w)}</Text>
           <Text color="#E6ECF5">{fit(`  Task: ${x.task}`, w)}</Text>
           {briefLines(x.brief, w - 4, 4).map(l => (
             <Text color="#6C7A93">{`  │ ${l}`}</Text>
           ))}
-          <Text color="#6C7A93">{fit('  Full brief on the dashboard: /agent-org web', w)}</Text>
+          <Text color="#6C7A93">{fit(`  ${x.brief.length >= 600 ? 'Brief continues: full text' : 'Full brief'} on the dashboard (/agent-org web)  ·  approve code ${x.cardHash.slice(0, 8)}`, w)}</Text>
           <Box>
-            <Button key={`ok-${x.id}`} label="Approve" variant="primary" onPress={() => press(x.id, true)} />
+            <Button key={`ok-${x.id}`} label="Approve" variant="primary" onPress={() => press(x.id, true, x.cardHash)} />
             <Text> </Text>
-            <Button key={`no-${x.id}`} label="Decline" onPress={() => press(x.id, false)} />
+            <Button key={`no-${x.id}`} label="Decline" onPress={() => press(x.id, false, x.cardHash)} />
           </Box>
         </Box>
       ))}
@@ -1011,7 +1082,7 @@ async function paneSessionStart($: $) {
     description:
       'Zeus only. Propose a single-use specialist agent when no roster seat fits a task. ' +
       'It is written as PENDING and runs only after the user approves it. Tools must stay within ' +
-      'the roster ceiling (Read, Grep, Glob, WebSearch, WebFetch).',
+      'the roster ceiling (Read, Grep, Glob, WebSearch, WebFetch). Set model + modelReason to choose a size.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1022,6 +1093,8 @@ async function paneSessionStart($: $) {
         tools: { type: 'array', items: { type: 'string' }, description: 'subset of the ceiling' },
         maxMinutes: { type: 'number', description: 'time limit, 1 to the roster maximum' },
         prompt: { type: 'string', description: 'the specialist brief (its system prompt core)' },
+        model: { type: 'string', description: 'size: inherit (the user\'s model, default) | haiku | sonnet | opus. Smaller only for simple bounded work; above the user\'s model only with a strong reason (the user sees ABOVE YOUR MODEL)' },
+        modelReason: { type: 'string', description: 'why this size suits the task; required unless inherit; at most 160 chars' },
       },
       required: ['slug', 'title', 'purpose', 'task', 'tools', 'maxMinutes', 'prompt'],
     },
@@ -1047,7 +1120,7 @@ export function registerPane(on: On) {
     if (!(await resolvePaths($))) {
       return { text: 'Agent Org could not find your vault above its plugin folder. Set HARNESS_VAULT_ROOT to your vault and restart.' }
     }
-    const [verb = '', arg = ''] = e.args.trim().split(/\s+/)
+    const [verb = '', arg = '', code = ''] = e.args.trim().split(/\s+/)
     const v = verb.toLowerCase()
     if (v === 'web') {
       return { text: await launchWeb($) }
@@ -1074,8 +1147,11 @@ export function registerPane(on: On) {
       if (e.origin.kind !== 'composer') {
         return { text: `Refused: ${v} only counts when you type it (this came from ${e.origin.kind}).` }
       }
-      if (!/^[A-Za-z0-9-]{3,80}$/.test(arg)) return { text: `Usage: /agent-org ${v} <proposal id>` }
-      return { text: await decide($, arg, v === 'approve', 'command') }
+      if (!/^[A-Za-z0-9-]{3,80}$/.test(arg)) return { text: `Usage: /agent-org ${v} <proposal id>${v === 'approve' ? ' <approve code from the card>' : ''}` }
+      if (v === 'approve' && !/^[0-9a-fA-F]{8}$/.test(code)) {
+        return { text: `Usage: /agent-org approve ${arg} <approve code>. The 8-character code is on the card, so you approve exactly what you read.` }
+      }
+      return { text: await decide($, arg, v === 'approve', 'command', v === 'approve' ? code : null) }
     }
     const placed = await openPane($)
     return { text: placed.isPlaced ? 'Agent Org pane opened.' : 'Agent Org pane is waiting for a wider terminal.' }

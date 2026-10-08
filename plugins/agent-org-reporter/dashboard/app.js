@@ -98,7 +98,7 @@ function seatActivity(d) {
     for (const a of s.agents || []) {
       if (a.key === 'main') continue
       const type = String(a.type || 'subagent').toLowerCase()
-      if (s.live && a.state === 'running') run.set(type, (run.get(type) || 0) + 1)
+      if (s.live && (a.state === 'running' || a.state === 'waiting')) run.set(type, (run.get(type) || 0) + 1)
       if (a.startedAt && new Date(a.startedAt) >= midnight) today.set(type, (today.get(type) || 0) + 1)
     }
   }
@@ -357,13 +357,15 @@ function renderSpecs(d) {
     const card = el('div', 'spec')
     card.append(el('h3', '', 'Approval needed: ' + (s.title || s.id)))
     card.append(el('p', 'meta', `${(s.tools || []).join(', ')}, up to ${s.maxMinutes ?? '?'} min. Proposed by ${s.proposedBy || 'zeus'} ${s.proposedAt ? ago(s.proposedAt) : ''}. ${s.id}`))
+    card.append(el('p', 'meta size', `Size: ${s.model && s.model !== 'inherit' ? s.model : 'your model'}`))
+    if (s.model && s.model !== 'inherit' && s.modelReason) card.append(el('p', 'meta', "Zeus's reason (unverified): " + s.modelReason))
     if (s.purpose) card.append(el('p', 'meta', s.purpose))
     if (s.task) card.append(el('p', 'task', 'Task: ' + s.task))
     const det = document.createElement('details')
     det.open = true
     det.append(el('summary', '', "Zeus's full brief (becomes the specialist's instructions)"), el('pre', '', s.brief || '(empty)'))
     card.append(det)
-    card.append(el('p', 'how', `Approve in the Claude Code pane, or type /agent-org approve ${s.id}`))
+    card.append(el('p', 'how', `Approve in the Claude Code pane: press Approve, or type /agent-org approve ${s.id} <code>, with the 8-character code shown on the pane's card.`))
     box.appendChild(card)
   }
   for (const s of recent) {
@@ -447,8 +449,14 @@ function laneRow(a, depth, finished) {
   if (finished) who.append(el('span', 'out ok', '✓'))
   else who.append(el('span', 'dot'))
   who.append(el('span', 'name', laneName(a)))
+  // size badge only when it differs from the user's model (design 2026-10-08)
+  if (a.tier && a.tierNote) {
+    const b = el('span', 'tier' + (a.tierNote === 'below your model' ? '' : ' above'), a.tier)
+    b.title = a.tierNote
+    who.append(b)
+  }
   if (a.key !== 'main' && a.description) who.append(el('span', 'desc', '“' + a.description + '”'))
-  const tool = el('span', 'tool' + (a.currentTool ? ' now' : ''), a.currentTool ? '› ' + a.currentTool : (a.lastTool || ''))
+  const tool = el('span', 'tool' + (a.currentTool ? ' now' : ''), a.state === 'waiting' ? '… waiting on its agents' : a.currentTool ? '› ' + a.currentTool : (a.lastTool || ''))
   let timeText
   const t0 = new Date(a.startedAt).getTime()
   if (finished) {
@@ -470,9 +478,9 @@ function renderLive(d) {
   let running = 0, sessCount = 0
   const finishedAll = []
   for (const s of sessions) {
-    const alive = s.agents.filter(a => a.state === 'running' && now - new Date(a.lastActivity).getTime() < STALE_RUNNING_MS)
+    const alive = s.agents.filter(a => (a.state === 'running' || a.state === 'waiting') && now - new Date(a.lastActivity).getTime() < STALE_RUNNING_MS)
     for (const a of s.agents) {
-      if (a.key !== 'main' && a.state !== 'running' && a.finishedAt && now - new Date(a.finishedAt).getTime() < FINISHED_FOR_MS) finishedAll.push(a)
+      if (a.key !== 'main' && a.state !== 'running' && a.state !== 'waiting' && a.finishedAt && now - new Date(a.finishedAt).getTime() < FINISHED_FOR_MS) finishedAll.push(a)
     }
     if (!alive.length) continue
     sessCount += 1

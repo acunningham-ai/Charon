@@ -136,7 +136,7 @@
     },
     {
       "id": "agent-org-approvals-write",
-      "description": "Specialist approvals and proposals are the Agent Org's control files. approvals.json is written ONLY by the agent-org-reporter pane on the user's press or typed command; specialists/*.json ONLY by Zeus's propose_specialist tool. Both write through the plugin's own $.fs, which these tool hooks never see, so denying agent Write/Edit costs the real writers nothing and closes the forge-an-approval path. Zero legitimate fire rate: any fire is a finding.",
+      "description": "Specialist approvals and proposals are the Agent Org's control files; status/ and audit/ (added 2026-10-08, model-sizing review) are its records, written only by the reporter through $.fs. approvals.json is written ONLY by the agent-org-reporter pane on the user's press or typed command; specialists/*.json ONLY by Zeus's propose_specialist tool. Both write through the plugin's own $.fs, which these tool hooks never see, so denying agent Write/Edit costs the real writers nothing and closes the forge-an-approval path. Zero legitimate fire rate: any fire is a finding.",
       "applies_to": [
         "*"
       ],
@@ -147,7 +147,9 @@
         ],
         "path_globs": [
           "**/state/agent-org/approvals.json",
-          "**/state/agent-org/specialists/**"
+          "**/state/agent-org/specialists/**",
+          "**/state/agent-org/status/**",
+          "**/state/agent-org/audit/**"
         ]
       },
       "verdict": "deny",
@@ -186,10 +188,10 @@
           "Bash"
         ],
         "command_patterns": [
-          "(?:^|[\\s;&|(])\\d?>>?\\s*(?:\\\"[^\\\"\\n\\r]*|'[^'\\n\\r]*|[^\\s|;&'\\\"]*)agent-org[/\\\\](approvals\\.json|roster\\.json|specialists)",
-          "\\b(tee|cp|mv|rename|Copy-Item|Move-Item)\\b[^|;&\\n\\r]*agent-org[/\\\\](approvals\\.json|roster\\.json|specialists)",
-          "\\bsed\\s+-i\\b[^|;&\\n\\r]*agent-org[/\\\\](approvals\\.json|roster\\.json|specialists)",
-          "\\b(Set-Content|Add-Content|Out-File)\\b[^|;&\\n\\r]*agent-org[/\\\\](approvals\\.json|roster\\.json|specialists)"
+          "(?:^|[\\s;&|(])\\d?>>?\\s*(?:\\\"[^\\\"\\n\\r]*|'[^'\\n\\r]*|[^\\s|;&'\\\"]*)agent-org[/\\\\](approvals\\.json|roster\\.json|specialists|status|audit)",
+          "\\b(tee|cp|mv|rename|Copy-Item|Move-Item)\\b[^|;&\\n\\r]*agent-org[/\\\\](approvals\\.json|roster\\.json|specialists|status|audit)",
+          "\\bsed\\s+-i\\b[^|;&\\n\\r]*agent-org[/\\\\](approvals\\.json|roster\\.json|specialists|status|audit)",
+          "\\b(Set-Content|Add-Content|Out-File)\\b[^|;&\\n\\r]*agent-org[/\\\\](approvals\\.json|roster\\.json|specialists|status|audit)"
         ]
       },
       "verdict": "ask",

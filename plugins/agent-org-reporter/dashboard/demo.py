@@ -115,6 +115,8 @@ def _sessions(now: datetime) -> list[dict]:
             "currentSince": _iso(datetime.fromtimestamp(tick * every).astimezone()) if in_tool else None,
             "lastTool": tool, "finishedAt": _iso(finished) if finished else None,
             "callTimes": times,
+            "tier": "haiku" if typ == "hephaestus" else None,
+            "tierNote": "below your model" if typ == "hephaestus" else None,
         })
     out = []
     for sess, agents in by_sess.items():
@@ -217,7 +219,8 @@ def demo_state() -> dict:
                        "give the period, and say whether it is within the guideline. Report clause numbers and "
                        "quotes only; do not summarise the contract."),
              "proposedBy": "zeus", "proposedAt": _iso(now - timedelta(minutes=2)),
-             "status": "pending", "decidedVia": None},
+             "status": "pending", "decidedVia": None,
+             "model": "sonnet", "modelReason": "bounded extraction from two named documents; no judgement calls"},
             {"id": "demo-licence-scan", "title": "Check new dependencies' licences",
              "purpose": "", "task": "", "tools": ["Read", "WebFetch"], "maxMinutes": 15, "brief": "",
              "proposedBy": "zeus", "proposedAt": _iso(now - timedelta(minutes=14)),

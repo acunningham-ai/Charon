@@ -316,51 +316,51 @@
 <!-- WHAT'S NEW IN THIS BUILD (replaced each release) -->
 <section class="band tall alt" id="whats-new">
   <div class="wrap">
-    <div class="sec-head reveal"><p class="kicker">What's new in v0.35.0</p><h2>See your agents work, with Zeus as Chief of Staff.</h2><p>Charon's first capability built on Claude Code <a class="link" href="https://claude.com/resources/articles/claude-code-mods">mods</a>, which run inside the agent loop: rules that used to be instructions the model could ignore are now enforced by the system. Here's what's new, how you'll use it, and why it's worth having.</p></div>
+    <div class="sec-head reveal"><p class="kicker">What's new in v0.36.0</p><h2>The right model for each agent, never a silent one.</h2><p>Zeus now sizes every agent he starts to the job: a small, fast model for a lookup, your own for judgement. It's built on Claude Code <a class="link" href="https://claude.com/resources/articles/claude-code-mods">mods</a>, so the limits are enforced by the system, not requested of the model. Here's what's new, how you'll use it, and why it matters.</p></div>
     <div class="wn">
       <article class="wn-card reveal" style="--i:1">
-        <span class="wn-tag">Agent Org</span>
-        <h3>Nothing works out of sight.</h3>
+        <span class="wn-tag">Model sizes</span>
+        <h3>Sized to the job.</h3>
         <dl>
-          <dt>What it is</dt><dd>A live pane beside the conversation and a local dashboard: every agent running in any session, the tool each is in, activity over time, today's safety gates, the org chart and a live feed.</dd>
-          <dt>How you'll use it</dt><dd>It opens by itself on a wide terminal; <code>/agent-org</code> opens it anywhere, <code>/agent-org web</code> opens the dashboard.</dd>
-          <dt>Why it matters</dt><dd>You trust agents you can see. It records tool names and timings only, never your prompts or the answers, and the dashboard is local and read-only.</dd>
+          <dt>What it is</dt><dd>Zeus picks <code>haiku</code> for find-and-list work, <code>sonnet</code> for a bounded summary, and leaves judgement, security review and your voice on your own model.</dd>
+          <dt>How you'll use it</dt><dd>Nothing to do. Each lane in the pane shows a size badge; a smaller size always carries Zeus's reason.</dd>
+          <dt>Why it matters</dt><dd>Lookups stop costing the price of judgement, and nothing is ever downgraded silently.</dd>
         </dl>
-        <a class="wn-more" href="agents.html">See the pane and dashboard →</a>
+        <a class="wn-more" href="agents.html">See how Zeus sizes an agent →</a>
       </article>
       <article class="wn-card reveal" style="--i:2">
-        <span class="wn-tag">Zeus</span>
-        <h3>Hand over the whole task, not the parts.</h3>
+        <span class="wn-tag">Floors</span>
+        <h3>Limits he can't talk past.</h3>
         <dl>
-          <dt>What it is</dt><dd>A Chief of Staff. He plans a task that spans several seats, delegates each part to the right one, and merges the results into one answer.</dd>
-          <dt>How you'll use it</dt><dd>Ask for the outcome ("prepare the weekly security brief") instead of running research, recall and drafting yourself.</dd>
-          <dt>Why it matters</dt><dd>You stop being the router. And the system enforces his limits: roster seats and approved specialists only, never a general-purpose agent, never Cerberus.</dd>
+          <dt>What it is</dt><dd>Zeus, Athena, Prometheus, Calliope and the three security reviewers never run below your model. Only an agent that can do nothing but read may run smaller.</dd>
+          <dt>How you'll use it</dt><dd>Change what's allowed in your roster (<code>allowedTiers</code>). <code>fable</code> is off by default; add it if you want it.</dd>
+          <dt>Why it matters</dt><dd>The model each agent actually ran on is checked after it starts. A mismatch cuts off its tools and is logged.</dd>
         </dl>
-        <a class="wn-more" href="agents.html">How Zeus works a complex task →</a>
+        <a class="wn-more" href="https://github.com/acunningham-ai/Charon/blob/main/AGENT-ORG.md">Read the rules →</a>
       </article>
       <article class="wn-card reveal" style="--i:3">
-        <span class="wn-tag">Specialists</span>
-        <h3>New help for one task, only with your yes.</h3>
+        <span class="wn-tag">Approvals</span>
+        <h3>You approve exactly what you read.</h3>
         <dl>
-          <dt>What it is</dt><dd>When no seat fits, Zeus proposes a single-use specialist: its task, the exact tools and a time limit, with the full brief it will be given.</dd>
-          <dt>How you'll use it</dt><dd>Read the brief in the pane, then press Approve or Decline, or type <code>/agent-org approve &lt;id&gt;</code>.</dd>
-          <dt>Why it matters</dt><dd>It runs once, read-only and web at most, within its time limit. A model or another plugin cannot approve it, and the tests prove that.</dd>
+          <dt>What it is</dt><dd>A specialist's card now shows its size and Zeus's reason, and says ABOVE YOUR MODEL when it is.</dd>
+          <dt>How you'll use it</dt><dd>Press Approve, or type <code>/agent-org approve &lt;id&gt; &lt;code&gt;</code> with the 8-character code printed on the card.</dd>
+          <dt>Why it matters</dt><dd>An approval is tied to that exact card. A proposal that changes after you saw it is refused.</dd>
         </dl>
-        <a class="wn-more" href="https://github.com/acunningham-ai/Charon/blob/main/AGENT-ORG.md">Read the full guide →</a>
+        <a class="wn-more" href="agents.html">See the approval flow →</a>
       </article>
       <article class="wn-card reveal" style="--i:4">
-        <span class="wn-tag">Setup</span>
-        <h3>One question to turn it on.</h3>
+        <span class="wn-tag">Update</span>
+        <h3>Nothing to set up.</h3>
         <dl>
-          <dt>What it is</dt><dd>Setup asks "Turn on Agent Org?" (default yes). Existing installs are asked by <code>/charon-update</code>.</dd>
-          <dt>How you'll use it</dt><dd>Say yes and restart Claude Code. Undo any time with <code>python scripts/agent_org_setup.py --disable</code>.</dd>
-          <dt>Why it matters</dt><dd>It checks your Claude Code version (2.1.287+), keeps a backup, and only adds its own folder to your settings, never overwriting anything else.</dd>
+          <dt>What it is</dt><dd>Model sizing ships inside the Agent Org plugin, on wherever Agent Org is on.</dd>
+          <dt>How you'll use it</dt><dd>Run <code>/charon-update</code>, then restart Claude Code. A roster without <code>allowedTiers</code> uses the safe defaults.</dd>
+          <dt>Why it matters</dt><dd>The defaults are the cautious answer: your model unless there's a stated reason, and never below it for anything that can act.</dd>
         </dl>
         <a class="wn-more" href="#install">Get started →</a>
       </article>
     </div>
-    <p class="wn-also reveal"><b>Fixed in v0.35.1:</b> Charon's policy rules now actually run, on every edit, write and shell command, and a release check proves it on every release. <a class="link" href="security.html">See the gates →</a></p>
-    <p class="wn-also reveal">Also new this week, in v0.34.0: <b>you find out from the system, not from the damage</b>. Failed runs are reviewed into ranked fixes, and rules surface at the moment you act. <a class="link" href="self-healing.html">See self-healing →</a></p>
+    <p class="wn-also reveal">Built on v0.35.0, <b>Agent Org</b>: a live pane and dashboard of every agent at work, with Zeus as Chief of Staff. <a class="link" href="agents.html">See your agents work →</a></p>
+    <p class="wn-also reveal">Also this week, in v0.34.0: <b>you find out from the system, not from the damage</b>. Failed runs are reviewed into ranked fixes, and rules surface at the moment you act. <a class="link" href="self-healing.html">See self-healing →</a></p>
   </div>
 </section>
 

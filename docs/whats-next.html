@@ -36,14 +36,39 @@
     <div class="eyebrow">Roadmap · what just shipped &amp; what's coming</div>
     <h1 class="big">What's next for Charon</h1>
     <p class="sub">Charon ships in tranches — each capability proven on the author's own vault first, then genericised. Here's what <b>just landed</b>, and what is still being proven before it ships.</p>
-    <p class="asof">As of v0.35.1 · the pills below move with each release.</p>
+    <p class="asof">As of v0.36.0 · the pills below move with each release.</p>
   </div>
 </header>
 
 <section>
   <div class="wrap">
     <div class="sec-head">
-      <div class="kicker">Just shipped &middot; v0.35.1</div>
+      <div class="kicker">Just shipped &middot; v0.36.0</div>
+      <h2>The right model for each agent, never a silent one</h2>
+      <p>Zeus now chooses the model size for each agent he starts: a small, fast one for a mechanical lookup, your own for judgement. Every smaller size carries his reason, every lane shows its size, and the mod enforces floors he can't talk past.</p>
+    </div>
+    <div class="cards two">
+      <div class="card">
+        <div class="ctop"><span class="cmd">zeus · model sizes</span><span class="pill ok">shipped</span></div>
+        <h4>Sized to the job, with a reason</h4>
+        <p>Your model stays the default. Smaller only for an agent that can do nothing but read, and only with a stated reason. Zeus, Athena, Prometheus, Calliope and the security reviewers never run below yours.</p>
+        <p class="out">Outcome: lookups cost less, and judgement never gets downgraded.</p>
+      </div>
+      <div class="card">
+        <div class="ctop"><span class="cmd">/agent-org approve</span><span class="pill ok">hardened</span></div>
+        <h4>You approve exactly what you read</h4>
+        <p>A specialist's card shows its size and Zeus's reason. An approval is tied to that exact card: a typed approve needs the code printed on it, and a proposal that changes afterwards is refused.</p>
+        <p class="out">Outcome: what runs is what you saw.</p>
+      </div>
+    </div>
+    <div class="explore"><a href="agents.html">See how Zeus sizes an agent →</a></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">Shipped in v0.35.1</div>
       <h2>The policy rules now actually run</h2>
       <p>A fix found while verifying v0.35.0, shipped the same day. Charon's policy engine was in the repo, but nothing called it, so none of its rules ran. Now it runs on every edit, write and shell command, and a release check proves it.</p>
     </div>
@@ -327,7 +352,7 @@
         </tbody>
       </table>
     </div>
-    <p class="tbl-note"><b>shipped</b> = in the current release <b>v0.35.1</b>, live now, <code>git pull</code> to get it · <b>in shadow</b> = running silently on a real vault while it earns trust · <b>planned</b> = designed, gated on the highest bar because it can change files.</p>
+    <p class="tbl-note"><b>shipped</b> = in the current release <b>v0.36.0</b>, live now, <code>git pull</code> to get it · <b>in shadow</b> = running silently on a real vault while it earns trust · <b>planned</b> = designed, gated on the highest bar because it can change files.</p>
   </div>
 </section>
 

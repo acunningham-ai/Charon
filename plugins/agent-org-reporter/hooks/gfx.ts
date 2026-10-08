@@ -439,6 +439,8 @@ export type Lane = {
   lastActivity: string
   toolCalls: number
   limitMin: number | null // specialists: approved minutes
+  tier: string | null // size it runs on
+  tierNote: string | null // set only when it differs from the user's model
 }
 
 const LIVE_MAX_ROWS = 12
@@ -476,7 +478,8 @@ function spark(g: Grid, x: number, y: number, times: number[], now: number, fg: 
 }
 
 export function livePanel(w: number, lanes: Lane[], now: number, pulse: boolean) {
-  const isRunning = (l: Lane) => l.state === 'running'
+  // 'waiting' = between turns while its own agents run (Zeus after his dispatch note): still active
+  const isRunning = (l: Lane) => l.state === 'running' || l.state === 'waiting'
   const running = lanes.filter(isRunning)
   const finished = lanes
     .filter(l => !isRunning(l) && l.key !== 'main' && l.finishedAt && now - Date.parse(l.finishedAt) < FINISHED_FOR_MS)
@@ -555,12 +558,14 @@ export function livePanel(w: number, lanes: Lane[], now: number, pulse: boolean)
     const mx = ind.length
     put(g, mx, y, '●', hot)
     const leftW = w - RIGHT - 1
-    const nm = fitText(laneName(l), leftW - mx - 2)
+    const badge = l.tierNote && l.tier ? ` [${l.tier}]` : ''
+    const nm = fitText(laneName(l) + badge, leftW - mx - 2)
     put(g, mx + 2, y, nm, C.bronze)
+    if (badge && nm.endsWith(badge)) put(g, mx + 2 + nm.length - badge.length, y, badge, l.tierNote === 'below your model' ? C.muted : C.ask)
     const dx = mx + 3 + nm.length
     if (l.key !== 'main' && l.description && leftW - dx > 3) put(g, dx, y, fitText(`"${l.description}"`, leftW - dx), C.muted)
     const rx = w - RIGHT
-    const tool = l.currentTool ? '›' + l.currentTool : l.lastTool ?? ''
+    const tool = l.state === 'waiting' ? '…waiting' : l.currentTool ? '›' + l.currentTool : l.lastTool ?? ''
     put(g, rx, y, fitText(tool, 10), l.currentTool ? C.bronze : C.dim)
     spark(g, rx + 11, y, l.callTimes, now, C.graph)
     const t0 = Date.parse(l.startedAt)

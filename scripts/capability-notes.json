@@ -3,6 +3,13 @@
   "schema": 1,
   "capabilities": [
     {
+      "id": "zeus-model-sizes",
+      "class": "agent",
+      "shipped_in": null,
+      "blurb": "Zeus now picks the model size for each agent he starts: a small, fast one for a lookup, your own model for judgement. A smaller size always carries his reason and every lane in the Agent Org pane shows its size. Zeus, Athena, Prometheus, Calliope and the security reviewers never run below your model, and only read-only agents may. Typed approvals now need the 8-character code on the card: /agent-org approve <id> <code>.",
+      "questions": []
+    },
+    {
       "id": "zeus",
       "class": "agent",
       "shipped_in": null,

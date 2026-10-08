@@ -81,7 +81,7 @@ and he writes nothing.
 | **2. He plans** | Zeus breaks it into parts and picks the seat for each. |
 | **3. Seats work** | Each seat runs as its own agent, in parallel where it can. You watch them in the pane. |
 | **4. No seat fits?** | Zeus **proposes** a specialist instead of improvising: its purpose, its single task, the exact tools it needs, a time limit and the full brief it will be given. |
-| **5. You decide** | The proposal appears in the pane with **Approve** and **Decline** buttons and the brief in full. Nothing runs until you press Approve or type `/agent-org approve <id>`. |
+| **5. You decide** | The proposal appears in the pane with **Approve** and **Decline** buttons and the brief in full. Nothing runs until you press Approve or type `/agent-org approve <id> <code>`, where the 8-character code is printed on the card, so you approve exactly what you read. |
 | **6. The specialist runs once** | Approved, it becomes a real agent type with only the tools you approved, read-only and web at most. It runs once, within 24 hours of approval, for at most its time limit. |
 | **7. Zeus merges** | He checks each result against what you actually asked, follows up on anything fixable, and gives you one answer. |
 
@@ -99,13 +99,42 @@ These are not instructions to the model. The mod refuses the spawn before it sta
 - An approval counts **only** when you press the button or type the command. A command sent by a model, another
   plugin, the SDK or a scheduled prompt is refused.
 
-### Looking ahead
+- An approval is tied to the exact card you saw. If the proposal changes after it was shown, the approval is
+  refused, and a changed proposal is never registered. Only one live approval per specialist exists at a time.
 
-Every agent, Zeus, the seats, the standing reviewers and every specialist, runs on the model you have set in
-Claude Code. A natural next step is for Zeus to propose the
-model for each agent based on what it needs to do: a small, fast one for a mechanical lookup, a stronger one for
-judgement. It would show on the approval card with its reason, it would never be silent, and your own model would
-stay the default. It's on the roadmap, not in this release.
+### Model sizes (v0.36.0)
+
+Every agent runs on **your own model** (the one you set in Claude Code) unless Zeus has a good reason to choose
+otherwise. A small, fast model is fine for a mechanical lookup; judgement stays on yours. Choosing a different size is
+always an explicit override with a stated reason, never a silent one.
+
+| The task is… | Zeus picks |
+|---|---|
+| Find, list or locate; read one named file; reformat | `haiku` |
+| A bounded summary or extraction from a few named sources | `sonnet` |
+| Judgement, reconciling disagreement, security review, your voice, anything reading untrusted email or web pages | your model |
+
+**How you see it.** Each lane in the pane carries a size badge, and the audit log records the size requested, the size
+it ran on and the decision (it keeps the length of Zeus's reason, never its words, like the rest of the log). A specialist's size and reason are on its approval card. If it would run **above** your
+model, the card says so in capitals.
+
+**What the mod enforces**, whoever starts the agent, the main conversation included:
+
+- Only the short names `haiku`, `sonnet` and `opus` are accepted. Full model ids are refused. `fable` is off by default;
+  add it to `allowedTiers` in your roster if you want it.
+- A smaller size needs Zeus's reason (under 80 characters), or the start is refused.
+- An agent started with no size runs on its own default, which can be smaller than yours. When that default is
+  below a floor, or isn't known (a built-in such as Explore), the agent is started on your model instead.
+- **Floors.** Zeus, Athena, Prometheus, Calliope and the three security reviewers never run below your model.
+- **The tool floor.** Only an agent that can do nothing but read (`Read`, `Grep`, `Glob`) may run smaller. Anything
+  that can write, run a skill, fetch the web or call an MCP tool, or whose tools are unknown, stays on your model.
+- A roster seat never runs above your model. Only an approved specialist can, and only at the size on the card.
+- The model each agent actually runs on is checked when it starts and again on every turn. If it doesn't match what
+  was allowed, the agent's tools are cut off (it can still report back) and the mismatch is logged.
+- A workflow agent can't have its model changed by a mod, so one that would need a different size is refused rather
+  than allowed to run on the wrong one.
+
+To change what's allowed, edit `allowedTiers` and `requireTierReason` in `state/agent-org/roster.json`.
 
 ---
 

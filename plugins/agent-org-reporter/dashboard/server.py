@@ -238,6 +238,8 @@ def sessions_and_agents(now: datetime) -> tuple[list[dict], dict[str, dict]]:
                 "lastTool": _cap(s.get("lastTool"), 60),
                 "finishedAt": s.get("finishedAt") if isinstance(s.get("finishedAt"), str) else None,
                 "callTimes": [t for t in (s.get("callTimes") or []) if isinstance(t, (int, float))][-40:],
+                "tier": _cap(s.get("tier"), 12),
+                "tierNote": _cap(s.get("tierNote"), 24),
                 "_last": last,
             }
             if a["agentId"]:
@@ -414,6 +416,8 @@ def specialists(now: datetime) -> list[dict]:
             "proposedAt": p.get("proposedAt") if isinstance(p.get("proposedAt"), str) else None,
             "status": _cap(status, 20),
             "decidedVia": _cap((a or {}).get("decidedVia"), 20),
+            "model": _cap(p.get("model") or "inherit", 12),
+            "modelReason": _cap(p.get("modelReason"), 160),
         })
     out.sort(key=lambda x: x.get("proposedAt") or "", reverse=True)
     return out[:20]

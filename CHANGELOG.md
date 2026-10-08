@@ -4,6 +4,54 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-10-08
+
+**The right model for each agent, never a silent one.** Zeus now chooses the model size for each agent he starts, and
+the Agent Org plugin enforces the limits. Full guide: [AGENT-ORG.md](AGENT-ORG.md#model-sizes-v0360).
+
+### Added — model sizes
+
+**What it is.** Every agent runs on your own model unless Zeus has a reason to choose otherwise: `haiku` for
+find-and-list work, `sonnet` for a bounded summary, your model for judgement, security review, your voice, and anything
+reading untrusted email or web pages. A smaller size needs his reason in the agent's description
+(`tier=haiku; why=<under 80 chars>; <task>`). A specialist's size and reason are on its approval card, which says
+ABOVE YOUR MODEL when it is. Each lane in the pane carries a size badge; the audit log records the size requested, the
+size it ran on and the decision.
+
+**What the mod enforces**, whoever starts the agent, the main conversation included:
+- Only the aliases `haiku`, `sonnet`, `opus` (`fable` is off by default; add it to `allowedTiers` in your roster).
+  Full model ids are refused, never cleaned up.
+- **Floors:** Zeus, Athena, Prometheus, Calliope and the three security reviewers never run below your model.
+- **Tool floor:** only an agent whose tools are `Read`, `Grep` and `Glob` alone may run smaller. Anything that can
+  write, run a skill, fetch the web or call an MCP tool, or whose tools are unknown, stays on your model.
+- Only an approved specialist may run above your model.
+- An agent started with no size whose own default is below a floor, or unknown (a built-in such as Explore), is
+  started on your model.
+- The model each agent actually runs on is checked after it starts. A mismatch cuts off its tools (it can still
+  report back) and is logged. A workflow agent, whose model a mod can't change, is refused rather than run on the
+  wrong size.
+
+**Why it matters.** Lookups stop costing the price of judgement, and nothing is downgraded silently.
+
+### Changed — approvals are tied to the card you saw
+
+- An approval binds to the exact card shown. A typed approve needs the 8-character code printed on the card:
+  `/agent-org approve <id> <code>`. A proposal that changes after it was shown is refused and never registered.
+- Each approval is tracked by its own id from start to finish, and a specialist can have only one live approval.
+- Hidden characters (control, text-direction and invisible characters) are stripped from every proposal field, and
+  proposals are cleaned again whenever they're read back.
+
+### Security
+
+- Enforcement state (who has been cut off, which approvals have run, each specialist's start) is kept by Claude Code
+  across a hot reload, and a governed start or tool call waits until it has loaded; if it can't load, it is refused.
+- `policy.json`: agents may no longer write the reporter's own records (`state/agent-org/status/**`,
+  `state/agent-org/audit/**`) with Write, Edit or a shell redirect.
+- Another plugin's agent is never judged by a vault agent file of the same name.
+
+Reviewed twice by the standing reviewers (secure-code, OWASP agentic) through Zeus; the second review recommended
+shipping. Remaining nice-to-have items are tracked for a later release.
+
 ## [0.35.1] - 2026-10-08
 
 **The policy rules now actually run.** A fix found while verifying v0.35.0: Charon shipped `scripts/policy/policy.json`
@@ -2150,7 +2198,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.35.1...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.36.0...HEAD
+[0.36.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.36.0
 [0.35.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.35.1
 [0.35.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.35.0
 [0.34.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.34.0

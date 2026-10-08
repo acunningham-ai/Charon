@@ -79,6 +79,7 @@ type LaneSpec = {
   limitMin?: number
   finishedAgoMs?: number
   toolCalls?: number
+  tier?: string // shows a size badge when it differs from the user's model
 }
 
 const SESSION_A = '7f3c21aa'
@@ -91,7 +92,7 @@ const LANES: LaneSpec[] = [
   { key: 'p1', agentId: 'p1', parentAgentId: 'z1', type: 'prometheus', description: 'Scan this week\'s advisories for the stack', startedAgoMs: 7 * 60_000, everyMs: 3_300, tools: ['WebSearch', 'WebFetch', 'WebFetch'], session: SESSION_A, own: true },
   { key: 's1', agentId: 's1', parentAgentId: 'z1', type: `${SPEC}licence-scan`, description: 'Check new dependencies\' licences', startedAgoMs: 6 * 60_000, everyMs: 4_200, tools: ['Read', 'WebFetch'], session: SESSION_A, own: true, limitMin: 15 },
   { key: 'main', agentId: null, parentAgentId: null, type: 'main', description: '', startedAgoMs: 21 * 60_000, everyMs: 9_000, tools: ['Skill', 'Read'], session: SESSION_B, own: false },
-  { key: 'h1', agentId: 'h1', parentAgentId: null, type: 'hephaestus', description: 'Weekly harness tune-up', startedAgoMs: 3 * 60_000, everyMs: 5_000, tools: ['Skill', 'Read', 'Grep'], session: SESSION_B, own: false },
+  { key: 'h1', agentId: 'h1', parentAgentId: null, type: 'hephaestus', description: 'Weekly harness tune-up', startedAgoMs: 3 * 60_000, everyMs: 5_000, tools: ['Skill', 'Read', 'Grep'], session: SESSION_B, own: false, tier: 'haiku' },
   { key: 'c1', agentId: 'c1', parentAgentId: 'z1', type: 'calliope', description: 'Draft the summary for the team', startedAgoMs: 252_000, everyMs: 4_000, tools: ['Read', 'Write'], session: SESSION_A, own: true, finishedAgoMs: 40_000, toolCalls: 63 },
 ]
 
@@ -130,6 +131,8 @@ export function demoLanes(now: number): Lane[] {
       lastActivity: iso(times[times.length - 1] ?? now),
       toolCalls: s.toolCalls ?? Math.round((now - started) / s.everyMs),
       limitMin: s.limitMin ?? null,
+      tier: s.tier ?? null,
+      tierNote: s.tier ? 'below your model' : null,
     }
   })
 }
@@ -165,6 +168,10 @@ export const DEMO_PENDING: PaneSpecialist = {
   maxMinutes: 20,
   status: 'pending',
   proposedAt: new Date().toISOString(),
+  model: 'sonnet',
+  modelReason: 'bounded extraction from two named documents; no judgement calls',
+  sizeNote: 'sonnet, below your model',
+  cardHash: 'demo',
   task: 'Read the supplied DPA and list every retention clause that is longer than the guideline allows.',
   brief:
     'You are checking one vendor data processing agreement. Read the DPA at the path given, then the ' +

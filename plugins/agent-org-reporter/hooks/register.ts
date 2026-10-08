@@ -3,21 +3,27 @@ import type { Register, EngineInterface } from 'claude-code'
 
 import type { PaneEvent } from '../types'
 import { registerPane } from './pane'
-import { approvalForType, decideSpawn, isSpecialistType } from './policy'
+import { approvalForType, baseType, decideSpawn, decideTier, isSpecialistType, tierOf, tierViolation } from './policy'
 import type { Approval, Roster } from './policy'
 import { findRoots, lifecycle, org, roots, seriesCall, seriesTokens, setPaneView, usedSpecs } from './shared'
 
 // agentId -> agent type, held by the host so it survives a hot reload of this
 // module (the spawn rules need a parent's type; losing it would refuse Zeus's work).
 const agentTypes = atom({ plugin: 'agent-org-reporter', key: 'agentTypes' } as const, {})
+// Enforcement state held by the host so a hot reload can't reset it (review S2).
+const enforceAtom = atom({ plugin: 'agent-org-reporter', key: 'enforce' } as const, {
+  tierExpect: {}, violators: [], usedApprovals: [], specRuns: {},
+})
 const AGENT_TYPES_MAX = 500
 // Always allowed for a specialist past its time limit, so it can still report back.
 const HANDBACK_TOOLS = new Set(['SubagentHandback'])
 
 // Agent Org — step 3: the reporting mod.
 //
-// OBSERVE-ONLY. Every hook passes the event through unchanged with next(e) and
-// returns what the chain answered; nothing here denies or rewrites. Logging
+// RECORDS everything, and ENFORCES only the Agent Org rules: the spawn rules
+// (policy.ts decideSpawn), the model-size rules (decideTier, which may refuse a
+// spawn or set its model to the approved size), and the specialist and size-violation
+// tool limits. Everything else passes through unchanged with next(e). Logging
 // failures never reach the chain — they are surfaced (toast + status line),
 // never swallowed silently, and never turned into a block.
 //
@@ -70,7 +76,9 @@ type AgentStatus = {
   description: string
   parentAgentId: string | null
   background: boolean
-  state: 'running' | 'idle' | 'finished' | 'aborted' | 'error' | 'refusal' | 'denied'
+  // 'waiting': a subagent between turns while agents it started are still running
+  // (Zeus, after his dispatch note). Shown as active, not finished.
+  state: 'running' | 'waiting' | 'idle' | 'finished' | 'aborted' | 'error' | 'refusal' | 'denied'
   startedAt: string
   lastActivity: string
   toolCalls: number
@@ -88,6 +96,8 @@ type AgentStatus = {
   lastToolAt: string | null
   callTimes: number[] // ms of the last CALL_TIMES_MAX calls, for the activity spark
   finishedAt: string | null
+  tier: string | null // the size it was started on (haiku / sonnet / opus), for the lane badge
+  tierNote: string | null // 'below your model' / 'above your model' / null
 }
 
 const CALL_TIMES_MAX = 40
@@ -160,6 +170,8 @@ function blank(key: string, agentId: string | null): AgentStatus {
     lastToolAt: null,
     callTimes: [],
     finishedAt: null,
+    tier: null,
+    tierNote: null,
   }
 }
 
@@ -252,6 +264,8 @@ function publish() {
         lastTool: s.lastTool,
         callTimes: s.callTimes.slice(),
         finishedAt: s.finishedAt,
+        tier: s.tier,
+        tierNote: s.tierNote,
       })),
       recent,
       mainCalls: main?.toolCalls ?? 0,
@@ -387,15 +401,17 @@ async function loadOrg($: $) {
 }
 
 function activeSpecialists() {
-  return [...status.values()].filter(s => isSpecialistType(s.subagentType) && s.state === 'running').length
+  return [...specRuns.values()].filter(r => !r.done).length
 }
 
 async function typeOf($: $, agentId: string | undefined | null) {
   if (!agentId) return null
-  const known = status.get(agentId)?.subagentType
-  if (known && known !== 'unknown') return known
+  // The host's record wins: status entries can be restored from files an agent could
+  // write (review S7), so they never decide an agent's type for enforcement.
   const types = (await read($, agentTypes)) ?? {}
-  return types[agentId] ?? null
+  if (types[agentId]) return types[agentId]
+  const known = status.get(agentId)?.subagentType
+  return known && known !== 'unknown' ? known : null
 }
 
 async function rememberType($: $, agentId: string, agentType: string) {
@@ -405,6 +421,141 @@ async function rememberType($: $, agentId: string, agentType: string) {
     for (const k of keys.slice(0, Math.max(0, keys.length - AGENT_TYPES_MAX))) delete next[k]
     return next
   })
+}
+
+// A hot reload (it happened mid-run on 2026-10-08, 06:10:30Z) starts this module over
+// with an empty roll-up: running agents vanish from the pane and their counters restart.
+// The status files on disk are the last snapshot, so read this session's back in.
+async function restoreStatus($: $) {
+  if (!STATE_DIR || status.size) return
+  const sid = await $.session.id()
+  const dir = `${STATE_DIR}/status/${safeId(sid)}`
+  if (!(await $.fs.exists(dir))) return
+  for (const f of await $.fs.list(dir)) {
+    if (f.kind !== 'file' || !f.name.endsWith('.json')) continue
+    try {
+      // DISPLAY ONLY (review S7): these files can be written by agents, so nothing read here
+      // feeds an enforcement decision. Every field is type-checked; anything odd is dropped.
+      const v = JSON.parse(await $.fs.read(`${dir}/${f.name}`)) as Record<string, unknown>
+      const str = (x: unknown, n: number) => (typeof x === 'string' ? x.slice(0, n) : null)
+      const num = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) && x >= 0 ? x : 0)
+      const key = safeId(str(v.key, 80) ?? f.name.slice(0, -5))
+      const agentId = str(v.agentId, 80)
+      const s = blank(key, agentId)
+      s.subagentType = str(v.subagentType, 80) ?? s.subagentType
+      s.description = str(v.description, DESC_MAX) ?? ''
+      s.parentAgentId = str(v.parentAgentId, 80)
+      const states = ['running', 'waiting', 'idle', 'finished', 'aborted', 'error', 'refusal', 'denied']
+      s.state = (states.includes(v.state as string) ? v.state : 'finished') as AgentStatus['state']
+      s.startedAt = str(v.startedAt, 40) ?? s.startedAt
+      s.lastActivity = str(v.lastActivity, 40) ?? s.lastActivity
+      s.finishedAt = str(v.finishedAt, 40)
+      s.toolCalls = num(v.toolCalls)
+      s.toolErrors = num(v.toolErrors)
+      s.toolDenies = num(v.toolDenies)
+      s.turns = num(v.turns)
+      s.model = str(v.model, 80)
+      s.tier = str(v.tier, 12)
+      s.tierNote = str(v.tierNote, 24)
+      s.lastTool = str(v.lastTool, 80)
+      const tk = (v.tokens ?? {}) as Record<string, unknown>
+      s.tokens = { input: num(tk.input), output: num(tk.output), cacheRead: num(tk.cacheRead), cacheWrite: num(tk.cacheWrite) }
+      s.callTimes = Array.isArray(v.callTimes) ? (v.callTimes as unknown[]).filter((t): t is number => typeof t === 'number').slice(-CALL_TIMES_MAX) : []
+      status.set(key, s)
+    } catch {
+      // a half-written file is skipped; that agent reappears at its next event
+    }
+  }
+  paneDirty = true
+}
+
+// What each started agent was decided to run on, for the after-the-fact checks, plus who
+// has been cut off and which approvals have run. Module mirrors of the host atom: read
+// back after a hot reload (hydrate), written on every change (persist). Review S2.
+const tierExpect = new Map<string, { type: string; expected: string | null; floor: string | null }>()
+const tierViolators = new Set<string>()
+const specRuns = new Map<string, { approvalId: string; type: string; startedMs: number; done: boolean }>()
+let hydrated = false
+let hydrating: Promise<boolean> | null = null
+
+// One read shared by every event that arrives while it runs, and `hydrated` set only once
+// it succeeded (re-review NF-C): before, the flag was set first, so events racing a hot
+// reload saw empty state, and a failed read let the next persist wipe the host copy.
+async function hydrate($: $): Promise<boolean> {
+  if (hydrated) return true
+  hydrating ??= (async () => {
+    try {
+      const e = await read($, enforceAtom)
+      if (e) {
+        for (const [k, v] of Object.entries(e.tierExpect ?? {})) if (!tierExpect.has(k)) tierExpect.set(k, v)
+        for (const k of e.violators ?? []) tierViolators.add(k)
+        for (const k of e.usedApprovals ?? []) usedSpecs.add(k)
+        for (const [k, v] of Object.entries(e.specRuns ?? {})) if (!specRuns.has(k)) specRuns.set(k, v)
+      }
+      hydrated = true
+      return true
+    } catch {
+      return false
+    } finally {
+      hydrating = null
+    }
+  })()
+  return hydrating
+}
+
+async function persist($: $) {
+  if (!(await hydrate($))) return // never overwrite the host copy with state that didn't load
+  const keep = <T>(m: Map<string, T>) => Object.fromEntries([...m.entries()].slice(-AGENT_TYPES_MAX))
+  await update($, enforceAtom, () => ({
+    tierExpect: keep(tierExpect),
+    violators: [...tierViolators].slice(-AGENT_TYPES_MAX),
+    usedApprovals: [...usedSpecs].slice(-AGENT_TYPES_MAX),
+    specRuns: keep(specRuns),
+  }))
+}
+
+// The tools an agent type is granted, for the tool-based floor. Read
+// from its agent file's frontmatter; null (unknown → floored) when there's no file to read.
+// Only a plain name is looked up: `plugin:x` is another plugin's agent, which the vault's
+// `x.md` does not describe (re-review NF-F), so its tools stay unknown (floored).
+// `model` is the definition's own default (NF-D): undefined when no file was read.
+type AgentDef = { tools: string[] | null; model: string | null | undefined }
+const toolsCache = new Map<string, AgentDef>()
+async function agentDefFor($: $, type: string): Promise<AgentDef> {
+  const cached = toolsCache.get(type)
+  if (cached) return cached
+  const def: AgentDef = { tools: null, model: undefined }
+  try {
+    const path = `${roots.vault}/.claude/agents/${type}.md`
+    if (roots.vault && /^[A-Za-z0-9_-]+$/.test(type) && (await $.fs.exists(path))) {
+      const fm = (await $.fs.read(path)).split('---')[1] ?? ''
+      const t = /^tools:\s*(.+)$/m.exec(fm)
+      if (t) def.tools = t[1].replace(/["'\[\]]/g, '').split(',').map(x => x.trim()).filter(Boolean)
+      const m = /^model:\s*["']?([A-Za-z0-9._-]+)/m.exec(fm)
+      def.model = m && m[1] !== 'inherit' ? m[1] : null
+    }
+  } catch {
+    def.tools = null
+    def.model = undefined
+  }
+  toolsCache.set(type, def)
+  return def
+}
+
+// The size reason travels in the description; log its length, not its words (review N5).
+function redactReason(description: string) {
+  return description.replace(/^(\s*tier=[^;]*;\s*why=)([^;]*)(;)/, (_m, a, b, c) => `${a}<${String(b).trim().length} chars>${c}`)
+}
+
+async function checkTier($: $, agentId: string, actualModel: string | null | undefined, where: string) {
+  const exp = tierExpect.get(agentId)
+  if (!exp || !actualModel) return
+  const problem = tierViolation(exp.type, actualModel, exp.expected, exp.floor)
+  if (!problem || tierViolators.has(agentId)) return
+  tierViolators.add(agentId)
+  await persist($).catch(() => undefined)
+  record('tier.violation', { agentId, subagentType: exp.type, where, actualModel, expectedTier: exp.expected, floorTier: exp.floor })
+  $.ui.toast(`Agent Org: ${problem}. Its tools are now refused (it can still report back).`)
 }
 
 // Decide before the spawn runs. Fail-closed ONLY for governed spawns (nested, or a
@@ -423,7 +574,10 @@ async function spawnRefusal($: $, e: { subagentType: string; fork: boolean; pare
         parentKnown: !e.parentAgentId || parentType !== null,
         activeSpecialists: activeSpecialists(),
         nowMs: Date.now(),
-        alreadyUsed: usedSpecs.has(e.subagentType),
+        alreadyUsed: (() => {
+          const ap = isSpecialistType(e.subagentType) && org.data ? approvalForType(org.data, e.subagentType) : null
+          return ap ? usedSpecs.has(ap.id) : false
+        })(),
       },
       org.data,
     )
@@ -436,14 +590,20 @@ async function spawnRefusal($: $, e: { subagentType: string; fork: boolean; pare
 // refused (its hand-back always passes). Null = allow.
 async function toolRefusal($: $, agentId: string | undefined, tool: string) {
   if (!agentId || HANDBACK_TOOLS.has(tool)) return null
+  if (tierViolators.has(agentId)) {
+    return 'Agent Org: this agent is running on a different model than it was started on, so its tools are refused. Report back now.'
+  }
   try {
     const t = await typeOf($, agentId)
-    if (!isSpecialistType(t) || !org.data) return null
-    const a = approvalForType(org.data, t as string)
-    if (!a) return 'Agent Org: this specialist has no approval on record. Report back to Zeus now.'
+    if (!isSpecialistType(t)) return null
+    // From the host-held start record and the approval it ran under (by id), never from a
+    // status file (review B1, S7). No record, no approvals loaded, or no start time: refused.
+    const run = specRuns.get(agentId)
+    const a = run && org.data ? org.data.approvals[run.approvalId] : undefined
+    if (!run || !a) return 'Agent Org: this specialist has no start or approval record. Report back to Zeus now.'
     if (!a.tools.includes(tool)) return `Agent Org: ${tool} is not in this specialist's approved tools (${a.tools.join(', ')}).`
-    const started = Date.parse(status.get(agentId)?.startedAt ?? a.startedAt ?? '')
-    if (started && Date.now() > started + a.maxMinutes * 60_000) {
+    const started = run.startedMs
+    if (!Number.isFinite(started) || Date.now() > started + a.maxMinutes * 60_000) {
       return `Agent Org: this specialist's ${a.maxMinutes}-minute limit is up. Report back to Zeus now with what you have.`
     }
     return null
@@ -457,19 +617,53 @@ async function toolRefusal($: $, agentId: string | undefined, tool: string) {
   }
 }
 
+// An agent that ends without a turn.complete (killed, failed) would stay 'running' for the
+// life of the process, hold a specialist slot and keep its parent 'waiting' (review S9).
+// Every ~10 s, ask the engine where each live agent stands and close the ones it has ended.
+async function reconcile($: $) {
+  const live = [...status.values()].filter(s => s.agentId && (s.state === 'running' || s.state === 'waiting'))
+  const openRuns = [...specRuns.entries()].filter(([, r]) => !r.done)
+  if (!live.length && !openRuns.length) return
+  const byId = new Map((await $.agent.list()).map(a => [a.id, a]))
+  let changed = false
+  for (const s of live) {
+    const a = byId.get(s.agentId as string)
+    if (!a || (a.status !== 'completed' && a.status !== 'failed' && a.status !== 'killed')) continue
+    s.state = a.status === 'completed' ? 'finished' : 'error'
+    s.finishedAt = iso()
+    s.currentTool = null
+    dirty.add(s.key)
+    paneDirty = true
+    record('agent.reconciled', { agentId: s.agentId, engineStatus: a.status })
+  }
+  for (const [id, r] of openRuns) {
+    const a = byId.get(id)
+    if (a && (a.status === 'completed' || a.status === 'failed' || a.status === 'killed')) {
+      r.done = true
+      lifecycle.finished.push({ agentType: r.type, approvalId: r.approvalId, at: iso() })
+      changed = true
+    }
+  }
+  if (changed) await persist($)
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const result = await next(e)
     try {
       await resolveRoots($)
+      await hydrate($)
+      await restoreStatus($).catch(() => undefined)
       sessionId = null
       record('session.start', { isInteractive: e.isInteractive })
       loopStatus(undefined)
       tick?.cancel() // session.start may fire again in the same environment
+      let ticks = 0
       tick = $.clock.every(FLUSH_EVERY_MS, () => {
         void flush($)
         publish()
         void loadOrg($).catch(() => undefined)
+        if (++ticks % 5 === 0) void reconcile($).catch(() => undefined)
       })
       void flush($)
     } catch (err) {
@@ -479,20 +673,68 @@ export const register: Register = on => {
   })
 
   on('agent.spawn', async ($, e, next) => {
+    const loaded = await hydrate($)
     let refusal = await spawnRefusal($, e)
+    // Single use and cut-offs live in that state: a governed start waits for it (NF-C).
+    if (!refusal && !loaded && (e.parentAgentId || isSpecialistType(e.subagentType))) {
+      refusal = 'Agent Org: enforcement state could not be loaded, so this start is refused. Try again shortly.'
+    }
     const isSpec = isSpecialistType(e.subagentType)
+    // The approval this start runs under, by id (review B1).
+    const specAppr = isSpec && org.data ? approvalForType(org.data, e.subagentType) : null
+    const useKey = specAppr?.id ?? ''
     if (!refusal && isSpec) {
-      if (usedSpecs.has(e.subagentType)) {
+      if (!specAppr) {
+        refusal = `Agent Org: ${e.subagentType} has no approval on record.`
+      } else if (usedSpecs.has(useKey)) {
         refusal = `Agent Org: ${e.subagentType} is single-use and has already run. Propose a new specialist if the task needs more work.`
       } else {
-        usedSpecs.add(e.subagentType) // marked BEFORE it starts: a parallel start now sees it
+        usedSpecs.add(useKey) // marked BEFORE it starts: a parallel start now sees it
+        void persist($).catch(() => undefined)
       }
     }
-    const result = refusal ? { deny: refusal } : await next(e)
-    if (isSpec && !refusal && !result.agentId && result.deny === undefined) usedSpecs.delete(e.subagentType) // never started
+    // Model size (design 2026-10-08): allow, rewrite to the approved size, or refuse.
+    let tier: ReturnType<typeof decideTier> | null = null
+    let spawnInput = e
+    if (!refusal) {
+      try {
+        const parentType = await typeOf($, e.parentAgentId)
+        let userModel: string | null = e.parentAgentId ? null : e.parentModel
+        if (!userModel) userModel = await $.session.model().catch(() => null)
+        const appr = specAppr
+        const def = appr ? null : await agentDefFor($, e.subagentType)
+        tier = decideTier(
+          {
+            subagentType: e.subagentType,
+            requestedModel: e.model ?? null,
+            parentModel: e.parentModel ?? null,
+            userModel,
+            description: e.description ?? '',
+            parentType,
+            approvalModel: appr ? appr.model ?? 'inherit' : null,
+            nested: Boolean(e.parentAgentId),
+            agentTools: appr ? appr.tools : def?.tools ?? null,
+            workflow: Boolean((e as { workflow?: unknown }).workflow),
+            // a specialist's definition is the one this plugin registered, at its approved size
+            definitionModel: appr ? appr.model ?? null : def?.model,
+          },
+          org.data,
+        )
+        if (tier.decision === 'refuse') refusal = tier.reason ?? 'Agent Org: model size refused.'
+        else if (tier.decision === 'rewrite' && tier.model) spawnInput = { ...e, model: tier.model }
+      } catch {
+        // Governed spawns fail closed; anything else is allowed but recorded as undecided.
+        const governed = Boolean(e.parentAgentId) || isSpec || Boolean(e.model)
+        if (governed) refusal = 'Agent Org: the model-size rules could not be evaluated, so this start is refused.'
+        else record('tier.undecided', { subagentType: e.subagentType, decided: false })
+      }
+      if (refusal && isSpec && useKey) usedSpecs.delete(useKey)
+    }
+    const result = refusal ? { deny: refusal } : await next(spawnInput)
+    if (isSpec && !refusal && !result.agentId && result.deny === undefined && useKey) usedSpecs.delete(useKey) // never started
     try {
       const denied = result.deny !== undefined
-      const description = cap(e.description, DESC_MAX) ?? ''
+      const description = cap(redactReason(e.description ?? ''), DESC_MAX) ?? ''
       const deny = cap(result.deny, DENY_MAX)
       record('agent.spawn', {
         agentId: result.agentId ?? null,
@@ -503,6 +745,12 @@ export const register: Register = on => {
         fork: e.fork,
         provider: e.provider,
         model: result.model ?? null,
+        requestedModel: cap(e.model ?? null, 60),
+        parentModel: cap(e.parentModel ?? null, 60),
+        tierDecision: tier?.decision ?? (refusal ? 'not-evaluated' : null),
+        userTier: tier?.userTier ?? null,
+        floorTier: tier?.floorTier ?? null,
+        effectiveTier: tier?.effectiveTier ?? null,
         promptChars: e.prompt.length,
         denied,
         deny,
@@ -515,8 +763,23 @@ export const register: Register = on => {
         s.background = e.background
         s.model = result.model ?? null
         s.state = 'running'
+        const userTier = tier?.userTier ?? null
+        s.tier = tier?.effectiveTier ?? tierOf(result.model ?? null)
+        s.tierNote = !s.tier || !userTier || s.tier === userTier ? null
+          : (['haiku', 'sonnet', 'opus', 'fable'].indexOf(s.tier) < ['haiku', 'sonnet', 'opus', 'fable'].indexOf(userTier) ? 'below your model' : 'above your model')
+        // Every allowed or rewritten start has an expected size, "your model" included (S3).
+        tierExpect.set(result.agentId, {
+          type: e.subagentType,
+          expected: tier?.effectiveTier ?? null,
+          floor: tier?.floorTier ?? null,
+        })
+        if (isSpecialistType(e.subagentType) && specAppr) {
+          specRuns.set(result.agentId, { approvalId: specAppr.id, type: e.subagentType, startedMs: Date.now(), done: false })
+          lifecycle.started.push({ agentType: e.subagentType, approvalId: specAppr.id, at: iso() })
+        }
+        await persist($).catch(() => undefined)
+        await checkTier($, result.agentId, result.model, 'spawn')
         await rememberType($, result.agentId, e.subagentType)
-        if (isSpecialistType(e.subagentType)) lifecycle.started.push({ agentType: e.subagentType, at: iso() })
       } else if (denied) {
         // A refused spawn has no agentId; keep it visible as its own row.
         const s = statusFor(`denied-${e.tool_use_id}`, null)
@@ -539,7 +802,10 @@ export const register: Register = on => {
   })
 
   on('tool.call', async ($, e, next) => {
-    const refusal = await toolRefusal($, e.agentId, e.tool)
+    const loaded = await hydrate($)
+    const refusal = !loaded && e.agentId && !HANDBACK_TOOLS.has(e.tool)
+      ? 'Agent Org: enforcement state could not be loaded, so this agent\'s tools are refused. Report back now.'
+      : await toolRefusal($, e.agentId, e.tool)
     if (!refusal) {
       try {
         const s0 = loopStatus(e.agentId)
@@ -547,6 +813,7 @@ export const register: Register = on => {
         s0.currentTool = e.tool
         s0.currentSince = iso()
         if (s0.state === 'idle') s0.state = 'running' // main: a turn is under way
+        if (e.agentId && (s0.state === 'waiting' || s0.state === 'finished')) s0.state = 'running' // woken for another turn
         paneDirty = true
       } catch {
         // the live view must never get in the way of the call
@@ -615,23 +882,37 @@ export const register: Register = on => {
       if (u) {
         seriesTokens(Date.now(), u.output_tokens)
         s.model = u.model
-        s.tokens.input += u.input_tokens
-        s.tokens.output += u.output_tokens
-        s.tokens.cacheRead += u.cache_read_input_tokens
-        s.tokens.cacheWrite += u.cache_creation_input_tokens
+        s.tokens.input += Number(u.input_tokens) || 0
+        s.tokens.output += Number(u.output_tokens) || 0
+        s.tokens.cacheRead += Number(u.cache_read_input_tokens) || 0
+        s.tokens.cacheWrite += Number(u.cache_creation_input_tokens) || 0
       }
       // A subagent's run is one turn: its turn.complete is its finish. The main
       // loop goes idle and waits for the next prompt. Anything outside the
       // known reasons is recorded as 'error' rather than trusted as a state.
       s.currentTool = null
       s.currentSince = null
-      if (e.agentId) s.finishedAt = iso()
-      if (e.reason === 'answer') s.state = e.agentId ? 'finished' : 'idle'
+      if (e.agentId && u) await checkTier($, e.agentId, u.model, 'turn.complete')
+      // A subagent with agents of its own still running is waiting for them, not done
+      // (Zeus sends a dispatch note, then is woken as each seat reports).
+      const liveChildren = e.agentId
+        ? [...status.values()].filter(c => c.parentAgentId === e.agentId && c.state === 'running').length
+        : 0
+      if (e.agentId && !liveChildren) s.finishedAt = iso()
+      if (e.reason === 'answer') s.state = e.agentId ? (liveChildren ? 'waiting' : 'finished') : 'idle'
       else if (e.reason === 'aborted' || e.reason === 'refusal') s.state = e.reason
       else s.state = 'error'
+      const parent = s.parentAgentId ? status.get(s.parentAgentId) : undefined
+      if (parent && parent.state === 'waiting' && s.state !== 'running' && s.state !== 'waiting') {
+        const still = [...status.values()].some(c => c.parentAgentId === parent.key && (c.state === 'running' || c.state === 'waiting'))
+        if (!still) dirty.add(parent.key) // it stays 'waiting' until its own next turn ends; keep the file fresh
+      }
       // A specialist has no Agent tool, so its one turn is its whole run: retire it.
       if (e.agentId && isSpecialistType(s.subagentType)) {
-        lifecycle.finished.push({ agentType: s.subagentType, at: iso() })
+        const run = specRuns.get(e.agentId)
+        if (run && !run.done) run.done = true
+        lifecycle.finished.push({ agentType: s.subagentType, approvalId: run?.approvalId, at: iso() })
+        await persist($).catch(() => undefined)
       }
       note({
         who: agentLabel(e.agentId),
