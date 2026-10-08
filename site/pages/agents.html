@@ -6,6 +6,59 @@
   </div>
 </div>
 
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="kicker">New in v0.35.0 &middot; Agent Org</p>
+      <h2>See your agents work, live.</h2>
+      <p>When several agents run at once, you can see each one: what it's doing, which tool it's in, who started it, and which safety gate stopped it. A pane sits beside the conversation and a local dashboard covers every session, so <b>nothing works out of sight</b>. Built on Claude Code <a class="link" href="https://claude.com/resources/articles/claude-code-mods">mods</a>, so the rules below are enforced by the system, not just asked of the model.</p>
+    </div>
+    <figure class="shot">
+      <img src="assets/agent-org/dashboard-demo.png" alt="The Agent Org dashboard in demo mode: live agents across two sessions, the org constellation, the event feed, and a specialist waiting for approval with its full brief" loading="lazy" width="1440" height="1550">
+      <figcaption>The dashboard (<code>/agent-org web</code>) in demo mode: sample data, labelled as such.</figcaption>
+    </figure>
+    <div class="split">
+      <figure class="shot">
+        <img src="assets/agent-org/pane-demo.png" alt="The Agent Org pane in demo mode: clock, activity graphs, gates, live agents, the org chart, a pending approval with Approve and Decline, the feed" loading="lazy" width="471" height="1272">
+        <figcaption>The pane, in demo mode</figcaption>
+      </figure>
+      <div>
+        <h3>A pane beside the conversation</h3>
+        <p>It opens by itself on a wide terminal, or with <code>/agent-org</code>. Top to bottom, it answers:</p>
+        <ul>
+          <li><b>System &amp; activity:</b> is it working right now, and is anything looping?</li>
+          <li><b>Gates:</b> how often did the safety gates step in today?</li>
+          <li><b>Live agents:</b> what is running, who started it, which tool is it in, is it stuck?</li>
+          <li><b>Org:</b> which seats are busy, and which specialists exist right now?</li>
+          <li><b>Approval needed:</b> what exactly will this specialist be told and allowed to do?</li>
+          <li><b>Feed and waiting on you:</b> what just happened, and what needs a person?</li>
+        </ul>
+        <p>Privacy: it records tool <i>names</i> and timings only, never your prompts, the answers, or tool inputs. The dashboard is local-only and read-only. <a class="link" href="https://github.com/acunningham-ai/Charon/blob/main/AGENT-ORG.md">The full guide, section by section →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="kicker">Zeus &middot; Chief of Staff</p>
+      <h2>Hand over the whole task, not the parts.</h2>
+      <p>Each seat does one kind of work well. Real tasks span several: "prepare the weekly security brief" needs your notes, this week's advisories and a draft. Without a Chief of Staff, <b>you</b> are the router. Zeus plans the task, delegates each part to the right seat, and merges the results. He plans and delegates; he does no work himself and writes nothing.</p>
+    </div>
+    <div class="stages" aria-label="How Zeus works a complex task">
+      <div class="stg"><div class="sn">01</div><h4>You ask</h4><p>A task that spans more than one seat.</p></div>
+      <div class="stg"><div class="sn">02</div><h4>He plans</h4><p>Breaks it into parts and picks the seat for each.</p></div>
+      <div class="stg"><div class="sn">03</div><h4>Seats work</h4><p>In parallel where they can. You watch them in the pane.</p></div>
+      <div class="stg"><div class="sn">04</div><h4>No seat fits?</h4><p>He proposes a specialist: task, tools, time limit, full brief.</p></div>
+      <div class="stg verify"><div class="sn">05</div><h4>You approve</h4><p>A button press or a command you type. Nothing runs before it.</p></div>
+      <div class="stg"><div class="sn">06</div><h4>It runs once</h4><p>Read-only + web at most, time-limited, then retired.</p></div>
+      <div class="stg"><div class="sn">07</div><h4>One answer</h4><p>He checks each result against what you asked and merges them.</p></div>
+    </div>
+    <p class="honest-beat"><b>Enforced by the system, not requested of the model.</b> Zeus may start only roster seats and specialists you approved. He can never start a general-purpose agent, another Zeus, or Cerberus, which reports to you outside his chain. An approval sent by a model, another plugin or a scheduled prompt is refused. Approvals and the org chart are protected by policy rules, and the test suite checks all of it.</p>
+  </div>
+</section>
+
 <section class="termscene">
   <div class="wrap">
     <div class="term" role="img" aria-label="A Charon session where Prometheus frames a research angle and hands it to Calliope, which drafts in your voice">

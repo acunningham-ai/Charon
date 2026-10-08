@@ -217,6 +217,43 @@ Check **D32** fails if any cited ID is absent from that snapshot, if a rendered 
 
 The `Workflow` tool refuses a script containing control characters, and CR (U+000D) is one. With no `.gitattributes`, working-tree line endings are decided by each user's `core.autocrlf` — `true` by default on Git for Windows — so a fresh clone rewrote every LF to CRLF and **all three workflows became unlaunchable** while the committed blobs stayed clean and every other check passed. `.gitattributes` pins `eol=lf`; D30 fails on a control character in any workflow script, on a missing pin, and on CR anywhere in the tracked text tree. It reads the **working tree**, not the blob — reading the blob is exactly what would have missed it.
 
+## Agent Org
+
+[Agent Org](AGENT-ORG.md) is a Claude Code mod: code that runs inside the agent loop, unsandboxed, with the same
+access as Claude Code itself. It is in this repo for you to read (`plugins/agent-org-reporter/`).
+
+**What it enforces (system-level, not a model instruction).**
+
+- **Spawn rules.** Zeus may start only roster seats and approved specialists. He may never start a general-purpose
+  agent, a fork, another Zeus, or Cerberus, which stays outside his chain. A governed spawn whose rules cannot be
+  evaluated is refused (fail closed).
+- **Approval channel.** A specialist exists only after `approvals.json` records your decision. The pane is the only
+  writer, and it acts only on your button press or a `/agent-org approve|decline <id>` you **typed**. A command
+  arriving from a model, another plugin, the SDK or a scheduled prompt is refused, and the test suite checks this.
+  The proposal's full brief is shown before you approve, and it is fenced as data in the specialist's prompt.
+- **Specialist ceiling.** Read, Grep, Glob, WebSearch and WebFetch at most. No writes, and no starting other agents.
+  Time-limited (tool calls refused after the limit, hand-back always allowed), single-use (an atomic guard stops two
+  parallel starts), at most 10 active, and an approval lapses after 24 hours.
+- **Policy rules** (`scripts/policy/policy.json`): `agent-org-approvals-write` **denies** agent Write/Edit to the
+  approvals and proposal files; `agent-org-roster-write` **asks** before the roster changes;
+  `agent-org-control-write-via-shell` asks on shell writes to either. The shell rule is a regex over the command
+  text, so it can fire on a command that only *mentions* those paths. That costs a confirmation, never a silent miss.
+
+**What it records.** Tool names, timings, outcomes and token counts, never prompts, answers, or tool inputs and
+outputs. A spawn's short description (capped at 120 characters) and another hook's deny reason (capped at 200) are
+kept and treated as untrusted text everywhere they are shown.
+
+**The dashboard.** Binds `127.0.0.1` only (exclusive bind, so another process cannot share the port), refuses any
+`Host` other than loopback (DNS-rebinding guard), serves fixed routes only (no request path reaches the file
+system), sends a strict CSP with no inline script and `nosniff`, is read-only (POST/PUT/DELETE answer 405), makes no
+network calls, and exits two minutes after its last tab closes.
+
+**Security review (2026-10-08).** 0 blocking findings. Two amber findings were fixed before release: a single-use
+race, now closed by an atomic guard; and the approval UI hiding the brief, now shown in full. **Accepted
+residuals:** token cost is not limited (time is); specialists are registered by the pane, so they are available in
+interactive sessions only; agents started by a Workflow do not raise `agent.spawn`, so the spawn rules do not see
+them (only the main conversation can run a workflow, and Zeus has no Workflow tool).
+
 ## Security baseline framework (C-1..C-8)
 
 The full pattern is encoded in `.claude/rules/secure-code.md` (auto-fires on code paths) and `.claude/rules/skill-authoring.md` (auto-fires on new skills / hooks / MCPs). Every new automation in the harness must satisfy applicable controls before going live:

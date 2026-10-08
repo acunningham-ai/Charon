@@ -133,6 +133,69 @@
       "verdict": "deny",
       "severity": "high",
       "reason": "Agent/Task/WebFetch/WebSearch are denied in unattended runs (cascading-agent + egress blast radius — C-2)."
+    },
+    {
+      "id": "agent-org-approvals-write",
+      "description": "Specialist approvals and proposals are the Agent Org's control files. approvals.json is written ONLY by the agent-org-reporter pane on the user's press or typed command; specialists/*.json ONLY by Zeus's propose_specialist tool. Both write through the plugin's own $.fs, which these tool hooks never see, so denying agent Write/Edit costs the real writers nothing and closes the forge-an-approval path. Zero legitimate fire rate: any fire is a finding.",
+      "applies_to": [
+        "*"
+      ],
+      "match": {
+        "tool": [
+          "Write",
+          "Edit"
+        ],
+        "path_globs": [
+          "**/state/agent-org/approvals.json",
+          "**/state/agent-org/specialists/**"
+        ]
+      },
+      "verdict": "deny",
+      "enforce": true,
+      "severity": "high",
+      "reason": "Agent Org approvals and specialist proposals are written only by the pane (the user's approve/decline) and Zeus's propose_specialist tool. An agent writing them directly would forge an approval. Blocked."
+    },
+    {
+      "id": "agent-org-roster-write",
+      "description": "roster.json is the org chart the spawn rules enforce (who Zeus may start, the specialist tool ceiling, time and concurrency limits). Legitimate edits exist (a new seat, a changed limit), so ASK rather than deny: a reviewed change with the user's confirm token.",
+      "applies_to": [
+        "*"
+      ],
+      "match": {
+        "tool": [
+          "Write",
+          "Edit"
+        ],
+        "path_globs": [
+          "**/state/agent-org/roster.json"
+        ]
+      },
+      "verdict": "ask",
+      "enforce": true,
+      "severity": "high",
+      "reason": "Write to the Agent Org roster (the org chart the spawn rules enforce). Changing it changes what Zeus may start and the specialist limits — confirm before modifying."
+    },
+    {
+      "id": "agent-org-control-write-via-shell",
+      "description": "The shell half of agent-org-approvals-write and agent-org-roster-write. Same known limits as protected-config-write-via-shell: regex over a shell string cannot tell quoting a path from writing it (false positives cost a confirmation), and interpreter writes (python -c, node -e) are only partly matched. Raises the cost of the obvious bypass; not complete mediation.",
+      "applies_to": [
+        "*"
+      ],
+      "match": {
+        "tool": [
+          "Bash"
+        ],
+        "command_patterns": [
+          ">>?\\s*[^|;&\\n\\r]*agent-org[/\\\\](approvals\\.json|roster\\.json|specialists)",
+          "\\b(tee|cp|mv|rename|Copy-Item|Move-Item)\\b[^|;&\\n\\r]*agent-org[/\\\\](approvals\\.json|roster\\.json|specialists)",
+          "\\bsed\\s+-i\\b[^|;&\\n\\r]*agent-org[/\\\\](approvals\\.json|roster\\.json|specialists)",
+          "\\b(Set-Content|Add-Content|Out-File)\\b[^|;&\\n\\r]*agent-org[/\\\\](approvals\\.json|roster\\.json|specialists)"
+        ]
+      },
+      "verdict": "ask",
+      "enforce": true,
+      "severity": "high",
+      "reason": "Shell command writes to Agent Org control files (approvals, proposals, roster). Approvals are the user's; the roster is a reviewed change — confirm."
     }
   ]
 }

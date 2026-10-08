@@ -62,6 +62,7 @@ QUICK_MODE_ASK_IDS = {
     "identity_name",
     "identity_role",
     "identity_org",
+    "agent_org_enable",  # v0.35.0: offered at install, default yes
     "capture_pipeline_setup",
     "m365_tenant_id",
     "m365_client_id",
@@ -876,6 +877,18 @@ def _run_restore(tool: Path, extra: list) -> bool:
     return False
 
 
+def apply_agent_org(answers: dict[str, str], dry_run: bool) -> None:
+    """Act on agent_org_enable: yes adds the plugin folder to CLAUDE_CODE_PLUGIN_DIRS in the
+    user's Claude Code settings (merged, backed up, version-checked). See agent_org_setup.py."""
+    if (answers.get("agent_org_enable") or "").strip().lower() not in ("y", "yes"):
+        return
+    import agent_org_setup
+
+    _ok, msg = agent_org_setup.enable(dry_run=dry_run)
+    print()
+    soft(f"Agent Org: {msg}")
+
+
 def run_catch_up(dry_run: bool = False) -> int:
     """Ask only the questions that capability shipped AFTER you installed needs.
 
@@ -941,6 +954,8 @@ def run_catch_up(dry_run: bool = False) -> int:
     # Render only the templates that actually consume a newly-answered question --
     # a catch-up must never rewrite files unrelated to what it just asked.
     fresh = {q["id"] for q in askable if answers.get(q["id"], "").strip()}
+    if "agent_org_enable" in fresh:
+        apply_agent_org(answers, dry_run)
     templates = data.get("templates") or {}
     touched = {tid: t for tid, t in templates.items()
                if any(f"{{{{{qid}}}}}" in (t.get("body") or "") for qid in fresh)}
@@ -1089,7 +1104,7 @@ def main():
     if mode == "quick":
         print()
         soft(
-            "Quick mode — three questions (name, role, organisation). "
+            "Quick mode — four questions (name, role, organisation, and whether to turn on Agent Org). "
             "Vault path defaults to current directory, secrets to ~/.secrets, "
             "Anthropic-key setup deferred, voice / framework / integrations skipped. "
             "You can refine any of those any time with `python scripts/first-run.py --phase <name>`."
@@ -1126,6 +1141,7 @@ def main():
     env_lines = env_var_hints(env_vars, answers)
 
     confirm_and_write(plans, vault, mem, answers, env_lines, anthropic_target, args.dry_run, repo, mode)
+    apply_agent_org(answers, args.dry_run)
 
     # Quick-mode tail: explicit refinement-commands print so the user knows
     # exactly what to run to deepen any phase later. No-op for full mode

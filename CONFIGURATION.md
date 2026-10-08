@@ -14,6 +14,7 @@ Set in your shell profile (`~/.zshrc`, `~/.bashrc`, or PowerShell `$PROFILE`).
 | `HARNESS_SECRETS_DIR` | `~/.secrets` | You use a keychain-wrapped or non-default secrets location |
 | `HARNESS_UNATTENDED_ALLOWLIST` | unset | Set per-run by scheduled wrapper bats; gates write-path validator |
 | `CLAUDE_PROJECT_DIR` | derived by Claude Code | Set explicitly if Claude Code's auto-detection picks the wrong directory |
+| `CLAUDE_CODE_PLUGIN_DIRS` | unset | Read by Claude Code from the `env` block of `~/.claude/settings.json`: the plugin folders to load. `scripts/agent_org_setup.py` adds Agent Org's (see [AGENT-ORG.md](AGENT-ORG.md#4-turning-it-on-and-off)) |
 
 ## `.claude/settings.json`
 
@@ -249,6 +250,22 @@ first git remote on a previously local-only vault, or a new production namespace
 all invalidate part of it — and a stale `environment` line understates blast
 radius silently. Re-run `/auto-mode-setup`, or hand-edit the affected lines, when
 any of those change.
+
+## Agent Org
+
+Turned on by the setup question `agent_org_enable` (default yes), by `/charon-update` for existing installs, or by `python scripts/agent_org_setup.py` (`--check`, `--disable`). Needs Claude Code 2.1.287+.
+
+| Setting | Where | Default |
+|---|---|---|
+| Org chart + specialist limits | `plugins/agent-org-reporter/roster.default.json`; copy to `state/agent-org/roster.json` to change it (takes precedence; a policy rule asks first) | Zeus → 5 seats + 4 standing reviewers; Cerberus independent |
+| `specialistPolicy.toolCeiling` | roster | Read, Grep, Glob, WebSearch, WebFetch |
+| `specialistPolicy.maxMinutes` | roster | 30 |
+| `specialistPolicy.maxActive` | roster | 10 |
+| Vault location | `HARNESS_VAULT_ROOT` | the nearest folder above the plugin holding `.claude/` + `scripts/load-rules.py` |
+| Capture pipeline (for the review-queue count) | `HARNESS_CAPTURE_ROOT` | `~/capture-pipeline` |
+| Dashboard port | — | `127.0.0.1:8765`, then 8766, 8767, then any free port (demo mode: 8775) |
+
+Full guide, including what each pane and dashboard section shows: [AGENT-ORG.md](AGENT-ORG.md).
 
 ## `.mcp.json`
 

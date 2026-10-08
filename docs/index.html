@@ -316,50 +316,50 @@
 <!-- WHAT'S NEW IN THIS BUILD (replaced each release) -->
 <section class="band tall alt" id="whats-new">
   <div class="wrap">
-    <div class="sec-head reveal"><p class="kicker">What's new in v0.34.0</p><h2>It remembers what matters, and tells you what broke.</h2><p>This release closes two gaps every long-running assistant has: rules that only work if you remember them, and failures that happen quietly. Here's what's new, how you'll use it, and why it's worth having.</p></div>
+    <div class="sec-head reveal"><p class="kicker">What's new in v0.35.0</p><h2>See your agents work, with Zeus as Chief of Staff.</h2><p>Charon's first capability built on Claude Code <a class="link" href="https://claude.com/resources/articles/claude-code-mods">mods</a>, which run inside the agent loop: rules that used to be instructions the model could ignore are now enforced by the system. Here's what's new, how you'll use it, and why it's worth having.</p></div>
     <div class="wn">
       <article class="wn-card reveal" style="--i:1">
-        <span class="wn-tag">Self-healing</span>
-        <h3>You find out from the system, not from the damage.</h3>
+        <span class="wn-tag">Agent Org</span>
+        <h3>Nothing works out of sight.</h3>
         <dl>
-          <dt>What it is</dt><dd>A failed scheduled run is queued automatically. A review turns each one into a note with the likely cause and fixes ranked most-likely first. The watch grows to 11 detectors, including one for a review queue nobody drains.</dd>
-          <dt>How you'll use it</dt><dd>Run <code>/harness-review --drain</code> when it suits you. Your next session tells you a proposal is waiting; accept, decline or defer it with <code>/harness-fix</code>.</dd>
-          <dt>Why it matters</dt><dd>Silent failures are the expensive kind. And nothing fixes itself: the review proposes, <code>/harness-heal</code> is propose-only, and you decide.</dd>
+          <dt>What it is</dt><dd>A live pane beside the conversation and a local dashboard: every agent running in any session, the tool each is in, activity over time, today's safety gates, the org chart and a live feed.</dd>
+          <dt>How you'll use it</dt><dd>It opens by itself on a wide terminal; <code>/agent-org</code> opens it anywhere, <code>/agent-org web</code> opens the dashboard.</dd>
+          <dt>Why it matters</dt><dd>You trust agents you can see. It records tool names and timings only, never your prompts or the answers, and the dashboard is local and read-only.</dd>
         </dl>
-        <a class="wn-more" href="self-healing.html">How self-healing works →</a>
+        <a class="wn-more" href="agents.html">See the pane and dashboard →</a>
       </article>
       <article class="wn-card reveal" style="--i:2">
-        <span class="wn-tag">Memory</span>
-        <h3>The rule shows up when you act, not when you remember.</h3>
+        <span class="wn-tag">Zeus</span>
+        <h3>Hand over the whole task, not the parts.</h3>
         <dl>
-          <dt>What it is</dt><dd>When the assistant writes a file, the rule you wrote about that file is put in front of it. At the end of the turn, it checks that files which must change together did.</dd>
-          <dt>How you'll use it</dt><dd>Write your couplings once in plain JSON: "if this changes, that must too". Three ship; copy the examples for decision logs and reports.</dd>
-          <dt>Why it matters</dt><dd>A rule that only fires when someone remembers it isn't a control. It never blocks the write, and holds the turn open once, never twice.</dd>
+          <dt>What it is</dt><dd>A Chief of Staff. He plans a task that spans several seats, delegates each part to the right one, and merges the results into one answer.</dd>
+          <dt>How you'll use it</dt><dd>Ask for the outcome ("prepare the weekly security brief") instead of running research, recall and drafting yourself.</dd>
+          <dt>Why it matters</dt><dd>You stop being the router. And the system enforces his limits: roster seats and approved specialists only, never a general-purpose agent, never Cerberus.</dd>
         </dl>
-        <a class="wn-more" href="#memory">See it in the memory section →</a>
+        <a class="wn-more" href="agents.html">How Zeus works a complex task →</a>
       </article>
       <article class="wn-card reveal" style="--i:3">
-        <span class="wn-tag">Memory</span>
-        <h3>A read-first list that stays short enough to read.</h3>
+        <span class="wn-tag">Specialists</span>
+        <h3>New help for one task, only with your yes.</h3>
         <dl>
-          <dt>What it is</dt><dd>Your memories' links join the knowledge graph, and finished or long-quiet read-first items are proposed for retirement.</dd>
-          <dt>How you'll use it</dt><dd>Run <code>pickup_sweep.py --report</code> to see what it would retire; <code>--apply</code> only when you agree. It suits a daily schedule.</dd>
-          <dt>Why it matters</dt><dd>A list that only grows stops being read. Anything unfinished is written to your commitments before it leaves, so tidying never drops an open thread.</dd>
+          <dt>What it is</dt><dd>When no seat fits, Zeus proposes a single-use specialist: its task, the exact tools and a time limit, with the full brief it will be given.</dd>
+          <dt>How you'll use it</dt><dd>Read the brief in the pane, then press Approve or Decline, or type <code>/agent-org approve &lt;id&gt;</code>.</dd>
+          <dt>Why it matters</dt><dd>It runs once, read-only and web at most, within its time limit. A model or another plugin cannot approve it, and the tests prove that.</dd>
         </dl>
-        <a class="wn-more" href="memory.html">Explore memory →</a>
+        <a class="wn-more" href="https://github.com/acunningham-ai/Charon/blob/main/AGENT-ORG.md">Read the full guide →</a>
       </article>
       <article class="wn-card reveal" style="--i:4">
-        <span class="wn-tag">Security</span>
-        <h3>Two security gates now act, not just watch.</h3>
+        <span class="wn-tag">Setup</span>
+        <h3>One question to turn it on.</h3>
         <dl>
-          <dt>What it is</dt><dd>Reading a captured message that the scanner flags asks you first. Writing a config file that it flags needs a confirmation only you can give.</dd>
-          <dt>How you'll use it</dt><dd>For a flagged capture, re-issue the read to go ahead. For a flagged config, confirm it yourself; an agent retrying is deliberately not enough.</dd>
-          <dt>Why it matters</dt><dd>Instructions hidden in an email, or a poisoned settings file, are how an assistant that reads your inbox gets turned against you.</dd>
+          <dt>What it is</dt><dd>Setup asks "Turn on Agent Org?" (default yes). Existing installs are asked by <code>/charon-update</code>.</dd>
+          <dt>How you'll use it</dt><dd>Say yes and restart Claude Code. Undo any time with <code>python scripts/agent_org_setup.py --disable</code>.</dd>
+          <dt>Why it matters</dt><dd>It checks your Claude Code version (2.1.287+), keeps a backup, and only adds its own folder to your settings, never overwriting anything else.</dd>
         </dl>
-        <a class="wn-more" href="security.html">Explore security →</a>
+        <a class="wn-more" href="#install">Get started →</a>
       </article>
     </div>
-    <p class="wn-also reveal">Also in this build: a red circle now means one thing, <b>unverified</b>. Good and bad get ✅ ⚠️ ❌. Users told us the shared red was confusing.</p>
+    <p class="wn-also reveal">Also new this week, in v0.34.0: <b>you find out from the system, not from the damage</b>. Failed runs are reviewed into ranked fixes, and rules surface at the moment you act. <a class="link" href="self-healing.html">See self-healing →</a></p>
   </div>
 </section>
 
@@ -410,7 +410,7 @@
           <div class="term-body">
 <div class="line"><span class="dim">▸ scanning harness…</span></div>
 <div class="line"><span class="ok">  ✓</span> static validity   <span class="you">all scripts compile · 3 workflows named</span></div>
-<div class="line"><span class="ok">  ✓</span> config validity   <span class="you">58 commands · 18 rules · 10 agents</span></div>
+<div class="line"><span class="ok">  ✓</span> config validity   <span class="you">58 commands · 18 rules · 11 agents</span></div>
 <div class="line"><span class="amber">  ⚠ [ observe ]</span> capture token 26d old — reauth this week</div>
 <div class="line">      <span class="dim">fix: re-run your capture auth flow</span></div>
 <div class="line"> </div>
@@ -675,7 +675,7 @@ V8 deps vs registry <span class="g">✓ clean</span>
 <!-- FULL SURFACE -->
 <section class="band alt tall" id="everything">
   <div class="wrap">
-    <div class="sec-head reveal"><p class="kicker">The full surface</p><h2>Everything it does.</h2><p><b>58 commands · 18 rules · 22 hooks · 10 agents · 3 workflows · 4 MCP servers</b>, plus a working capture pipeline. Six pillars have deep-dive pages; the rest of the toolbox is below — nothing hidden, nothing oversold.</p></div>
+    <div class="sec-head reveal"><p class="kicker">The full surface</p><h2>Everything it does.</h2><p><b>58 commands · 18 rules · 22 hooks · 11 agents · 3 workflows · 4 MCP servers</b>, plus a working capture pipeline. Six pillars have deep-dive pages; the rest of the toolbox is below — nothing hidden, nothing oversold.</p></div>
     <div class="scap">
       <a class="scard link reveal" style="--i:1" href="memory.html"><h4>Memory →</h4><p>Durable plain-markdown memory, save-on-mention, on-device semantic search, optional typed graph, and an always-loaded index kept small enough to be read in full.</p></a>
       <a class="scard link reveal" style="--i:1" href="capture.html"><h4>Capture →</h4><p>Email inbox + sent into the vault, voice notes, screenshots — all untrusted by default.</p></a>

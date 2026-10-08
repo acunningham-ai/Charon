@@ -266,7 +266,7 @@ Safety properties, all machine-enforced by deterministic check **D28**:
 
 ## Agents (`.claude/agents/*.md`)
 
-Ten agents in three categories. **Review / synthesis subagents** are dispatched in parallel by parent skills for heavyweight tasks — each gets its own context window + minimum tool permissions. **Standing seats** are named functional roles invoked via their own slash command, steered across sessions by a persistent artefact (not parallel-review subagents, and not roleplay of your identity). **Front-door seats** route a plain-language ask to the right existing verb and add synthesis on top. Full capability + intent for each in `.claude/agents/README.md`.
+Eleven agents in four categories. **Review / synthesis subagents** are dispatched in parallel by parent skills for heavyweight tasks — each gets its own context window + minimum tool permissions. **Standing seats** are named functional roles invoked via their own slash command, steered across sessions by a persistent artefact (not parallel-review subagents, and not roleplay of your identity). **Front-door seats** route a plain-language ask to the right existing verb and add synthesis on top. Full capability + intent for each in `.claude/agents/README.md`.
 
 **On the seat pattern:** a seat is *additive*. It never removes, hides, or demotes a command — every verb a seat routes to keeps working standalone and is still documented here as a first-class capability. The seat exists because remembering *which* of six commands to reach for is friction, and because a good seat produces something none of its verbs produce alone (one synthesised brief instead of three dumps). If you prefer the verbs, use the verbs.
 
@@ -297,7 +297,21 @@ Each pairs a slash command (the runnable front door, which has the shell) with a
 | `helios` | Daily-cadence seat — a morning **brief** that synthesises what changed + what's on today + what's owed into one 30-second read, plus evening + weekly cadences. Routes to `/triage-inbox` · `/refresh-todo` · `/eod-reflect` · `/weekly-checkin`. Read + surface: it *offers* `/refresh-todo`, never silently rewrites `TODO.md`. Calendar is **optional and user-configured** (see the command). | `/helios` | Read, Grep, Glob, Skill |
 | `hephaestus` | Tune-up seat — runs the health + hygiene detectors and synthesises ONE prioritised broken / messy / could-improve report with the command to fix each. Routes to `/harness-doctor` · `/score-vault` · `/vault-lint` · `/harness-improve` · `/curate-skills` · `/telemetry-summary` · `/harness-watch-review`. **Surfaces + proposes; never auto-fixes.** | `/hephaestus` | Read, Grep, Glob, Skill |
 
+### Chief of Staff (multi-seat tasks)
+
+| Seat | What it does | Invoked by | Tools |
+|---|---|---|---|
+| `zeus` | Chief of Staff — turns a task that spans several seats into a short plan, delegates each part to the right seat, and merges the results into one answer. When no seat fits he **proposes** a single-use specialist, which runs only after you approve it. Plans and delegates; writes nothing. His spawns are governed by the Agent Org plugin: roster seats and approved specialists only, never a general-purpose agent, a fork, another Zeus or Cerberus. See [AGENT-ORG.md](AGENT-ORG.md#2-zeus-and-how-the-brain-works-on-a-complex-task) | the Agent tool (`zeus`) | Read, Grep, Glob, Skill, Agent, `propose_specialist` |
+
 See `.claude/agents/README.md` for the dispatch pattern + per-seat capability and intent.
+
+## Plugins (`plugins/`)
+
+Claude Code **mods** (function-hook plugins, Claude Code 2.1.287+). Loaded from `CLAUDE_CODE_PLUGIN_DIRS`; the setup wizard offers each one.
+
+| Plugin | What it does | Turn on |
+|---|---|---|
+| `agent-org-reporter` | **Agent Org.** Records every agent spawn, tool call and finish (names and timings, never content) to `state/agent-org/`; draws a live pane beside the conversation (`/agent-org`) and serves a local dashboard (`/agent-org web`); enforces Zeus's spawn rules; runs the specialist approval flow (Approve/Decline only by your press or typed command); `/agent-org demo` for screenshots. Tests: `claude plugin test plugins/agent-org-reporter`. Full guide: [AGENT-ORG.md](AGENT-ORG.md) | asked at setup; `python scripts/agent_org_setup.py` |
 
 ## Workflows (`.claude/workflows/*.js`)
 
@@ -338,6 +352,7 @@ You invoke these directly.
 
 | Script | What |
 |---|---|
+| `agent_org_setup.py` | Turns Agent Org on or off: merges `plugins/agent-org-reporter` into `CLAUDE_CODE_PLUGIN_DIRS` in `~/.claude/settings.json` (version-checked, backed up, idempotent). `--check` to preview, `--disable` to undo. Tests: `test_agent_org_setup.py` |
 | **score-vault.py** | Vault hygiene audit (markdown report by default; `--json` for machine). Counts a memory as indexed however it is linked (`[text](file.md)` or `[[file]]`) and follows `*_index.md` sub-indexes to any depth |
 | **memory_working_set.py** | Keeps `MEMORY.md`, the one memory file loaded into every session, small enough to be read in full. Claude Code reads only its first ~24 KB and silently drops the rest. Keeps your `## 📌 Pickups` section as written, adds a `## ⏰ Due now` block from the commitments register, and moves every other section into the catalog sub-index `reference_memory_catalog_index.md`, which stays searchable. Holds a **16 KB ceiling**: if pickups alone would exceed it, the least urgent ones (no ❌/⚠️ urgent mark — older 🔴 still counts — then no ⭐) move to the catalog and are never deleted. Refuses to write if any link would be lost; backs up the old file to `state/memory-index-backups/`. `--dry-run` first. Schedule it daily (see CONFIGURATION.md) |
 | **pickup_sweep.py** | Keeps the `## 📌 Pickups` read-first list short. Proposes archiving pickups that are finished (carry ✅ / DONE / ⛔ / SHIPPED / CLOSED / COMPLETE) or whose memory file hasn't been touched in 30 days. **Propose-only by default**; `--report` writes the proposal to `00-Inbox/_harness/`, `--apply` edits MEMORY.md. On apply, a *stale* pickup is not dropped but moved to the commitments register as an undated follow-up ("resume or close"), because quiet is not the same as finished; it refuses to apply if it can't record them. Done items just go. The memory files themselves are never touched |

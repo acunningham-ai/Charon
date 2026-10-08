@@ -135,7 +135,9 @@ def is_hook_test_run() -> bool:
 
 
 def _audit_log_path() -> Path:
-    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    # File day is the machine's LOCAL date: a UTC day files every morning before
+    # the UTC rollover under yesterday (east of UTC). Each line's `ts` stays UTC.
+    day = datetime.now().astimezone().strftime("%Y-%m-%d")
     base = _project_root() / "state" / "verdict"
     if is_hook_test_run():
         base = base / "_test"

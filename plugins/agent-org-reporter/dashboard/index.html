@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Agent Org</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>Agent Org</h1>
+    <p class="link" id="link" role="status" aria-live="polite"><span class="dot" aria-hidden="true"></span><span id="link-text">Connecting to the harness</span></p>
+  </div>
+  <time class="clock" id="clock" aria-label="Local time"></time>
+  <dl class="kpis" aria-label="Today so far">
+    <div class="kpi kpi-run"><dt>Agents running</dt><dd id="k-running">–</dd></div>
+    <div class="kpi"><dt>Tool calls today</dt><dd id="k-calls">–</dd></div>
+    <div class="kpi"><dt>Agents started today</dt><dd id="k-spawned">–</dd></div>
+    <div class="kpi"><dt>Tokens written today</dt><dd id="k-tokens">–</dd></div>
+    <div class="kpi"><dt>Gates asked or blocked</dt><dd id="k-gates">–</dd></div>
+  </dl>
+</header>
+
+<main class="grid">
+  <section class="panel live" aria-labelledby="h-live">
+    <div class="panel-head">
+      <h2 id="h-live">Live agents</h2>
+      <p class="hint" id="live-sub">Every agent running in any of your Claude Code sessions, with what it is doing right now.</p>
+    </div>
+    <ol id="lanes" class="lanes" aria-live="off"></ol>
+    <p class="empty" id="lanes-empty" hidden>Nothing running right now. Agents appear here the moment they start.</p>
+  </section>
+
+  <section class="panel sky" aria-labelledby="h-sky">
+    <div class="panel-head">
+      <h2 id="h-sky">Who's working</h2>
+      <p class="hint">Seats light up while one of their agents runs. Outer points are one-off specialists started today.</p>
+    </div>
+    <div class="sky-wrap">
+      <svg id="sky" viewBox="-300 -235 600 490" role="img" aria-labelledby="sky-title sky-desc">
+        <title id="sky-title">Agent org chart</title>
+        <desc id="sky-desc">You at the centre, the harness seats around you, specialists on the outer ring.</desc>
+      </svg>
+    </div>
+    <ul class="legend" aria-label="Legend">
+      <li><span class="sw sw-run" aria-hidden="true"></span>Running now</li>
+      <li><span class="sw sw-today" aria-hidden="true"></span>Worked today</li>
+      <li><span class="sw sw-idle" aria-hidden="true"></span>Idle</li>
+      <li><span class="sw sw-ind" aria-hidden="true"></span>Independent of the chain (Cerberus)</li>
+    </ul>
+  </section>
+
+  <section class="panel feed" aria-labelledby="h-feed">
+    <div class="panel-head">
+      <h2 id="h-feed">What it's doing</h2>
+      <label class="toggle"><input type="checkbox" id="only-agents"> Subagents only</label>
+    </div>
+    <ol id="feed" class="feed-list" aria-live="off"></ol>
+    <p class="empty" id="feed-empty" hidden>Nothing in the last 24 hours. Start a Claude Code session and every tool call will appear here as it happens.</p>
+  </section>
+
+  <section class="panel sessions" aria-labelledby="h-sessions">
+    <div class="panel-head">
+      <h2 id="h-sessions">Sessions</h2>
+      <figure class="spark" aria-labelledby="spark-cap">
+        <svg id="spark" viewBox="0 0 240 36" preserveAspectRatio="none" aria-hidden="true"></svg>
+        <figcaption id="spark-cap">Tool calls per hour, last 24 hours</figcaption>
+      </figure>
+    </div>
+    <div id="sessions"></div>
+  </section>
+
+  <section class="panel gates" aria-labelledby="h-gates">
+    <div class="panel-head">
+      <h2 id="h-gates">Gates today</h2>
+      <p class="hint" id="gates-sub"></p>
+    </div>
+    <div class="gate-bar" id="gate-bar" role="img"></div>
+    <table class="gate-table">
+      <caption class="sr">Verdicts by hook today</caption>
+      <thead><tr><th scope="col">Hook</th><th scope="col">Allowed</th><th scope="col">Watched</th><th scope="col">Asked</th><th scope="col">Blocked</th></tr></thead>
+      <tbody id="gate-rows"></tbody>
+    </table>
+    <h3>Recent asks and blocks</h3>
+    <ol id="gate-notable" class="notable"></ol>
+  </section>
+
+  <section class="panel waiting" aria-labelledby="h-wait">
+    <div class="panel-head">
+      <h2 id="h-wait">Waiting on you</h2>
+    </div>
+    <div id="specs"></div>
+    <div id="queue"></div>
+    <h3>Overdue commitments</h3>
+    <ol id="commit" class="commit"></ol>
+  </section>
+</main>
+
+<footer class="foot">
+  <p>Read-only view of <code>state/agent-org</code>, <code>state/verdict</code> and the review queue. Runs on this computer only; closing the tab stops it within two minutes.</p>
+</footer>
+<script src="/app.js"></script>
+</body>
+</html>

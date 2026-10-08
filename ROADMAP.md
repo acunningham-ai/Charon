@@ -10,6 +10,8 @@ Where Charon is going. Status, rationale, and what isn't on the list.
 
 ## Done (recently shipped)
 
+- ✅ **Agent Org: see your agents work, with Zeus as Chief of Staff** (2026-10-08, `v0.35.0`). Charon's first capability built on Claude Code mods (2.1.287+). The `plugins/agent-org-reporter` plugin records every spawn, tool call and finish (names and timings, never content), draws a live pane (`/agent-org`) and a local read-only dashboard (`/agent-org web`), and enforces the spawn rules: Zeus, the new Chief of Staff, starts only roster seats and specialists the user approved. Specialists are single-use, read-only + web, time-limited, and approved only by the user's press or typed command. Offered at setup and through `/charon-update` (`scripts/agent_org_setup.py`). Guide: `AGENT-ORG.md`.
+
 - ✅ **Charon remembers what matters, and tells you what broke** (2026-10-08, `v0.34.0`). Failed scheduled runs are queued; `/harness-review --drain` turns each into a likely cause and ranked fixes; a session-start hook says when proposals are waiting; `/harness-fix` records your decision; `/harness-heal` checks a pre-approved fix, propose-only. The watch grows from 8 to 11 self-tested detectors, observe-only. `jit-memory` surfaces the rule for a file as it is written and `enforce-cochange` checks files that must change together did; the memory graph takes in your memories' links; the pickup lifecycle keeps the read-first list short without dropping open threads. Read-time injection scan and config-edit scan leave shadow, each with a way past it. New deep-dive: `site/pages/self-healing.html`.
 
 - ✅ **MEMORY.md stays small enough to be read, and dated commitments surface** (2026-10-02, `v0.33.0`). `scripts/memory_working_set.py` keeps the one always-loaded memory file to your pickups and what's due now, moves everything else into a searchable catalog, and holds a 16 KB ceiling under Claude Code's ~24 KB read limit, backed by an in-session ask in `deny-destructive.py`. Two new session-start checks: `check-commitments.py` lists overdue and due-soon commitments from `scripts/commitments.py`, and `check-scheduler-liveness.py` says when a scheduled job has stopped producing output. `/score-vault` stops reporting false orphans.
@@ -307,6 +309,10 @@ When the harness operates a deployed service (SSH, `sudo`, remote DB), the crede
 **Reinforced (2026-06) with a secret-substitution pattern** for the broader case where the harness *acts* on your behalf (mail/calendar/API): a `${keys.NAME}` reference resolves **after** the model emits its action, so the raw secret is never in the model's context, gated by a mandatory per-key destination allowlist. Pattern reimplemented clean from a security evaluation of an agent-UI framework — no third-party code vendored.
 
 ---
+
+### 🚧 The right model for each agent
+
+Agent Org (v0.35.0) lets Zeus plan a task and propose single-use specialists. Next: Zeus proposes the **model** for each agent from what it needs to do: a small, fast one for a mechanical lookup, a stronger one for judgement. It would be shown on the approval card with its reason, never silent, with the user's own model as the default.
 
 ## Medium-term (3-6 months)
 

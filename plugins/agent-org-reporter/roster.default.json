@@ -1,0 +1,114 @@
+{
+  "_about": "Agent Org roster: the org chart as data. This is the default shipped with the plugin. To change it, copy this file to state/agent-org/roster.json in your vault and edit that copy (it takes precedence). Read by the spawn rules and the dashboard; agents never write it.",
+  "version": 1,
+  "top": "user",
+  "seats": [
+    {
+      "id": "zeus",
+      "name": "Zeus",
+      "role": "Chief of Staff: turns an ask into a plan, routes work to seats, proposes a specialist when no seat fits",
+      "reportsTo": "user",
+      "kind": "chief",
+      "agentType": "zeus",
+      "canSpawn": true
+    },
+    {
+      "id": "athena",
+      "name": "Athena",
+      "role": "Knowledge: your own vault",
+      "reportsTo": "zeus",
+      "kind": "seat",
+      "agentType": "athena",
+      "canSpawn": false
+    },
+    {
+      "id": "helios",
+      "name": "Helios",
+      "role": "The day: briefs, cadence, what's owed",
+      "reportsTo": "zeus",
+      "kind": "seat",
+      "agentType": "helios",
+      "canSpawn": false
+    },
+    {
+      "id": "prometheus",
+      "name": "Prometheus",
+      "role": "Research: the outside world",
+      "reportsTo": "zeus",
+      "kind": "seat",
+      "agentType": "prometheus",
+      "canSpawn": false
+    },
+    {
+      "id": "calliope",
+      "name": "Calliope",
+      "role": "Writing: outbound drafts in your voice",
+      "reportsTo": "zeus",
+      "kind": "seat",
+      "agentType": "calliope",
+      "canSpawn": false
+    },
+    {
+      "id": "hephaestus",
+      "name": "Hephaestus",
+      "role": "Maintenance: harness and vault health",
+      "reportsTo": "zeus",
+      "kind": "seat",
+      "agentType": "hephaestus",
+      "canSpawn": false
+    },
+    {
+      "id": "cerberus",
+      "name": "Cerberus",
+      "role": "Independent assurance: checks the others, outside the chain of command",
+      "reportsTo": "user",
+      "kind": "independent",
+      "agentType": "cerberus",
+      "canSpawn": false
+    },
+    {
+      "id": "knowledge-synthesizer",
+      "name": "knowledge-synthesizer",
+      "role": "Standing specialist: durable framework docs from scattered notes",
+      "reportsTo": "zeus",
+      "kind": "standing-specialist",
+      "agentType": "knowledge-synthesizer",
+      "canSpawn": false
+    },
+    {
+      "id": "secure-code-reviewer",
+      "name": "secure-code-reviewer",
+      "role": "Standing specialist: baseline secure-code review",
+      "reportsTo": "zeus",
+      "kind": "standing-specialist",
+      "agentType": "secure-code-reviewer",
+      "canSpawn": false
+    },
+    {
+      "id": "owasp-llm-reviewer",
+      "name": "owasp-llm-reviewer",
+      "role": "Standing specialist: OWASP LLM Top 10 review",
+      "reportsTo": "zeus",
+      "kind": "standing-specialist",
+      "agentType": "owasp-llm-reviewer",
+      "canSpawn": false
+    },
+    {
+      "id": "owasp-agentic-reviewer",
+      "name": "owasp-agentic-reviewer",
+      "role": "Standing specialist: OWASP Agentic AI review",
+      "reportsTo": "zeus",
+      "kind": "standing-specialist",
+      "agentType": "owasp-agentic-reviewer",
+      "canSpawn": false
+    }
+  ],
+  "specialistPolicy": {
+    "toolCeiling": ["Read", "Grep", "Glob", "WebSearch", "WebFetch"],
+    "maxMinutes": 30,
+    "maxActive": 10,
+    "spawnedBy": ["zeus"],
+    "refuseTypes": ["general-purpose", "fork", "zeus"],
+    "_decided": "Defaults: specialists get read-only + web tools at most, run once, up to 30 minutes each, at most 10 active at once; a specialist exists only after the user approves it by a pane press or a typed command."
+  }
+}

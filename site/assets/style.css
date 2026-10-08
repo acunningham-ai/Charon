@@ -361,3 +361,13 @@ footer{border-top:1px solid var(--line);background:var(--bg-2);padding:56px 0 40
 .road{max-width:720px;margin:34px auto 0;text-align:center}
 .road p{color:var(--muted);font-size:16px;line-height:1.6}
 .road b{color:var(--ink-2)}
+/* screenshots (v0.35.0) */
+.shot{margin:28px auto 0;max-width:1120px}
+.shot img{display:block;width:100%;height:auto;border-radius:14px;border:1px solid var(--line);box-shadow:var(--shadow-md);background:var(--t-bg)}
+.shot figcaption{text-align:center;color:var(--muted);font-size:12.5px;margin-top:12px;font-family:var(--mono)}
+.split{display:grid;grid-template-columns:minmax(0,300px) 1fr;gap:40px;align-items:start;margin-top:40px}
+.split .shot{margin:0}
+.split h3{font-size:20px;letter-spacing:-.02em}
+.split p{color:var(--ink-2);margin-top:10px;line-height:1.6}
+.split ul{margin:12px 0 0 18px;color:var(--ink-2);line-height:1.6}
+@media(max-width:800px){.split{grid-template-columns:1fr}.split .shot{max-width:340px;margin:0 auto}}

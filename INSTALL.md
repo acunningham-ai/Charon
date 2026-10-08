@@ -166,6 +166,10 @@ The four environment variables (defaults are sensible — override if you need):
 | `HARNESS_CAPTURE_ROOT` | `~/capture-pipeline` | Capture pipeline install (if you wire M365 / Slack / etc.). |
 | `HARNESS_SECRETS_DIR` | `~/.secrets` | Where the harness reads credential JSON files. |
 
+## Agent Org (asked during setup)
+
+The setup wizard asks one question, *"Turn on Agent Org?"* (default yes), quick mode included. Yes adds the plugin folder to `CLAUDE_CODE_PLUGIN_DIRS` in `~/.claude/settings.json`. It merges with anything already there and keeps a backup. It needs Claude Code 2.1.287 or later; on an older version it changes nothing and tells you how to finish after `claude update`. Restart Claude Code afterwards. Existing installs are asked by `/charon-update`. Undo: `python scripts/agent_org_setup.py --disable`. See [AGENT-ORG.md](AGENT-ORG.md).
+
 ## Verify
 
 From the vault root:

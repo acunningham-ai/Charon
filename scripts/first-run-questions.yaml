@@ -308,6 +308,22 @@ questions:
     skippable: true
     type: multiline
 
+  - id: agent_org_enable
+    phase: workflow
+    prompt: "Turn on Agent Org - a live view of what your agents are doing, plus Zeus, the Chief of Staff? (y/n)"
+    description: |
+      Agent Org is a Claude Code mod: a live pane beside the conversation and a local dashboard
+      showing every agent running, every tool call and every safety gate as it happens, plus
+      Zeus, who plans multi-part tasks and hands each part to the right seat. Specialists Zeus
+      proposes run only after you approve them. Needs Claude Code 2.1.287 or later.
+      Yes adds this repo's plugins/agent-org-reporter folder to CLAUDE_CODE_PLUGIN_DIRS in your
+      ~/.claude/settings.json (merged, with a backup). Undo any time:
+      python scripts/agent_org_setup.py --disable
+    default: "y"
+    required: false
+    skippable: true
+    type: yes-no
+
   - id: capture_pipeline_setup
     phase: workflow
     prompt: "Set up an automated email capture pipeline? (y/n)"

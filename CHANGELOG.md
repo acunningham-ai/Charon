@@ -4,6 +4,71 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-10-08
+
+**Agent Org: see your agents work, with Zeus as Chief of Staff.** Charon's first capability built on Claude Code
+**mods**, the function-hook plugins Anthropic added on 1 October 2026
+([Anthropic's write-up](https://claude.com/resources/articles/claude-code-mods)). A mod runs *inside* the agent loop,
+so it can watch every event as it happens and refuse one before it does: rules that used to be instructions the
+model could ignore become rules the system enforces. Needs Claude Code 2.1.287 or later. Full guide:
+[AGENT-ORG.md](AGENT-ORG.md).
+
+### Added — a live view of every agent, in a pane and on a local dashboard
+
+**Capability.** A pane beside the conversation (`/agent-org`; it opens by itself from 144 terminal columns) and a
+local webpage (`/agent-org web`) show every agent running across all your sessions, each lane showing the tool it's
+in now, plus tool calls and tokens over time, today's safety-gate verdicts, the org chart, a live feed, and what's
+waiting on you. `/agent-org demo` swaps in a sample org for screenshots and talks, clearly labelled.
+
+**Intent.** Nothing works out of sight. When three agents run at once you can see which is stuck, which tool it's
+in, and which gate stopped it, as it happens rather than from a log afterwards.
+
+**Why it matters.** Trust in agents comes from seeing them. The record keeps tool names and timings only, never
+your prompts, the answers, or tool inputs, and the dashboard is local-only and read-only.
+
+### Added — Zeus, the Chief of Staff, and system-enforced spawn rules
+
+**Capability.** A new seat, `zeus`, takes a task that spans several seats, plans it, delegates each part to the
+right seat (Athena, Helios, Prometheus, Calliope, Hephaestus or a standing reviewer), and merges the results. The
+Agent Org plugin enforces what he may start: roster seats and approved specialists only, never a general-purpose
+agent, a fork, another Zeus, or Cerberus, which reports to you outside his chain.
+
+**Intent.** Stop being the router. Hand over the whole task instead of remembering which command each part needs.
+
+**Why it matters.** Delegation with a hard boundary: a spawn outside the rules is refused by Claude Code before it
+starts, whatever the model was told.
+
+### Added — single-use specialists that run only after you approve them
+
+**Capability.** When no seat fits, Zeus proposes a specialist: its purpose, its task, the exact tools it needs and
+a time limit. The pane shows the full brief with **Approve** and **Decline**; `/agent-org approve <id>` works too,
+but only when **you** type it. An approved specialist becomes a real agent type with read-only and web tools at most,
+runs once, within 24 hours, for up to 30 minutes, and at most 10 run at once. Three policy rules protect the approval
+and roster files.
+
+**Intent.** Let the system grow a new capability for one task without giving it standing power.
+
+**Why it matters.** The human gate is a real one. A model, another plugin or a scheduled prompt cannot approve a
+specialist, and the test suite proves it.
+
+### Added — offered at setup, and through `/charon-update`
+
+**Capability.** The setup wizard asks *"Turn on Agent Org?"* (default yes, quick mode included). Existing installs
+are asked by `/charon-update`. `scripts/agent_org_setup.py` merges the plugin folder into `CLAUDE_CODE_PLUGIN_DIRS`
+in `~/.claude/settings.json`: version-checked, backed up, idempotent, `--disable` to undo.
+
+**Why it matters.** It's one question, and it never overwrites settings that aren't its own.
+
+### Changed — the gate and telemetry logs are named by your local date
+
+Files under `state/verdict/` and `state/telemetry/` are now named by the machine's local date rather than UTC, so
+an Australian morning no longer files under yesterday. Each line's timestamp stays UTC.
+
+### Tests
+
+`claude plugin test plugins/agent-org-reporter` (6 behaviour tests through real engine events, against an
+in-memory vault), the existing spawn-rule check (28 cases), and `python scripts/test_agent_org_setup.py` (10).
+
 ## [0.34.0] - 2026-10-08
 
 **Charon remembers what matters, and tells you what broke.** A failed scheduled run is now queued, reviewed into a likely cause and ranked fixes, and put in front of you when your next session opens; nothing fixes itself. Rules now surface at the moment the assistant writes the file they are about, two security gates move out of shadow, and a red circle now means only "unverified". Existing installs get every item through `/charon-update`, which says what you gained.
@@ -2048,7 +2113,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.34.0...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.35.0...HEAD
+[0.35.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.35.0
 [0.34.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.34.0
 [0.33.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.33.0
 [0.32.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.32.0

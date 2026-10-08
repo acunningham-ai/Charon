@@ -121,6 +121,10 @@ Beyond the parallel *review* subagents, Charon ships **named standing seats** �
 
 First-run seeds all three (your beats, your newsletter senders, your forums) so they produce value on first run, not after weeks of manual setup.
 
+### Agent Org — see your agents work, with Zeus as Chief of Staff
+
+Charon's first capability built on Claude Code **mods**. A live pane beside the conversation, and a local dashboard, show every agent running, every tool call and every safety gate as it happens: nothing works out of sight. **Zeus**, the Chief of Staff, takes a task that spans several seats, plans it, delegates each part, and merges the results. When no seat fits he proposes a single-use specialist, which runs only after you approve it. The system, not the model, enforces who may start what. Offered at setup (Claude Code 2.1.287+); full guide in [AGENT-ORG.md](AGENT-ORG.md).
+
 ### Cerberus — defensive security for the AI installation itself
 
 The reviews above protect the *code you're working on*. Cerberus protects the *AI installation* it runs in — the configuration, the plugins, the MCP servers, the dependencies you pull. It's built for a surface most AI-security tooling skips, combining **secure-by-design construction** with **published-standards grounding** in a single open-source capability.

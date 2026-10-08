@@ -3,6 +3,13 @@
   "schema": 1,
   "capabilities": [
     {
+      "id": "zeus",
+      "class": "agent",
+      "shipped_in": null,
+      "blurb": "New seat: Zeus, the Chief of Staff. Give him a task that spans several seats and he plans it, delegates each part, and merges the results. When no seat fits he proposes a single-use specialist, which starts only after you approve it.",
+      "questions": []
+    },
+    {
       "id": "cerberus-audit",
       "class": "command",
       "shipped_in": null,
@@ -106,6 +113,15 @@
       "shipped_in": null,
       "blurb": "A red circle now means one thing: unverified. Whether something is good or bad is shown with a tick, a warning sign or a cross instead.",
       "questions": []
+    },
+    {
+      "id": "agent_org_setup",
+      "class": "script",
+      "shipped_in": null,
+      "blurb": "New: Agent Org. A live pane beside the conversation and a local dashboard show every agent running, every tool call and every safety gate as it happens, and Zeus, a Chief of Staff, plans multi-part tasks and hands each part to the right seat. Specialists he proposes run only after you approve them. Say yes to turn it on (needs Claude Code 2.1.287 or later).",
+      "questions": [
+        "agent_org_enable"
+      ]
     },
     {
       "id": "commitments",

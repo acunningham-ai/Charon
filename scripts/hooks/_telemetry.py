@@ -45,7 +45,7 @@ def log_event(hook: str, event: str, payload: dict, session_id: str = "") -> Non
             "session_id": session_id or "",
             "payload": payload or {},
         }
-        day = now.strftime("%Y-%m-%d")
+        day = now.astimezone().strftime("%Y-%m-%d")  # LOCAL file day; `ts` stays UTC
         directory = _vault_root() / "state" / "telemetry" / hook
         directory.mkdir(parents=True, exist_ok=True)
         path = directory / f"{day}.jsonl"
