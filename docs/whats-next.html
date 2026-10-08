@@ -44,6 +44,31 @@
   <div class="wrap">
     <div class="sec-head">
       <div class="kicker">Just shipped &middot; v0.35.1</div>
+      <h2>The policy rules now actually run</h2>
+      <p>A fix found while verifying v0.35.0, shipped the same day. Charon's policy engine was in the repo, but nothing called it, so none of its rules ran. Now it runs on every edit, write and shell command, and a release check proves it.</p>
+    </div>
+    <div class="cards two">
+      <div class="card">
+        <div class="ctop"><span class="cmd">policy.json</span><span class="pill ok">fixed</span></div>
+        <h4>Rules that act, and a check that they do</h4>
+        <p>Enforced rules ask before your settings or <code>CLAUDE.md</code> change and guard Agent Org's approvals. Release check D37 drives real calls through the gate.</p>
+        <p class="out">Outcome: a documented control is a working control.</p>
+      </div>
+      <div class="card">
+        <div class="ctop"><span class="cmd">every agent</span><span class="pill ok">changed</span></div>
+        <h4>Your model, everywhere</h4>
+        <p>The four standing reviewers no longer pin an older model; every agent now runs on the model you chose.</p>
+        <p class="out">Outcome: a model update never leaves an agent behind.</p>
+      </div>
+    </div>
+    <div class="explore"><a href="security.html">See the gates →</a></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">Shipped in v0.35.0</div>
       <h2>See your agents work, with Zeus as Chief of Staff</h2>
       <p>Agent Org: a live pane and a local dashboard show every agent at work, Zeus plans multi-part tasks across the seats, and specialists run only after you approve them. Charon's first capability built on Claude Code mods.</p>
     </div>
