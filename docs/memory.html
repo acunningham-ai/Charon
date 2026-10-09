@@ -201,6 +201,40 @@
   </div>
 </section>
 
+<section class="alt">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="kicker">New in v0.37.0</p>
+      <h2>Search that finds what you mean, an index that stays an index, a handoff that can&rsquo;t go stale.</h2>
+      <p>Three changes to how memory behaves day to day. Nothing to configure: run <code>/charon-update</code> and they&rsquo;re on.</p>
+    </div>
+    <div class="row">
+      <div class="col-text">
+        <span class="k">vault-readonly &middot; search_memory</span>
+        <h3>Ask in your own words.</h3>
+        <p>Memory search used to match your whole question as one exact phrase, so most multi-word questions found nothing. It now splits the question into terms, drops filler words, and ranks every memory file, weighting a match in its name or description above one in the body. It tells you which terms matched.</p>
+        <p class="note">&ldquo;how do we join the cloud discount&rdquo; now finds the note about it, even though no file contains that sentence.</p>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-text">
+        <span class="k">deny-destructive &middot; MEMORY.md</span>
+        <h3>The one file loaded every session stays small.</h3>
+        <p><code>MEMORY.md</code> is read into every session, and Claude Code silently drops whatever doesn&rsquo;t fit. Charon already asked before it grew past 16&nbsp;KB. It now also asks when a write would put three or more lines of prose into it, or a single line runs past 120 bytes of prose. The content belongs in its own memory file; <code>MEMORY.md</code> keeps the one-line pointer.</p>
+        <p class="note">These are asks, not blocks: confirm with the same one-time token as any other gate and the write goes through.</p>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-text">
+        <span class="k">/handoff &middot; handoff_state.py</span>
+        <h3>The part of a handoff you shouldn&rsquo;t have to remember.</h3>
+        <p>A handoff written from memory is stale the moment work continues, and it&rsquo;s the first thing the next session reads. <code>/handoff</code> now generates its live half from your files: the project&rsquo;s open commitments with overdue ones flagged, its earlier handoffs, and any drift between them, such as a &ldquo;next action&rdquo; that&rsquo;s already done. You still write what happened and why; the dates and what&rsquo;s owed come from the record.</p>
+        <p class="note">Earlier handoffs are marked superseded, and dated follow-ups go into the commitment register, so the next session&rsquo;s start-up check surfaces them.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section>
   <div class="wrap">
     <div class="trust-line">
