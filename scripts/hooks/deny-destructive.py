@@ -270,7 +270,127 @@ def has_posted_set(path_str: str) -> bool:
         return False
 
 
-MEMORY_TOTAL_MAX = 16 * 1024  # see the MEMORY.md ceiling block in main()
+# --- MEMORY.md index-shape guard ---------------------------------------------
+# MEMORY.md is an INDEX: one pointer line per memory, never content. A write to
+# MEMORY.md is legitimate and constant, so the guard fires on the thing actually
+# forbidden: not "a write to MEMORY.md" but "a write that puts a PROSE BLOCK
+# into MEMORY.md".
+#
+# Shape rule: index lines are list items, headings, tables or blanks. Three or
+# more consecutive lines that are none of those is a paragraph, i.e. content.
+MEMORY_PROSE_RUN = 3
+
+
+def _memory_index_content_run(text: str) -> int:
+    """Longest run of consecutive prose lines. 0 on empty/error (fail-open)."""
+    if not text:
+        return 0
+    try:
+        longest = run = 0
+        for raw in text.splitlines():
+            line = raw.strip()
+            if (not line) or line.startswith(("-", "*", "#", "|", ">", "```", "<!--")):
+                run = 0
+                continue
+            run += 1
+            longest = max(longest, run)
+        return longest
+    except Exception:
+        return 0
+
+
+# --- MEMORY.md per-bullet prose budget ---------------------------------------
+# The prose-run rule above catches a PARAGRAPH dropped into the index. It does
+# NOT catch the other shape of the same failure: one bullet that grows into an
+# essay (a single list item, so run == 1).
+#
+# What is capped is PROSE BURDEN, not line length: the bullet with every
+# [label](target) construct and [[wikilink]] removed. A raw line-byte cap would
+# flag multi-pointer rows, which carry no content at all and whose only "fix" is
+# deleting pointers, i.e. destroying index coverage. Prose burden flags the
+# essays and leaves pointer rows alone: match on the artefact's ROLE, not on raw
+# content.
+MEMORY_BULLET_PROSE_MAX = 120
+
+# --- MEMORY.md TOTAL size ceiling ----------------------------------------------
+# The per-bullet budget caps each line, never the file, so the file can still
+# creep past Claude Code's ~24.4 KB read limit one compliant line at a time.
+# scripts/memory_working_set.py rebuilds the file to a small working set; this
+# is the in-session half, so lines added between rebuilds cannot carry it over.
+# Only a write that GROWS the file past the ceiling asks.
+MEMORY_TOTAL_MAX = 16 * 1024
+
+_MD_LINK = re.compile(r"\[[^\]]*\]\([^)]*\)")
+_WIKILINK = re.compile(r"\[\[[^\]]*\]\]")
+
+
+def _bullet_prose_bytes(line: str) -> int:
+    """UTF-8 bytes of a bullet once links, separators and the marker are gone."""
+    try:
+        text = _MD_LINK.sub("", _WIKILINK.sub("", line))
+        text = text.replace("·", "").replace("- ", "", 1).strip()
+        return len(text.encode("utf-8"))
+    except Exception:
+        return 0
+
+
+def _memory_after_text(tool_input, existing):
+    """Best-effort file content AFTER this write; '' when it cannot be derived.
+
+    An Edit's new_string is frequently a mid-line FRAGMENT, which is not itself a
+    bullet. Inspecting the raw payload therefore misses every partial-line edit.
+    Reconstructing the resulting text closes that for Write and Edit alike,
+    because the check then always runs against whole lines.
+    """
+    try:
+        if tool_input.get("content") is not None:
+            return tool_input.get("content") or ""
+        old = tool_input.get("old_string")
+        new = tool_input.get("new_string")
+        if new is None:
+            return ""
+        if old is None:
+            # Shape we cannot reconstruct. Append rather than bail: any whole-line
+            # bullet in the payload is still measured, and pre-existing lines are
+            # filtered out downstream. Never go blind on an unfamiliar payload.
+            return (existing + "\n" + new) if existing else new
+        if not existing:
+            return new or ""
+        if old not in existing:
+            # Reconstruction is impossible: `replace` would silently no-op and the
+            # check would go blind while the edit still lands. Append so any
+            # WHOLE-LINE bullet in the payload is still measured.
+            # RESIDUAL LIMIT: a mid-line fragment cannot be measured this way. The
+            # budget is a hygiene control, not a boundary, and guessing the target
+            # line would trade a blind spot for false positives on legitimate edits.
+            return existing + "\n" + new
+        if tool_input.get("replace_all"):
+            return existing.replace(old, new)
+        return existing.replace(old, new, 1)
+    except Exception:
+        return ""
+
+
+def _memory_overlong_bullets(after, existing):
+    """[(prose_bytes, line)] for NEW/CHANGED bullets breaching the budget.
+
+    Bullets byte-identical to one already in the file are skipped, so the budget
+    binds only what THIS write introduces; a full-file rewrite is never blocked by
+    pre-existing lines it merely carries through. Fail-open on any error.
+    """
+    try:
+        old = set(existing.splitlines()) if existing else set()
+        found = []
+        for raw in (after or "").splitlines():
+            line = raw.rstrip()
+            if not line.lstrip().startswith("- ") or line in old:
+                continue
+            size = _bullet_prose_bytes(line)
+            if size > MEMORY_BULLET_PROSE_MAX:
+                found.append((size, line.strip()))
+        return found
+    except Exception:
+        return []
 
 
 def main() -> int:
@@ -334,38 +454,75 @@ def main() -> int:
 
     session_id = data.get("session_id", "") or ""
 
-    # MEMORY.md total-size ceiling. Claude Code reads only the first ~24.4 KB of
-    # MEMORY.md and silently drops the rest, so an index every memory joins will
-    # eventually lose its tail. scripts/memory_working_set.py keeps the file a small
-    # urgent working set; this stops a session growing it past MEMORY_TOTAL_MAX in
-    # the meantime. Only a write that GROWS the file past the ceiling asks.
+    # MEMORY.md guards: index shape, total-size ceiling, per-bullet prose budget.
+    # Each is an `ask` with the same out-of-band confirmation channel as the
+    # protected zones (a token naming the rule), so a legitimate write is never
+    # stuck behind a gate that can only say no.
     if os.path.basename(file_path.replace("\\", "/")) == "MEMORY.md":
+        def _mem_ask(rule, reason, retry_hint, ctx):
+            if _consume_policy_confirm(rule, session_id):
+                return 0
+            ctx = dict(ctx, target=file_path.replace("\\", "/"),
+                       tool_name=data.get("tool_name", ""))
+            emit_verdict(hook=HOOK_NAME, rule=rule, verdict="ask", reason=reason,
+                         context=ctx, session_id=session_id, enforce=True)
+            sys.stderr.write(
+                f"ASK ({rule}): {reason}\n{retry_hint}\n"
+                f"If this genuinely belongs in MEMORY.md, the user can confirm with a "
+                f"token for rule '{rule}' (same command as for a protected zone) and "
+                f"you retry.\n")
+            return 2
+
+        added = tool_input.get("content") or tool_input.get("new_string") or ""
+        run = _memory_index_content_run(added)
+        if run >= MEMORY_PROSE_RUN:
+            return _mem_ask(
+                "memory-index-content-write",
+                f"this write adds a {run}-line prose block to MEMORY.md. MEMORY.md is an "
+                f"INDEX: one pointer line per memory, never content.",
+                "Put the content in the memory file itself and leave a "
+                "'- [Title](file.md) - hook' line here.",
+                {"prose_run_lines": run, "threshold": MEMORY_PROSE_RUN})
+
         try:
-            existing = Path(file_path).read_text(encoding="utf-8") if os.path.exists(file_path) else ""
-            if tool_input.get("content") is not None:
-                after = tool_input.get("content") or ""
-            elif tool_input.get("old_string") and tool_input.get("old_string") in existing:
-                after = existing.replace(tool_input["old_string"], tool_input.get("new_string") or "",
-                                         -1 if tool_input.get("replace_all") else 1)
-            else:
-                after = existing + "\n" + (tool_input.get("new_string") or "")
-            size = len(after.encode("utf-8"))
-            if size > MEMORY_TOTAL_MAX and size > len(existing.encode("utf-8")):
-                if _consume_policy_confirm("memory-index-total-ceiling", session_id):
-                    return 0
-                emit_verdict(hook="deny-destructive", rule="memory-index-total-ceiling", verdict="ask",
-                             reason=f"MEMORY.md would grow to {size} bytes, over {MEMORY_TOTAL_MAX}",
-                             context={"target": file_path, "after_bytes": size}, session_id=session_id)
-                sys.stderr.write(
-                    f"ASK (memory-index-total-ceiling): this write would take MEMORY.md to {size} bytes, "
-                    f"over its {MEMORY_TOTAL_MAX}-byte ceiling. Claude Code silently drops everything past "
-                    f"~24.4 KB. A new memory needs no line here: put the pointer in "
-                    f"reference_memory_catalog_index.md, or run `python scripts/memory_working_set.py`. "
-                    f"If this genuinely belongs in MEMORY.md, confirm with a token for rule "
-                    f"'memory-index-total-ceiling' (same command as above) and retry.\n")
-                return 2
+            existing = ""
+            if os.path.exists(file_path):
+                with open(file_path, encoding="utf-8", errors="replace") as _fh:
+                    existing = _fh.read()
         except Exception:
-            pass  # a hygiene guard must never break a write it cannot evaluate
+            existing = ""
+        after = _memory_after_text(tool_input, existing)
+        try:
+            after_bytes = len((after or "").encode("utf-8"))
+            grows = after_bytes > len(existing.encode("utf-8"))
+        except Exception:
+            # a hygiene guard must never break a write it cannot evaluate
+            after_bytes, grows = 0, False
+        if after and after_bytes > MEMORY_TOTAL_MAX and grows:
+            return _mem_ask(
+                "memory-index-total-ceiling",
+                f"this write would take MEMORY.md to {after_bytes} bytes, over its "
+                f"{MEMORY_TOTAL_MAX}-byte ceiling. Claude Code silently drops everything "
+                f"past ~24.4 KB.",
+                "A new memory needs no line here: put the pointer in "
+                "reference_memory_catalog_index.md, or run "
+                "`python scripts/memory_working_set.py` to rebuild the working set.",
+                {"after_bytes": after_bytes, "ceiling": MEMORY_TOTAL_MAX})
+
+        fat = _memory_overlong_bullets(after, existing)
+        if fat:
+            worst, sample = max(fat)
+            return _mem_ask(
+                "memory-index-line-budget",
+                f"this write adds {len(fat)} MEMORY.md bullet(s) over the "
+                f"{MEMORY_BULLET_PROSE_MAX}-byte prose budget (worst {worst}B). Each line "
+                f"is a POINTER plus a short hook, never the content itself. Link targets "
+                f"and [[wikilinks]] are not counted; only the prose is. Worst line: "
+                f"{sample[:140]}",
+                "Move the detail into the memory file the bullet already points at, "
+                "then re-issue with a one-line hook.",
+                {"overlong_bullets": len(fat), "worst_prose_bytes": worst,
+                 "threshold": MEMORY_BULLET_PROSE_MAX})
 
     for glob in PROTECTED_GLOBS:
         if matches(glob, file_path):

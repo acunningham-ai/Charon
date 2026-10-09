@@ -1,14 +1,7 @@
 {
-  "generated": "2026-10-08",
+  "generated": "2026-10-09",
   "schema": 1,
   "capabilities": [
-    {
-      "id": "zeus-model-sizes",
-      "class": "agent",
-      "shipped_in": null,
-      "blurb": "Zeus now picks the model size for each agent he starts: a small, fast one for a lookup, your own model for judgement. A smaller size always carries his reason and every lane in the Agent Org pane shows its size. Zeus, Athena, Prometheus, Calliope and the security reviewers never run below your model, and only read-only agents may. Typed approvals now need the 8-character code on the card: /agent-org approve <id> <code>.",
-      "questions": []
-    },
     {
       "id": "zeus",
       "class": "agent",
@@ -122,6 +115,20 @@
       "questions": []
     },
     {
+      "id": "live-source-first",
+      "class": "rule",
+      "shipped_in": null,
+      "blurb": "Mail and calendar questions get answered from the live source, not from yesterday's captured copy -- and you're told when it can't. If a sender copies your personal address too, you're told the work mailbox may simply not have it, instead of being told nothing arrived.",
+      "questions": []
+    },
+    {
+      "id": "subagent-completion",
+      "class": "rule",
+      "shipped_in": null,
+      "blurb": "A sub-agent reporting back no longer ends the task -- the result is checked against what you actually asked before anything is called done.",
+      "questions": []
+    },
+    {
       "id": "agent_org_setup",
       "class": "script",
       "shipped_in": null,
@@ -142,6 +149,13 @@
       "class": "script",
       "shipped_in": null,
       "blurb": "Removes the duplicate edges that re-running the graph extractor builds up, so counts and retrieval stop being skewed by repeats.",
+      "questions": []
+    },
+    {
+      "id": "handoff_state",
+      "class": "script",
+      "shipped_in": null,
+      "blurb": "Your handoff note now fills in the live half for you -- open commitments, prior handoffs and drift -- instead of only what you type.",
       "questions": []
     },
     {
@@ -170,6 +184,13 @@
       "class": "script",
       "shipped_in": null,
       "blurb": "/harness-fix records your call on each review: accept puts the fix at the top of the dev queue, decline stops it coming back.",
+      "questions": []
+    },
+    {
+      "id": "md_to_docx",
+      "class": "script",
+      "shipped_in": null,
+      "blurb": "Turn any markdown note into a .docx you can send to someone who doesn't read markdown -- no Word, no pandoc needed.",
       "questions": []
     },
     {
@@ -205,6 +226,13 @@
       "class": "script",
       "shipped_in": null,
       "blurb": "/score-vault no longer reports memories as orphans when they are linked by [[wikilink]] or through a sub-index of a sub-index.",
+      "questions": []
+    },
+    {
+      "id": "strip_for_handover",
+      "class": "script",
+      "shipped_in": null,
+      "blurb": "Strips harness and tooling fingerprints out of a document before you hand it to someone outside, and fails loudly if any remain.",
       "questions": []
     },
     {

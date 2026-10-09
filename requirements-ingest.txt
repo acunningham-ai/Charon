@@ -7,6 +7,7 @@
 #   - Rich-document -> Markdown conversion  (scripts/ingest/markitdown_ingest.py, /ingest)
 #   - URL -> clean Markdown fetch           (scripts/fetch/web_fetch_md.py, /webfetch)
 #   - Package -> official docs URL + version (scripts/fetch/docs_resolve.py, /docs)
+#   - Markdown -> styled .docx              (scripts/md_to_docx.py)
 #
 # Without these installed, each script prints a clear "missing dep" message and
 # exits non-zero; the rest of the harness is unaffected, and the auto-Read
@@ -19,6 +20,10 @@ markitdown>=0.0.1a2
 
 # requests — used by the web fetcher and the docs registry resolver.
 requests>=2.31
+
+# python-docx — the reverse direction: Markdown -> styled .docx
+# (scripts/md_to_docx.py). Pure Python, local only, no Word or pandoc needed.
+python-docx>=1.1
 
 # OPTIONAL, for /webfetch --render (JS pages). Dormant until installed; the
 # fetcher degrades to static and prints the install command otherwise.

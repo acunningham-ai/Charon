@@ -4,6 +4,69 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+## [0.37.0] - 2026-10-09
+
+**Handoffs that can't go stale, and two rules that stop answers going quietly wrong.** Five capabilities proven in the
+reference deployment, plus improvements to seven files Charon already shipped. Update with `/charon-update`.
+
+### Added — `/handoff` now generates its live half
+
+**What it is.** `scripts/handoff_state.py` builds the part of a handoff note that can be known from live state: the
+project's open dated commitments (overdue ones flagged), its earlier handoffs, and drift between them: a note whose
+next action is already done, superseded, or contradicted by a closed commitment. `/handoff` pastes that block in
+verbatim, marks earlier handoffs superseded, and adds dated follow-ups to the commitment register. `--check` reports
+drift on its own. It writes nothing.
+
+**Why it matters.** Since v0.22.0 `/handoff` could only write the half you remember. A handoff written from memory is
+stale the moment work continues, and it is the first thing the next session reads. Now the dates, status and what is
+still owed come from the register, so the note cannot disagree with reality about them.
+
+### Added — `subagent-completion` rule (always on)
+
+**What it is.** When a subagent or seat reports back, the main session re-reads what you actually asked, compares the
+result against it, keeps working on any fixable gap in scope, and only stops to ask you when progress needs your
+authority. A subagent's claim about your own files is checked before it is repeated. Credit to OpenClaw for the idea.
+
+**Why it matters.** The common failure isn't a subagent over-claiming. It's the main session accepting "done" from a
+child run that answered part of the question, or a narrower one, and reporting the task finished.
+
+### Added — `live-source-first` rule
+
+**What it is.** A question about mail, your calendar or chat goes to the live source first; captures are the history
+layer. Before saying "live is down", every live path you have configured is tried, since each credential fails on its
+own. Falling back to captures is said up front, with what captures can't show (anything since the last run, your own
+sent replies). A silent mailbox means "not in the connected mailbox", not "nothing arrived": a small register in the
+rule lists senders known to also write to an address the harness can't read (empty until you add one).
+
+**Why it matters.** An answer from yesterday's captures to a question about today reads exactly like a correct one.
+
+### Added — two document utilities
+
+- **`scripts/md_to_docx.py`** turns a markdown note into a styled Word document: cover, contents, headings, lists,
+  tables and code kept, and placeholder markers (`[CONFIRM…]`, `[TO POPULATE…]`) highlighted so a reviewer can see
+  what's still open. For the people you work with who live in Word. Needs `python-docx`, now in
+  `requirements-ingest.txt`.
+- **`scripts/strip_for_handover.py`** makes a note safe to hand to someone outside the harness: strips frontmatter,
+  drops the sections you name, turns wikilinks into plain text, then **refuses to write the file** if a confidence
+  tag, a wikilink or any `--audit-term` word you pass is still in it. A stray `[[memory-link]]` or 🟢 in a client
+  document is how internal working leaks out; this makes the check non-optional.
+
+### Improved
+
+- **`MEMORY.md` stays an index.** `deny-destructive.py` already asked before `MEMORY.md` grew past 16 KB. It now also
+  asks when a write puts three or more lines of prose in it, or a bullet runs past 120 bytes of prose. Content belongs
+  in its own memory file; `MEMORY.md` is loaded every session and Claude Code drops what doesn't fit.
+- **Memory search finds what you mean.** The `vault-readonly` `search_memory` tool now splits the query into terms,
+  drops stopwords and ranks files, weighting name and description matches. It used to match the whole query as one
+  exact phrase, so most multi-word questions found nothing.
+- **save-on-mention no longer loses a classifier reply** that has text around its JSON, and logs why when a reply
+  can't be read instead of missing silently.
+- **validate-memory-frontmatter** accepts `type` nested under `metadata:`, the layout Claude Code writes, instead of
+  flagging valid files.
+- **Secret-scan blocks are logged** to `state/secret-access-blocks/` (tool, field and pattern name; never the value).
+- **Cerberus scan** gains `--format summary`: findings counted per rule, for a quick read before the full report.
+- **`vault-graph` `get_entity`** rejects names longer than 200 characters.
+
 ## [0.36.0] - 2026-10-08
 
 **The right model for each agent, never a silent one.** Zeus now chooses the model size for each agent he starts, and

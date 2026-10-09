@@ -65,6 +65,7 @@ async def list_tools() -> list[types.Tool]:
                     "name": {
                         "type": "string",
                         "description": "Entity name (case-insensitive).",
+                        "maxLength": 200,
                     },
                 },
                 "required": ["name"],
@@ -114,6 +115,8 @@ async def tool_get_entity(args: dict[str, Any], graph) -> list[types.TextContent
     name = (args.get("name") or "").strip()
     if not name:
         return [types.TextContent(type="text", text="ERROR: name is required")]
+    if len(name) > 200:  # entity names are short; cap unbounded input before regex normalisation
+        return [types.TextContent(type="text", text="ERROR: name too long (max 200 chars)")]
     try:
         conn = graph.open_graph_readonly()
     except FileNotFoundError:

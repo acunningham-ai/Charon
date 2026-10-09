@@ -89,6 +89,38 @@ _COMPILED = [(name, re.compile(pattern), scope) for name, pattern, scope in SECR
 # This file's own basename — edits to it are exempt (it contains pattern literals).
 _SELF_BASENAME = os.path.basename(__file__)
 
+# Append-only audit of BLOCKED secret-access attempts, for periodic review.
+# Cerberus is the protection point: it blocks unauthorised secret access AND
+# records the attempt so anything illegitimate is caught quickly. Vault root is
+# HARNESS_VAULT_ROOT when set, else the tree this hook ships in
+# (scripts/hooks/cerberus/ -> three levels up).
+_VAULT_ROOT = os.environ.get("HARNESS_VAULT_ROOT") or os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+_BLOCK_LOG_DIR = os.path.join(_VAULT_ROOT, "state", "secret-access-blocks")
+
+
+def _log_block(category: str, tool: str, desc: str, session_id: str) -> None:
+    """Record a blocked secret-access attempt. Fail-silent: logging must NEVER
+    prevent the block from happening. Never writes the matched value; `desc`
+    is the field label (file_path / content / command / tool_input), not text."""
+    try:
+        os.makedirs(_BLOCK_LOG_DIR, exist_ok=True)
+        import datetime
+        now = datetime.datetime.now(datetime.timezone.utc)
+        entry = {
+            "ts": now.isoformat(),
+            "event": "blocked-secret-access",
+            "category": category,
+            "tool": tool,
+            "target_desc": desc,
+            "session_id": session_id,
+        }
+        path = os.path.join(_BLOCK_LOG_DIR, now.strftime("%Y-%m-%d") + ".jsonl")
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(entry) + "\n")
+    except Exception:
+        pass  # never let audit logging interfere with the block
+
 # ---------------------------------------------------------------------------
 # Per-session dedup state
 # ---------------------------------------------------------------------------
@@ -220,6 +252,7 @@ def main() -> None:
                 continue  # path-patterns never scan Write/Edit content
             m = pattern.search(text)
             if m:
+                _log_block(cat_name, tool_name, desc, session_id)
                 state = _load_state(session_id)
                 seen = set(state.get(STATE_KEY, []))
                 first_hit = cat_name not in seen

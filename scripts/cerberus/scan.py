@@ -132,6 +132,40 @@ def format_text(findings: List[Finding], target: Path) -> str:
     return "\n".join(lines)
 
 
+def format_summary(findings: List[Finding], target: Path) -> str:
+    """Aggregate-only view: counts per rule, cheapest for agent consumption.
+
+    Answers "is there anything here, and where" in a few hundred tokens instead
+    of a megabyte. Read this first; go to json/sarif only for the rules that
+    matter."""
+    if not findings:
+        return f"Cerberus: no findings in {target}"
+    sev_order = [Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW, Severity.INFO]
+    by_rule: dict = {}
+    for f in findings:
+        k = (f.severity, f.rule_id, f.pack, f.category)
+        entry = by_rule.setdefault(k, {"n": 0, "paths": set(), "sample": (f.matched_text or "")[:60]})
+        entry["n"] += 1
+        entry["paths"].add(f.path)
+    lines = [f"Cerberus summary for {target}",
+             f"{len(findings)} findings across {len(by_rule)} distinct rules", ""]
+    counts: dict = {}
+    for f in findings:
+        counts[f.severity] = counts.get(f.severity, 0) + 1
+    lines.append("  ".join(f"{s.value}={counts.get(s, 0)}" for s in sev_order))
+    lines.append("")
+    for sev in sev_order:
+        group = [(k, v) for k, v in by_rule.items() if k[0] is sev]
+        if not group:
+            continue
+        lines.append(f"== {sev.value.upper()} ==")
+        for (_, rule_id, pack, category), v in sorted(group, key=lambda kv: -kv[1]["n"]):
+            lines.append(f"  {v['n']:5d}x [{pack}/{rule_id}] {category} "
+                         f"in {len(v['paths'])} file(s) — e.g. {v['sample']!r}")
+        lines.append("")
+    return "\n".join(lines)
+
+
 def format_json(findings: List[Finding], target: Path) -> str:
     """Cerberus-native JSON envelope."""
     return json.dumps({
@@ -170,8 +204,9 @@ def main() -> int:
     _configure_stdio_for_unicode()
     p = argparse.ArgumentParser(description="Cerberus engine scan — run layered detection on a target")
     p.add_argument("target", help="File or directory to scan")
-    p.add_argument("--format", choices=["text", "json", "sarif"], default="text",
-                   help="Output format (default: text)")
+    p.add_argument("--format", choices=["summary", "text", "json", "sarif"], default="text",
+                   help="Output format (default: text). summary = aggregate counts per rule, "
+                        "the cheapest view; use it first")
     p.add_argument("--out", type=Path, help="Write output to this file (default: stdout)")
     p.add_argument("--no-signatures", action="store_true", help="Skip signature engine")
     p.add_argument("--no-yara", action="store_true", help="Skip YARA engine")
@@ -192,7 +227,8 @@ def main() -> int:
         run_homoglyph=not args.no_homoglyph,
     )
 
-    formatter = {"text": format_text, "json": format_json, "sarif": format_sarif}[args.format]
+    formatter = {"summary": format_summary, "text": format_text,
+                 "json": format_json, "sarif": format_sarif}[args.format]
     output = formatter(findings, target)
 
     if args.out:

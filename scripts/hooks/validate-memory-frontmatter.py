@@ -57,6 +57,29 @@ def parse_top_level(fm_text: str) -> dict:
     return out
 
 
+def resolved_type(fm_text: str) -> str:
+    """`type` may be top-level (flat convention) OR nested under a `metadata:`
+    block (newer graph-aware convention). Accept either: both are valid and the
+    two coexist by design."""
+    top = parse_top_level(fm_text).get("type", "")
+    if top:
+        return top
+    in_meta = False
+    for raw in fm_text.split("\n"):
+        line = raw.rstrip()
+        if not line.strip():
+            continue
+        if not line.startswith(" "):
+            # leaving indentation -> only inside `metadata:` counts
+            in_meta = line.split(":", 1)[0].strip() == "metadata"
+            continue
+        if in_meta and ":" in line:
+            k, _, v = line.partition(":")
+            if k.strip() == "type":
+                return v.strip().strip('"').strip("'")
+    return ""
+
+
 def main() -> int:
     try:
         data = json.load(sys.stdin)
@@ -78,11 +101,15 @@ def main() -> int:
         issues.append("missing frontmatter block (must start with `---`)")
     else:
         fm = parse_top_level(m.group(1))
-        for f in REQUIRED:
+        # name + description are top-level by convention; type may be top-level
+        # OR nested under `metadata:` (both conventions valid).
+        for f in ("name", "description"):
             if not fm.get(f):
                 issues.append(f"missing or empty `{f}` field")
-        t = fm.get("type", "")
-        if t and t not in VALID_TYPES:
+        t = resolved_type(m.group(1))
+        if not t:
+            issues.append("missing or empty `type` field (top-level or under `metadata:`)")
+        elif t not in VALID_TYPES:
             issues.append(
                 f"`type: {t}` is not a recognised type "
                 f"(expected one of: {', '.join(sorted(VALID_TYPES))})"

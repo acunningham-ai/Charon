@@ -12,6 +12,43 @@
   <div class="wrap">
     <div class="sec-head">
       <div class="kicker">Just shipped &middot; {{VERSION}}</div>
+      <h2>Handoffs that can't go stale, and answers that don't go quietly wrong</h2>
+      <p>Five capabilities proven in daily use: a handoff whose live half is generated, two rules that catch the quiet ways an answer goes wrong, and two document utilities. Plus ranked memory search and a memory index that stays an index.</p>
+    </div>
+    <div class="cards two">
+      <div class="card">
+        <div class="ctop"><span class="cmd">/handoff</span><span class="pill ok">upgraded</span></div>
+        <h4>The live half writes itself</h4>
+        <p>Open commitments (overdue flagged), earlier handoffs and drift between them now come from live state via <code>handoff_state.py</code>, not from what the session remembers.</p>
+        <p class="out">Outcome: the next session starts from what's actually owed.</p>
+      </div>
+      <div class="card">
+        <div class="ctop"><span class="cmd">subagent-completion</span><span class="pill ok">shipped</span></div>
+        <h4>"Done" means your task is done</h4>
+        <p>When a subagent reports back, the main session checks the result against what you asked and keeps going on any gap it can fix, instead of relaying a partial answer as finished.</p>
+        <p class="out">Outcome: fewer "complete" reports that covered half the job.</p>
+      </div>
+      <div class="card">
+        <div class="ctop"><span class="cmd">live-source-first</span><span class="pill ok">shipped</span></div>
+        <h4>Today's question gets today's answer</h4>
+        <p>Mail, calendar and chat questions go to the live source first. Every live path is tried before "live is down", and any fall-back to captures is said up front.</p>
+        <p class="out">Outcome: no stale answer that looks like a correct one.</p>
+      </div>
+      <div class="card">
+        <div class="ctop"><span class="cmd">md_to_docx · strip_for_handover</span><span class="pill ok">shipped</span></div>
+        <h4>Hand a note to someone outside</h4>
+        <p>Turn a note into a styled Word document, or into a clean copy that refuses to save while a confidence tag, an internal link or a word you name is still in it.</p>
+        <p class="out">Outcome: internal working never reaches a client document.</p>
+      </div>
+    </div>
+    <div class="explore"><a href="memory.html">See memory →</a></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">Shipped in v0.36.0</div>
       <h2>The right model for each agent, never a silent one</h2>
       <p>Zeus now chooses the model size for each agent he starts: a small, fast one for a mechanical lookup, your own for judgement. Every smaller size carries his reason, every lane shows its size, and the mod enforces floors he can't talk past.</p>
     </div>
@@ -315,7 +352,7 @@
           <tr><td><span class="v">/recall</span></td><td class="cwhat">Hybrid keyword retrieval over authored notes — no embeddings, no vector DB.</td><td><span class="pill ok">shipped</span></td></tr>
           <tr><td><span class="v">/find-tensions</span></td><td class="cwhat">Surfaces contradictions across notes; records both sources, resolves nothing.</td><td><span class="pill ok">shipped</span></td></tr>
           <tr><td><span class="v">/grill</span></td><td class="cwhat">One-question-at-a-time plan interrogation, grounded in your prior decisions.</td><td><span class="pill ok">shipped</span></td></tr>
-          <tr><td><span class="v">/handoff</span></td><td class="cwhat">Cross-session baton: dated handoff note + a paste-ready kickoff prompt.</td><td><span class="pill ok">shipped</span></td></tr>
+          <tr><td><span class="v">/handoff</span></td><td class="cwhat">Cross-session baton: dated handoff note + a paste-ready kickoff prompt; since v0.37.0 its live half (open commitments, earlier handoffs, drift) is generated, not remembered.</td><td><span class="pill ok">shipped</span></td></tr>
           <tr><td><span class="v">Clean-room porting</span></td><td class="cwhat">Discipline + verifier for bringing outside tools in safely — re-author from spec, never copy.</td><td><span class="pill ok">shipped</span></td></tr>
         </tbody>
       </table>

@@ -52,7 +52,8 @@ from lib.harness_paths import secrets_dir  # noqa: E402
 SECRETS_FILE = secrets_dir() / "anthropic.json"
 HAIKU_MODEL = "claude-haiku-4-5-20251001"
 HAIKU_TIMEOUT_S = 5
-HAIKU_MAX_TOKENS = 250
+HAIKU_MAX_TOKENS = 400  # headroom so truncation is never the cause of a parse failure;
+# typical successful output is 15-99 tokens, so this only costs on the outliers.
 
 # Bound the surface so an attacker payload riding through a paste cannot turn
 # into authoritative context.
@@ -124,6 +125,8 @@ Tags are orthogonal to type. A "credential" fact might be tagged ["env"]. A "rul
 
 def load_api_key():
     try:
+        # strict=False tolerates literal newlines/tabs inside strings, common
+        # if a human pasted a multi-line _comment field by hand.
         data = json.loads(SECRETS_FILE.read_text(encoding="utf-8-sig"), strict=False)
         return data.get("api_key") or data.get("anthropic_api_key")
     except Exception:
@@ -165,8 +168,57 @@ def redact_secrets(prompt: str) -> tuple[str, int]:
     return redacted, count
 
 
+def _extract_json(text: str):
+    """Parse the first balanced JSON object in `text`. Returns (obj_or_None, reason).
+
+    The classifier is instructed to emit STRICT JSON, but in practice a sizeable
+    share of calls (~27% measured on the reference harness) failed a whole-string
+    parse, and every one of them silently dropped an operational fact. Rather than
+    trust the instruction, scan for the first balanced {...} so a stray preamble or
+    trailing sentence no longer costs a save. Brace counting is string/escape aware
+    so a '}' inside a fact_summary cannot terminate the object early.
+    """
+    if not text:
+        return None, "empty-response"
+    try:
+        return json.loads(text), None          # fast path: clean JSON
+    except json.JSONDecodeError:
+        pass
+    start = text.find("{")
+    if start == -1:
+        return None, "no-json-object"
+    depth, in_str, esc = 0, False, False
+    for i in range(start, len(text)):
+        ch = text[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    return json.loads(text[start:i + 1]), None
+                except json.JSONDecodeError:
+                    return None, "malformed-json"
+    return None, "truncated-json"
+
+
 def stage2_classify(prompt: str, api_key: str):
-    """Returns (verdict_dict, usage_dict, redactions). usage may be {} on parse failure."""
+    """Returns (verdict_or_None, usage_dict, redactions, diag_or_None).
+
+    A parse failure does not raise: it returns verdict=None WITH usage intact and
+    a `diag` describing why, so a failure logs its token usage and a cause instead
+    of an opaque exception.
+    """
     safe_prompt, redactions = redact_secrets(prompt)
     body = json.dumps({
         "model": HAIKU_MODEL,
@@ -187,10 +239,22 @@ def stage2_classify(prompt: str, api_key: str):
     with urllib.request.urlopen(req, timeout=HAIKU_TIMEOUT_S) as resp:
         payload = json.loads(resp.read().decode("utf-8"))
     usage = payload.get("usage") or {}
+    stop_reason = payload.get("stop_reason")
     blocks = payload.get("content") or []
     text = "".join(b.get("text", "") for b in blocks if b.get("type") == "text").strip()
     text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.S).strip()
-    return json.loads(text), usage, redactions
+    verdict, reason = _extract_json(text)
+    if verdict is None:
+        # Keep a short, secret-redacted sample so the next failure is diagnosable.
+        # The sample is the classifier's OUTPUT, never the user's raw prompt, and
+        # the system prompt forbids echoing secret values; redact again anyway.
+        sample, _ = redact_secrets(text[:200])
+        return None, usage, redactions, {
+            "parse_error": reason,
+            "stop_reason": stop_reason,
+            "raw_sample": sample,
+        }
+    return verdict, usage, redactions, None
 
 
 def _sanitize_tags(raw):
@@ -308,11 +372,14 @@ def main():
     usage: dict = {}
     error = None
     redactions = 0
+    diag = None
     try:
-        verdict, usage, redactions = stage2_classify(prompt, api_key)
+        verdict, usage, redactions, diag = stage2_classify(prompt, api_key)
     except Exception as e:
         verdict = None
         error = type(e).__name__
+    if diag:
+        error = diag.get("parse_error")
     safe = sanitize_verdict(verdict)
     nudged = bool(safe)
     log_event("save-on-mention", "stage2", {
@@ -326,6 +393,8 @@ def main():
         "output_tokens": usage.get("output_tokens"),
         "cache_creation_input_tokens": usage.get("cache_creation_input_tokens"),
         "cache_read_input_tokens": usage.get("cache_read_input_tokens"),
+        "stop_reason": (diag or {}).get("stop_reason"),
+        "raw_sample": (diag or {}).get("raw_sample"),
     }, session_id)
     if not safe:
         return 0

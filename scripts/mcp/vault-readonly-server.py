@@ -70,6 +70,14 @@ DENIED_CLASSIFICATIONS = frozenset({"restricted", "confidential"})
 
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n?", re.DOTALL)
 
+_STOPWORDS = frozenset(
+    {
+        "the", "a", "an", "of", "on", "in", "to", "for", "and", "or",
+        "is", "are", "be", "with", "by", "at", "as", "it", "this",
+        "that", "from", "into", "was", "were",
+    }
+)
+
 server = Server("vault-readonly")
 
 
@@ -103,9 +111,12 @@ async def list_tools() -> list[types.Tool]:
             name="search_memory",
             description=(
                 "READ-ONLY. Keyword search across the harness memory "
-                "directory (rules, conventions, project notes). Returns "
-                "matched files with name/description/snippet. Files with "
-                "classification: restricted/confidential are never returned."
+                "directory (rules, conventions, project notes). Query is "
+                "tokenised into terms, matched on ANY term, and results are "
+                "ranked by relevance; returns matched files with "
+                "name/description/type/score/snippet, most relevant first. "
+                "Files with classification: restricted/confidential are "
+                "never returned."
             ),
             inputSchema={
                 "type": "object",
@@ -113,8 +124,9 @@ async def list_tools() -> list[types.Tool]:
                     "query": {
                         "type": "string",
                         "description": (
-                            "Keyword(s) to search for. Case-insensitive "
-                            "substring match across file body and frontmatter."
+                            "Keyword(s) to search for. Case-insensitive; "
+                            "split into terms and matched on any term. "
+                            "Name and description matches rank above body mentions."
                         ),
                     },
                     "scope": {
@@ -232,17 +244,30 @@ async def tool_search_memory(
             types.TextContent(type="text", text="ERROR: query is required")
         ]
     query_lower = query.lower()
+    # Tokenise into terms so multi-word queries match on ANY term and rank by
+    # relevance. The previous contiguous-substring test (`query_lower not in
+    # haystack`) silently returned nothing for almost any multi-word query,
+    # and results were filename-alphabetical, not relevance-ranked
+    # (capability borrow-batch #2, 2026-07-13). No embeddings — Claude-only.
+    raw_terms = [t for t in re.split(r"[^a-z0-9]+", query_lower) if len(t) >= 2]
+    # Drop stopwords so a common word ("on", "the") can't match nearly every
+    # note and inflate the coverage bonus. Keep raw terms if filtering would
+    # leave nothing (query was all stopwords).
+    terms = [t for t in raw_terms if t not in _STOPWORDS] or raw_terms
+    if not terms and query_lower:
+        terms = [query_lower]
+    if not terms:
+        return [
+            types.TextContent(type="text", text="ERROR: query is required")
+        ]
 
     scope = (args.get("scope") or "").strip().lower()
     limit = min(int(args.get("limit") or 20), 100)
 
-    results: list[dict[str, Any]] = []
+    scored: list[tuple[float, str, dict[str, Any]]] = []
     classification_denied = 0
 
     for path in sorted(MEMORY_ROOT.glob("*.md")):
-        if len(results) >= limit:
-            break
-
         if scope and not path.name.lower().startswith(scope):
             continue
 
@@ -255,27 +280,61 @@ async def tool_search_memory(
             classification_denied += 1
             continue
 
-        haystack = (text).lower()
-        if query_lower not in haystack:
-            continue
+        name_l = fm.get("name", path.stem).lower()
+        desc_l = fm.get("description", "").lower()
+        body_l = body.lower()
 
-        snippet = _make_snippet(body, query_lower)
-        results.append(
-            {
-                "path": str(path.relative_to(MEMORY_ROOT)).replace(
-                    "\\", "/"
-                ),
-                "name": fm.get("name", path.stem),
-                "description": fm.get("description", ""),
-                "type": fm.get("type", ""),
-                "snippet": snippet,
-            }
+        # Weighted, per-term scoring: title/description matches count far more
+        # than incidental body mentions; body occurrences are capped so one
+        # note can't dominate on repetition alone.
+        score = 0.0
+        matched = 0
+        anchor: str | None = None
+        for term in terms:
+            in_name = term in name_l
+            in_desc = term in desc_l
+            body_count = body_l.count(term)
+            if in_name or in_desc or body_count:
+                matched += 1
+                if anchor is None and body_count:
+                    anchor = term
+            score += (12 if in_name else 0) + (6 if in_desc else 0)
+            score += min(body_count, 5)
+
+        if matched == 0:
+            continue
+        # Coverage: reward notes that hit more of the query; full-match bonus.
+        score += 5 * matched
+        if matched == len(terms):
+            score += 10
+
+        scored.append(
+            (
+                score,
+                path.name,
+                {
+                    "path": str(path.relative_to(MEMORY_ROOT)).replace(
+                        "\\", "/"
+                    ),
+                    "name": fm.get("name", path.stem),
+                    "description": fm.get("description", ""),
+                    "type": fm.get("type", ""),
+                    "score": round(score, 1),
+                    "snippet": _make_snippet(body, anchor or terms[0]),
+                },
+            )
         )
+
+    # Rank by score desc; tie-break on filename for determinism.
+    scored.sort(key=lambda r: (-r[0], r[1]))
+    results = [entry for _, _, entry in scored[:limit]]
 
     response = {
         "query": query,
+        "terms": terms,
         "scope": scope or "(all memory)",
         "result_count": len(results),
+        "total_matched": len(scored),
         "classification_denied": classification_denied,
         "results": results,
     }
