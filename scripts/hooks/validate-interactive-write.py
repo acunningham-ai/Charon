@@ -172,7 +172,7 @@ def _external_root_prefixes():
     """Normalised, lower-cased (prefix, label) pairs for every allowed root.
 
     Both the literal and the resolved form of each root are returned: on Windows
-    TEMP is often the 8.3 short form (C:/Users/ADAMCU~1/...) while resolve()
+    TEMP is often the 8.3 short form (C:/Users/<you>~1/...) while resolve()
     yields the long one, and a write can arrive as either.
     """
     out = []

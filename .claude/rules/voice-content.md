@@ -28,7 +28,7 @@ Auto-loaded when working on voice-driven content (LinkedIn posts, blog drafts, n
 | **Always read voice anchors first** | Before writing or editing, read ≥2 of your voice-anchor files (location configured during first-run — typically `08-Projects/<content-project>/voice-examples/`). These are canonical "this is what I ship". Don't skip. |
 | **Published posts are immutable** | Once `posted:` is set in frontmatter, only the post-publication mutable fields (typically metrics + your private gut-reaction notes) are editable. Body content and most frontmatter are frozen. Configure your mutable-field set during first-run; don't widen it. |
 | **Source content is PREMISE, not COPY** | If your draft was sparked by a talk you gave, a meeting, a captured email — use the *thinking* as a premise. **Never** lift source lines verbatim. Never signal callbacks the audience can't follow. |
-| **Chat context ≠ post copy** | Personal context the user adds in chat (age, family, frame of mind, "I'm 46 and tired") is scaffolding for tone, not literal copy. Caps in chat ≠ caps in post unless emphasis is intentional. |
+| **Chat context ≠ post copy** | Personal context the user adds in chat (age, family, frame of mind, "long week, running on fumes") is scaffolding for tone, not literal copy. Caps in chat ≠ caps in post unless emphasis is intentional. |
 | **Quote free-text YAML scalars** | LLM-generated frontmatter must wrap free-text values in double quotes — mid-value `: ` breaks YAML parsing and Obsidian renders the block as red error text. |
 | **Acronyms spelled out** | Format: `ACRONYM (Spelled Out — plain-English context)`. Undefined acronyms read as gatekeeping. |
 
@@ -50,7 +50,7 @@ Output: your own `user_voice.md` memory file. **This rule reads that file via it
 When the user adds personal context in their messages — about themselves, family, frame of mind — that context is **scaffolding for tone**, not literal copy.
 
 - *"phase one of OUR loop"* (caps in chat for conversational emphasis) → *"phase one of our loop"* (lowercase in post). Caps were chat formatting, not post directive.
-- *"I'm a 46 year old man, my daughter would be proud I used 'Don't @ me' correctly"* → post says *"Don't @ me — and yes, I checked"*. The age and daughter were context for the assistant, not post copy.
+- *"my team will laugh that I finally used 'Don't @ me' correctly"* → post says *"Don't @ me — and yes, I checked"*. Who'd laugh, and why, was context for the assistant, not post copy.
 
 **Pattern to watch:** any time the user's message includes personal facts followed by a request to change a line — those personal facts are usually telling you **why** they want the change, not **what** to write. Capture the energy, don't transcribe the personal frame.
 

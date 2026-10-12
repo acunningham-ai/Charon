@@ -82,63 +82,40 @@ STANDALONE_HOOKS = {
 
 # Personal-content patterns — must NOT appear in any Charon file.
 # Each pattern is a (regex, name, severity, allowlist) tuple.
-# allowlist = paths where the pattern is acceptable (e.g. LICENSE for the author's name).
+#
+# Only GENERIC shapes ship here. A leak detector that lists the names it hunts for
+# publishes those names, so the maintainer's own names (organisation, colleagues,
+# products, the author) live in a git-ignored local file instead, loaded only if
+# present: test-scenarios/personal-patterns.local.json
+#   [["<regex>", "<label>", "FAIL", ["<allowed path>", ...]], ...]
+# Contributors and forks: add yours there to scrub your own names before a release.
 PERSONAL_PATTERNS = [
-    (r"\bvela\b", "Vela keyword", "FAIL", []),
-    (r"\bvelaapx\b", "Vela company name", "FAIL", []),
-    (r"\bMagentus\b", "Magentus reference", "FAIL", []),
-    (r"\bAccredo\b", "Accredo BU name", "FAIL", []),
-    # Case-sensitive (?-i:) — these are also common English / product words
-    # ("atlas", "argo CD"); matching them case-insensitively would false-positive.
-    (r"(?-i:\b(Argo|Atlas|Centaurus)\b)(?!\s+Pipeline)", "Vela portfolio name", "FAIL", []),
-    (r"\bSchmutter\b", "personnel name", "FAIL", []),
-    (r"\bKaren Chung\b", "personnel name", "FAIL", []),
-    (r"\bRaj Gurusinghe\b", "personnel name", "FAIL", []),
-    # Joh Leonhardt — original Cerberus author; attribution allowed in Cerberus-related files
-    (r"\bJoh Leonhardt\b", "personnel name", "FAIL", [
-        ".claude/commands/cerberus-setup.md",
-        ".claude/commands/cerberus-audit.md",
-        ".claude/commands/cerberus-vet.md",
-        ".claude/commands/cerberus-recover.md",
-        ".claude/commands/cerberus-deps.md",
-        "CAPABILITIES.md",
-        "README.md",
-        "CHANGELOG.md",
-        "ROADMAP.md",
-    ]),
-    (r"\bBrad Mason\b", "personnel name", "FAIL", []),
-    (r"\bLuke Haites\b", "personnel name", "FAIL", []),
-    (r"\bBen Dowling\b", "personnel name", "FAIL", []),
-    (r"\bMark Clearwater\b", "personnel name", "FAIL", []),
-    (r"Payroll\s+Bot", "Payroll Bot reference", "FAIL", []),
-    # Cerberus — now a shipping capability in Charon (v0.3.0-preview, 2026-05-25)
-    # Previously excluded; the proprietary fork concern was resolved when the author
-    # released the engine under MIT. The capability ships from the .claude/
-    # tree alongside the rest of the harness.
-    (r"\bWardgate\b", "Wardgate reference", "FAIL", []),
-    (r"\bPlaud\b", "Plaud reference", "FAIL", []),
-    # Case-sensitive (?-i:) — "crowdstrike" appears lowercase in Cerberus's own
-    # EDR-vendor detection signatures (legit security content, not a Vela ref).
-    (r"(?-i:\bCrowdStrike\b)", "CrowdStrike reference", "FAIL", []),
-    (r"\bConnX\b", "ConnX reference", "FAIL", []),
-    (r"\bTurso\b", "Turso reference", "FAIL", []),
-    (r"\bQSR\b", "QSR shorthand", "FAIL", []),
-    # Adam-personal — name allowed only in LICENSE
-    (r"Adam Cunningham", "author name outside LICENSE", "FAIL", ["LICENSE"]),
-    # Author first name in prose ("Adam wants…", "Adam's vault") — the class of
-    # leak that slipped past the full-name check. Allowed only in the copyright /
-    # attribution files and the immutable CHANGELOG history.
-    (r"\bAdam\b", "author first-name leak (prose)", "FAIL",
-     ["LICENSE", "NOTICE", "scripts/lib/banner.py", "CHANGELOG.md"]),
-    # Adam-personal paths
-    (r"AdamCunningham", "user-path leak", "FAIL", []),
-    (r"OneDrive - Vela", "OneDrive path leak", "FAIL", []),
+    # A real Windows user-profile path ("C:\Users\jane"), not a placeholder like <you>.
+    (r"[A-Za-z]:[\\/]+Users[\\/]+(?!<|%|\$|\{|Public\b|you\b|USERNAME\b|name\b)[A-Za-z][\w.-]+", "user-profile path leak", "FAIL", []),
+    # An organisation-tenant OneDrive folder ("OneDrive - Acme Pty Ltd").
+    (r"OneDrive - (?!<)[A-Z][\w&.-]+", "organisation OneDrive path leak", "FAIL", []),
 ]
+
+
+def _load_local_patterns(path):
+    """Maintainer-only patterns from a git-ignored file. Absent file -> none."""
+    try:
+        rows = json.loads(Path(path).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return []
+    except Exception as exc:  # a broken local file must be loud, never a silent pass
+        raise SystemExit(f"personal-patterns.local.json unreadable: {exc}")
+    return [(r[0], r[1], r[2] if len(r) > 2 else "FAIL", list(r[3]) if len(r) > 3 else []) for r in rows]
+
+
+PERSONAL_PATTERNS += _load_local_patterns(Path(__file__).with_name("personal-patterns.local.json"))
+
 
 # Files to skip entirely during the personal-content scrub.
 SCRUB_SKIP_GLOBS = [
     ".git/**",
     "test-scenarios/run-deterministic-checks.py",  # contains the patterns themselves
+    "test-scenarios/*.local.json",                  # git-ignored maintainer name list (the patterns)
     "scripts/lib/charon-logo.txt",                  # ASCII art may match arbitrary chars
     "CHANGELOG.md",                                 # immutable published release history
 ]
