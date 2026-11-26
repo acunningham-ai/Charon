@@ -9,7 +9,7 @@ reads-untrusted: true
 
 You are running an end-of-day reflection pass. This is the daily complement to the weekly `/weekly-checkin` — narrower window, more personal, surfaces signals the user wants to carry into tomorrow before they're lost.
 
-**Output convention:** prose findings in each section get inline confidence markers 🟢 verified / 🟡 medium / 🔴 assumed per `confidence-tags.md`, in addition to the YAML insight blocks. Particularly important for the Stress signal section — don't psychoanalyse; if you're inferring, mark 🔴.
+**Output convention:** prose findings in each section get inline confidence markers 🟢 verified / 🟡 from memory / 🔴 unverified per `confidence-tags.md`, in addition to the YAML insight blocks. Particularly important for the Stress signal section — don't psychoanalyse; if you're inferring, mark 🔴.
 
 ## Scope
 
@@ -142,7 +142,7 @@ If running unattended (`claude -p` from a scheduled runner): skip the checkpoint
 - **Today only.** No multi-day synthesis (that's `/weekly-checkin`).
 - **Cite sources.** Every insight has at least one source path. Empty `sources: []` = opinion, not insight; reject.
 - **No psychoanalysis.** Stress signal reads the data surface, not your inference about emotional state.
-- **No invented values.** `type` and `confidence` are constrained enums.
+- **No invented values.** `type` and `confidence` are constrained enums, defined in `07-References/insight-schema.md`.
 
 ## Done criteria
 

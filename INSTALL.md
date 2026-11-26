@@ -2,6 +2,23 @@
 
 Charon is a CISO harness. We teach security-hygiene discipline through the rules, so we model it from the install instructions: **read the script before you run it**, and run it under the least-permissive policy that works.
 
+## ⚠️ Known issues in v0.37 (fix in progress)
+
+A fresh install on Linux can come up only partly working. Until the fix ships, check these after install:
+
+1. **Every hook needs a `python` command.** Charon's hooks run `python`, and many Linux distributions
+   ship only `python3`. Without `python`, no hook runs: rules don't load, start-up checks don't run and
+   the safety gates are off. Check with `which python`. If nothing prints, on Debian or Ubuntu run
+   `sudo apt install python-is-python3` (on other distributions, make `python` point at `python3`).
+2. **Agent Org may not be switched on.** If there is no `/agent-org` command, run
+   `python3 scripts/agent_org_setup.py` in the Charon folder, then quit and restart Claude Code.
+3. **Requests are not yet routed to Zeus automatically.** The agents load, but nothing sends work to
+   them. Ask for him by name ("Zeus, ...") until the routing rule ships.
+4. **The Cisco rule-corpus update fails part way.** Update Charon itself only, for now:
+   `python3 -m scripts.update.charon_update --source charon`. If a Cisco update already failed,
+   `git checkout -- cerberus/` restores the shipped rules.
+5. **Two update entries in the `/` menu.** `/charon-update` and `/update-charon` run the same thing.
+
 ## Quick start
 
 Clone the repo (anywhere — outside cloud-synced folders is faster).
@@ -19,7 +36,7 @@ git clone https://github.com/acunningham-ai/Charon.git "$env:USERPROFILE\second-
 cd "$env:USERPROFILE\second-brain"
 ```
 
-**Step 1 — Inspect the installer.** Open `install.ps1` / `install.sh` in your editor. It's short (≈100 lines). You're checking: which package manager it invokes, where it writes (your `~/.secrets/`), what Python deps it pulls.
+**Step 1 — Inspect the installer.** Open `install.ps1` / `install.sh` in your editor. Each is several hundred lines, most of it comments and messages; the header comment at the top summarises every flag, environment variable and exit status. You're checking: which package manager it invokes, where it writes (your secrets folder, `~/.secrets/` by default, and on a protected Python the private virtual environment `~/.charon-venv`), and what Python deps it pulls.
 
 **Step 2 — (Optional) verify integrity.** Every tagged release publishes a SHA-256 of `install.ps1` in the release notes. Compare:
 
@@ -58,11 +75,51 @@ powershell -ExecutionPolicy Bypass -Scope Process -File install.ps1
 
 The bootstrap installer:
 
-1. Detects **Python 3.10+**; offers auto-install via `winget` / `brew` / `apt|dnf|pacman`, OR opens the install URL for manual install, OR skips.
+1. Detects **Python 3.10+**, searching `python3`, then `python`, then `py -3`: the same order as the hook launcher (`scripts/hook`), so the Python that gets the packages is the one the hooks run. Offers auto-install via `winget` / `brew` / `apt|dnf|pacman`, OR shows the install URL for manual install, OR skips.
 2. Detects **Obsidian**; same auto / manual / skip choice. Optional — Charon works with any markdown editor.
-3. Installs Python deps from `requirements.txt` (PyYAML, anthropic, mcp).
-4. Creates your **secrets directory** with restricted permissions (`~/.secrets/` by default).
-5. Hands off to `scripts/first-run.py` — the interactive wizard, which now offers a **Quick path (4–6 questions, ~2 minutes) or Full path (39 questions, ~20 minutes)** at the top. Pick Quick to get productive immediately and refine any phase later; pick Full if you already know how you want the harness configured. See [`FIRST-RUN.md`](FIRST-RUN.md) for details.
+3. Detects **Node.js 18+** (needed only by the email capture pipeline); same choice.
+4. Installs Python deps from `requirements.txt` (PyYAML, anthropic, mcp). If your Python is protected by your operating system (see [Protected Python](#protected-python-pep-668-charons-private-virtual-environment) below), it never forces an install into it: it makes Charon's private virtual environment and installs there instead.
+5. Creates your **secrets directory** with restricted permissions (`~/.secrets/` by default).
+6. Looks for a Charon backup drive and offers to restore it (see *Moving from another computer?* below).
+7. Hands off to `scripts/first-run.py` — the interactive wizard, which now offers a **Quick path (4–6 questions, ~2 minutes) or Full path (39 questions, ~20 minutes)** at the top. Pick Quick to get productive immediately and refine any phase later; pick Full if you already know how you want the harness configured. See [`FIRST-RUN.md`](FIRST-RUN.md) for details.
+
+At the end it checks again that PyYAML and mcp import for the Python in use, and exits with status 3 if either is still missing, so an install that only half worked never reports success.
+
+### Protected Python (PEP 668): Charon's private virtual environment
+
+Many Linux distributions (and Homebrew's Python) mark their Python as *externally managed* (PEP 668): the distribution owns its packages, and pip refuses to install into it. The installer checks for that before running pip (`install.sh` also recognises pip's own refusal if the check missed it).
+
+On such a Python it **never** passes `--break-system-packages`. Instead it:
+
+1. creates a private virtual environment with that same Python, at `~/.charon-venv` (`%USERPROFILE%\.charon-venv` on Windows);
+2. installs `requirements.txt` into it;
+3. runs the restore step and the first-run wizard with the venv's python.
+
+**The hooks and MCP servers use it on their own.** The hook launcher (`scripts/hook`, and `scripts/hook.cmd` on Windows) tries the venv's interpreter first: `bin/python3`, then `bin/python` (on Windows, `Scripts\python.exe`), and only then searches `PATH` as before. You do not need to activate the venv before starting Claude Code. The installer still prints the activate command; it is only needed when you run Charon's scripts by hand (`python scripts/...`), or run them with the venv's python directly, e.g. `~/.charon-venv/bin/python scripts/score-vault.py`.
+
+The launcher uses the venv's interpreter only if it really is Python 3: it must print a check value when run, so a broken venv, or a venv that is a link to something else, is skipped and the `PATH` search runs instead. A link (symlink or junction) to a real venv is fine. To stop using the venv, delete the `~/.charon-venv` folder.
+
+If making the venv or installing into it fails, the installer says so loudly, prints the exact fix (your distribution's package, or the venv commands to run yourself), carries on to the wizard, and exits with status 3 at the end.
+
+### Refusals: root, elevated and piped runs
+
+The installer refuses to start, before it does anything, in two cases:
+
+| Case | Exit | Why |
+|---|---|---|
+| Run as root (`sudo bash install.sh`), or in an elevated "Run as administrator" PowerShell | **77** | Charon installs for one user. A root or elevated run would leave the secrets folder, packages and venv owned by root or the administrators group. Run it as yourself; on Linux it asks for `sudo` itself, only when a package manager needs it. On Windows, `winget` installs per-user. |
+| Piped in from the network (`curl ... \| bash`, `bash -s`, `irm ... \| iex`, or a PowerShell script block) | **66** | A piped script has no folder of its own, so it cannot find the Charon files, and every question would read the rest of the script as its answer. Clone or download Charon, read the script, then run it as a file. |
+
+### Exit status
+
+| Status | Meaning |
+|---|---|
+| 0 | Finished, and the required Python packages import. |
+| 3 | Finished, but PyYAML or mcp is still missing (the fix was printed in Step 4). On Windows, also: Python was just installed by `winget` and this window cannot see it yet; open a new terminal and run the installer again. |
+| 64 | Bad command-line arguments, including an `--answers` / `-AnswersFile` that is not a readable file. |
+| 66 | Refused: piped run. |
+| 77 | Refused: root or elevated. |
+| other | A step failed, or the first-run wizard's own exit status. |
 
 
 > **Moving from another computer?** Plug in your Charon backup drive before running the
@@ -82,19 +139,34 @@ For each prerequisite that's missing:
 - **Manual** opens the install URL in your browser. You install, then re-run the bootstrap.
 - **Skip** continues without that prereq — useful when you already have a custom install (e.g. pyenv, asdf, mise) that the script doesn't see.
 
-## Non-interactive install
+## Non-interactive install, answers file and dry run
+
+| What | Windows | macOS / Linux |
+|---|---|---|
+| Answer every **installer** question with its default (the wizard still asks its own) | `-AcceptDefaults` | `ACCEPT_DEFAULTS=1` |
+| **Never prompt.** Every installer question takes its default, the restore offer is skipped (a restore overwrites memory, so it always needs a person), and the wizard is started with `--non-interactive`. On Linux, `sudo` runs as `sudo -n`, so it fails instead of waiting for a password. | `-NonInteractive` | `--non-interactive` |
+| **Give the wizard its answers** from a JSON or YAML file (question id -> answer), passed on as `--answers`. Checked before anything runs: a missing file or a folder is exit 64. | `-AnswersFile FILE` | `--answers FILE` |
+| **Dry run.** Detects and reports only, and prints each command it would run. It installs nothing, runs no `pip install`, creates no virtual environment and no secrets folder, restores nothing and starts no wizard. On Windows it also changes no permissions and opens no browser. | `-DryRun` | `--dry-run` |
 
 For CI / unattended setups:
 
-```bash
+```powershell
 # Windows
-.\install.ps1 -AcceptDefaults -SkipObsidian
-
-# macOS / Linux
-ACCEPT_DEFAULTS=1 SKIP_OBSIDIAN=1 bash install.sh
+.\install.ps1 -NonInteractive -SkipObsidian -AnswersFile answers.yaml
 ```
 
-Skip flags: `-SkipPython` / `-SkipObsidian` / `-SkipFirstRun` (Windows) or `SKIP_PYTHON=1` / `SKIP_OBSIDIAN=1` / `SKIP_FIRST_RUN=1` (Unix).
+```bash
+# macOS / Linux
+SKIP_OBSIDIAN=1 bash install.sh --non-interactive --answers answers.yaml
+```
+
+Non-interactive, the wizard cannot ask, so if a required answer is missing or invalid it stops, your profile is not set, and the installer says so loudly with both ways to fix it (an answers file, or running the wizard yourself).
+
+To check what an install would do on a machine before doing it: `bash install.sh --dry-run` or `.\install.ps1 -DryRun`.
+
+Skip flags: `-SkipPython` / `-SkipObsidian` / `-SkipNode` / `-SkipFirstRun` (Windows) or `SKIP_PYTHON=1` / `SKIP_OBSIDIAN=1` / `SKIP_NODE=1` / `SKIP_FIRST_RUN=1` (Unix).
+
+**Where it looks for a backup drive.** On macOS / Linux it searches `/Volumes`, `/media`, `/media/$USER`, `/mnt` and `/run/media`, one or two folders deep, for a drive holding a Charon backup. Set `BACKUP_SEARCH_DIR=<folder>` to search only under that folder instead, e.g. `BACKUP_SEARCH_DIR=/mnt/usb bash install.sh`. On Windows it checks the top of every drive letter.
 
 ## Prerequisites reference
 
@@ -229,9 +301,15 @@ and commit that.
 | `ImportError: yaml` | `pip install PyYAML` (or re-run `install.ps1` / `install.sh`) |
 | `ImportError: anthropic` | `pip install anthropic`. Save-on-mention hook will no-op until installed + API key configured. |
 | `ImportError: mcp` | `pip install mcp` |
+| `error: externally-managed-environment` from pip | Your Python is protected (PEP 668). Re-run the installer: it makes `~/.charon-venv` and installs there, and the hooks pick it up. Don't use `--break-system-packages`. See [Protected Python](#protected-python-pep-668-charons-private-virtual-environment). |
+| Installer exits 77 | You ran it as root (`sudo`) or in an elevated window. Run it as yourself. |
+| Installer exits 66 | It was piped in (`curl ... \| bash`, `irm ... \| iex`). Clone or download Charon and run the script as a file. |
+| Installer exits 3 | A required package is still missing, or (Windows) Python was just installed and the window can't see it yet. Follow the fix printed in Step 4, or open a new terminal and re-run. |
 | Bootstrap script blocked on Windows | Try `powershell -ExecutionPolicy RemoteSigned -File install.ps1` first (default policy for locally-cloned scripts). Locked-down machine? After inspecting the file: `powershell -ExecutionPolicy Bypass -Scope Process -File install.ps1` (process-scoped, not machine-wide). Or persistently relax for your user account: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. |
 | `winget` not found (Windows) | Install App Installer from Microsoft Store, then re-run. Or pick (m)anual at the prompt. |
 | Python install via bootstrap "succeeded" but `python --version` doesn't work | Open a fresh shell — PATH only updates for new sessions. |
+| Hooks not firing (Linux) | `which python` prints nothing: install `python-is-python3` (Debian/Ubuntu) or make `python` point at `python3`. See Known issues at the top. |
+| No `/agent-org` command, no live pane | `python3 scripts/agent_org_setup.py`, then restart Claude Code. |
 | Hooks not firing | Verify `.claude/settings.json` exists and hooks point at `${CLAUDE_PROJECT_DIR}/scripts/...`. Set `CLAUDE_PROJECT_DIR` to your vault root. |
 | Toast notifications don't appear (non-Windows) | Expected — the hook is a no-op outside Windows. See [`CONFIGURATION.md`](CONFIGURATION.md) for swapping in `notify-send` / `osascript`. |
 | `MEMORY.md not found` on `score-vault` | First-run hasn't run yet, OR `HARNESS_MEMORY_ROOT` points at the wrong place. Confirm with `python -c "from scripts.lib.harness_paths import memory_root; print(memory_root())"`. |

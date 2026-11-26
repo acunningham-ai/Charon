@@ -15,6 +15,9 @@ What it checks (deterministic only — no LLM):
   5. Captured-zone write-block coverage — every subdir of
      `00-Inbox/_captured/` is covered by vault-ops WRITE_BLOCKED_PREFIXES
   6. Always-fire rules still load correctly
+  7. Confirm-token provenance — every confirm-token spend in the verdict log
+     has an operator issuance in the same session
+     (scripts/checks/confirm_token_provenance.py)
 
 Output: `00-Inbox/_reports/harness-audit/YYYY-MM-DD.md` (frontmatter
 `trust: trusted`, `type: report`).
@@ -238,6 +241,33 @@ def allowlist_integrity() -> list[tuple[str, str]]:
     return findings
 
 
+PROVENANCE_CHECK = Path(__file__).resolve().parent / "checks" / "confirm_token_provenance.py"
+PROVENANCE_DAYS = 92  # one quarter, matching this audit's cadence
+
+
+def confirm_token_provenance() -> tuple[str, list[dict]]:
+    """Run the confirm-token provenance check. Returns (status, unmatched).
+
+    status is "ok", "unmatched", or "error: <why>". A check that could not run is
+    reported as an issue, never as a pass."""
+    if not PROVENANCE_CHECK.is_file():
+        return "error: scripts/checks/confirm_token_provenance.py is missing", []
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(PROVENANCE_CHECK), "--json", "--days", str(PROVENANCE_DAYS)],
+            capture_output=True, text=True, timeout=120, cwd=str(VAULT),
+        )
+        data = json.loads(proc.stdout or "")
+    except Exception as e:
+        return f"error: {type(e).__name__}", []
+    unmatched = data.get("unmatched") if isinstance(data, dict) else None
+    if not isinstance(unmatched, list):
+        return "error: unexpected output", []
+    if proc.returncode not in (0, 1):
+        return f"error: exit {proc.returncode}", []
+    return ("unmatched" if unmatched else "ok"), unmatched
+
+
 def render_report(today: date,
                   score_vault_output: str,
                   stale_hits: list[tuple[str, str]],
@@ -246,7 +276,8 @@ def render_report(today: date,
                   unpinned: list[tuple[str, str]],
                   captured_subdirs: list[str],
                   captured_covered: bool,
-                  allowlist_findings: list[tuple[str, str]]) -> str:
+                  allowlist_findings: list[tuple[str, str]],
+                  provenance: tuple[str, list[dict]] = ("ok", [])) -> str:
     iso = today.strftime("%Y-%m-%d")
     lines: list[str] = []
     lines.append("---")
@@ -362,17 +393,52 @@ def render_report(today: date,
             lines.append(f"| `{fname}` | {issue.replace('|', chr(92) + '|')} |")
     lines.append("")
 
+    lines.append("## 7. Confirm-token provenance")
+    lines.append("")
+    prov_status, prov_unmatched = provenance
+    if prov_status == "ok":
+        lines.append(
+            f"Every confirm-token spend in the last {PROVENANCE_DAYS} days has a matching "
+            f"operator issuance (a `!` command naming the same rule, in the same session)."
+        )
+    elif prov_status == "unmatched":
+        lines.append(
+            f"**{len(prov_unmatched)} confirm-token spend(s) with no operator issuance** in "
+            f"the same session. Each is a token you may not have issued. If you issued it "
+            f"from a separate terminal, note that here; otherwise investigate. "
+            f"\"Assistant touched\" means the session shows the assistant itself using a "
+            f"tool on `policy-confirm`, the stronger sign of a forged token."
+        )
+        lines.append("")
+        lines.append("| When (UTC) | Rule | Re-use | Session | Assistant touched |")
+        lines.append("|---|---|---|---|---|")
+        for u in prov_unmatched[:40]:
+            cells = [str(u.get(k, "")).replace("|", "\\|")[:80]
+                     for k in ("ts", "rule_id", "reuse", "session")]
+            touched = "**yes**" if u.get("assistant_touched_token") else "no"
+            lines.append(f"| {cells[0]} | `{cells[1]}` | {cells[2]} | `{cells[3]}` | {touched} |")
+        if len(prov_unmatched) > 40:
+            lines.append(f"| _(+{len(prov_unmatched) - 40} more)_ | | | | |")
+    else:
+        lines.append(
+            f"**The check could not run** ({prov_status}). Run "
+            f"`scripts/checks/confirm_token_provenance.py` directly to see why. A check "
+            f"that did not run is not a pass."
+        )
+    lines.append("")
+
     issues = (
         (1 if stale_hits else 0)
         + (1 if (perm_last is not None and perm_last != perm_current) else 0)
         + (1 if unpinned else 0)
         + (0 if captured_covered else 1)
         + (1 if allowlist_findings else 0)
+        + (0 if prov_status == "ok" else 1)
     )
     lines.append("## Summary")
     lines.append("")
     if issues == 0:
-        lines.append("All six deterministic checks **passed**.")
+        lines.append("All seven deterministic checks **passed**.")
     else:
         lines.append(f"**{issues} check(s)** found drift or new issues. Detail above.")
     lines.append("")
@@ -409,10 +475,11 @@ def main() -> int:
     unpinned = unpinned_dependencies()
     captured_subdirs, captured_covered = captured_zone_coverage()
     allowlist_findings = allowlist_integrity()
+    provenance = confirm_token_provenance()
 
     report = render_report(today, score_output, stale_hits, perm_current,
                            perm_last, unpinned, captured_subdirs, captured_covered,
-                           allowlist_findings)
+                           allowlist_findings, provenance)
 
     if args.dry_run:
         sys.stdout.write(report)

@@ -9,7 +9,7 @@ reads-untrusted: true
 
 You are doing a **weekly** synthesis pass — not a daily triage. `/refresh-todo` already handles "what's actionable this week"; this skill handles "what patterns are emerging across domains that wouldn't surface in daily review."
 
-**Output convention:** prose findings get inline 🟢 verified / 🟡 medium / 🔴 assumed markers per `confidence-tags.md`, in addition to the YAML insight blocks. Drift/silence + Anomaly sections especially — if the absence of signal is your inference rather than statistically supported, mark 🔴.
+**Output convention:** prose findings get inline 🟢 verified / 🟡 from memory / 🔴 unverified markers per `confidence-tags.md`, in addition to the YAML insight blocks. Drift/silence + Anomaly sections especially — if the absence of signal is your inference rather than statistically supported, mark 🔴.
 
 The premise: patterns spanning multiple domains don't show up day-to-day — they emerge over weeks. This skill exists to make them visible.
 
@@ -63,7 +63,7 @@ For each pair (domain × domain), or each domain × time, look for:
 
 ### 4. Draft the digest — STOP HERE for review
 
-You MUST emit a typed insight block preceding each item under Themes / Convergences / Drift / Anomalies / Recommendations. Inline citations (`[claim](path "context")`) for prose claims drawing on sources.
+You MUST emit a typed insight block preceding each item under Themes / Convergences / Drift / Anomalies / Recommendations. Fields and allowed values: `07-References/insight-schema.md`. Inline citations (`[claim](path "context")`) for prose claims drawing on sources.
 
 Write to a draft buffer first. Show the user the digest **before** writing the file. Structure:
 

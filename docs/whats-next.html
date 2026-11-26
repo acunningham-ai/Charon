@@ -36,14 +36,50 @@
     <div class="eyebrow">Roadmap · what just shipped &amp; what's coming</div>
     <h1 class="big">What's next for Charon</h1>
     <p class="sub">Charon ships in tranches — each capability proven on the author's own vault first, then genericised. Here's what <b>just landed</b>, and what is still being proven before it ships.</p>
-    <p class="asof">As of v0.37.0 · the pills below move with each release.</p>
+    <p class="asof">As of v0.38.0 · the pills below move with each release.</p>
   </div>
 </header>
 
 <section>
   <div class="wrap">
     <div class="sec-head">
-      <div class="kicker">Just shipped &middot; v0.37.0</div>
+      <div class="kicker">Just shipped &middot; v0.38.0</div>
+      <h2>An install that tells you the truth, and guards that can't quietly switch off</h2>
+      <p>Setup and updates that say plainly what worked and what didn't, every hook started the same way on any machine, and two new commands: one to take good ideas from someone else's repo safely, one to stress-test a post before it goes out.</p>
+    </div>
+    <div class="cards two">
+      <div class="card">
+        <div class="ctop"><span class="cmd">scripts/hook</span><span class="pill ok">shipped</span></div>
+        <h4>Every guard starts the same way</h4>
+        <p>Every hook and MCP server now starts through one launcher that finds a working Python 3 on the machine, and the launcher, the hooks and <code>.mcp.json</code> can't be edited without you being asked first.</p>
+        <p class="out">Outcome: a guard doesn't go missing because a machine names Python differently.</p>
+      </div>
+      <div class="card">
+        <div class="ctop"><span class="cmd">install.sh · install.ps1</span><span class="pill ok">upgraded</span></div>
+        <h4>An install that says what happened</h4>
+        <p>A protected system Python gets a private environment instead of a forced install, root and piped runs are refused, and a missing package ends the install with a plain error rather than a false "done".</p>
+        <p class="out">Outcome: if setup didn't work, you know before you rely on it.</p>
+      </div>
+      <div class="card">
+        <div class="ctop"><span class="cmd">/charon-update</span><span class="pill ok">upgraded</span></div>
+        <h4>Updates that don't trip over your files</h4>
+        <p>Your own untracked files no longer block an update, a rule-corpus update is all or nothing, and the status line and Agent Org pane wiring is re-checked after every update.</p>
+        <p class="out">Outcome: one command keeps you current without hand repairs.</p>
+      </div>
+      <div class="card">
+        <div class="ctop"><span class="cmd">/borrow-scan · /redteam-post</span><span class="pill ok">shipped</span></div>
+        <h4>Borrow safely, publish carefully</h4>
+        <p><code>/borrow-scan</code> vets someone else's repo first, then lists what is worth taking and what to leave. <code>/redteam-post</code> runs a hostile read of a draft post before it goes out, and never edits or posts it.</p>
+        <p class="out">Outcome: good ideas come in without their risks, and posts go out pressure-tested.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">Shipped in v0.37.0</div>
       <h2>Handoffs that can't go stale, and answers that don't go quietly wrong</h2>
       <p>Five capabilities proven in daily use: a handoff whose live half is generated, two rules that catch the quiet ways an answer goes wrong, and two document utilities. Plus ranked memory search and a memory index that stays an index.</p>
     </div>
@@ -389,7 +425,7 @@
         </tbody>
       </table>
     </div>
-    <p class="tbl-note"><b>shipped</b> = in the current release <b>v0.37.0</b>, live now, <code>git pull</code> to get it · <b>in shadow</b> = running silently on a real vault while it earns trust · <b>planned</b> = designed, gated on the highest bar because it can change files.</p>
+    <p class="tbl-note"><b>shipped</b> = in the current release <b>v0.38.0</b>, live now, <code>git pull</code> to get it · <b>in shadow</b> = running silently on a real vault while it earns trust · <b>planned</b> = designed, gated on the highest bar because it can change files.</p>
   </div>
 </section>
 

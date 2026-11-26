@@ -13,6 +13,7 @@ keywords:
   - "newsletter"
   - "blog post"
   - "social post"
+  - "redteam-post"
 ---
 
 # Voice-driven content rules

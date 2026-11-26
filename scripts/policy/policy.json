@@ -14,35 +14,35 @@
   "rules": [
     {
       "id": "protected-config-write",
-      "description": "Writes/edits to load-bearing config that future sessions trust. RE-SCOPED + PROMOTED 2026-08-10 after the shadow review (see 00-Inbox/_harness/review-2026-08-10.md): 380 shadow fires, 336 of them (88%) the harness doing its own mandated work. MEMORY.md (295 fires) is an index whose co-change the enforce-memory-index-cochange Stop hook already COMPELS — gating it put two controls in direct opposition. TODO.md (41) is a derived artefact regenerated wholesale by morning-update, never hand-authored. Both are now excluded by ROLE rather than by deleting the glob, so a future derived artefact or index is covered automatically. Residual scope = CLAUDE.md (32) + settings.json (12) = ~0.8 fires/week, which is what makes this promotable. Revert by deleting the \"enforce\" line.",
+      "description": "Writes/edits to load-bearing config that future sessions trust. RE-SCOPED + PROMOTED 2026-08-10 after the shadow review (see 00-Inbox/_harness/review-2026-08-10.md): 380 shadow fires, 336 of them (88%) the harness doing its own mandated work. MEMORY.md (295 fires) is an index whose co-change the enforce-memory-index-cochange Stop hook already COMPELS — gating it put two controls in direct opposition. TODO.md (41) is a derived artefact regenerated wholesale by morning-update, never hand-authored. Both are now excluded by ROLE rather than by deleting the glob, so a future derived artefact or index is covered automatically. Residual scope = CLAUDE.md (32) + settings.json (12) = ~0.8 fires/week, which is what makes this promotable. Revert by deleting the \"enforce\" line. EXTENDED for v0.38.0 (release review, fail-open finding): the guard launch path is now protected too. scripts/hook and scripts/hook.cmd launch every hook and MCP guard, scripts/hooks/** are the guards themselves, and .mcp.json decides which MCP servers start; one edit making the launcher exit 0 silently disabled every guard, and nothing gated it. MultiEdit and NotebookEdit added because .claude/settings.json routes both to deny-destructive.py, and they reached the same files without matching this rule. Test: scripts/test_policy_protects_launcher.py.",
       "applies_to": ["*"],
       "match": {
-        "tool": ["Write", "Edit"],
-        "path_globs": ["**/CLAUDE.md", "**/MEMORY.md", "**/TODO.md", "**/.claude/settings*.json"],
+        "tool": ["Write", "Edit", "MultiEdit", "NotebookEdit"],
+        "path_globs": ["**/CLAUDE.md", "**/MEMORY.md", "**/TODO.md", "**/.claude/settings*.json", "**/scripts/hook", "**/scripts/hook.cmd", "**/.mcp.json", "**/scripts/hooks/**"],
         "exclude_roles": ["derived", "index"]
       },
       "verdict": "ask",
       "enforce": true,
       "severity": "high",
-      "reason": "Write to a protected config file (CLAUDE.md / .claude/settings*.json). These steer every future session — confirm before modifying."
+      "reason": "Write to a protected config file (CLAUDE.md / .claude/settings*.json) or to the guard launch path (scripts/hook, scripts/hook.cmd, scripts/hooks/**, .mcp.json). These steer every future session or decide whether any guard runs at all. Confirm before modifying."
     },
     {
       "id": "protected-config-write-via-shell",
-      "description": "CLOSES secure-code-review finding #4 (2026-08-10). protected-config-write matches tool Write/Edit only, so a shell redirect reached the same files without passing the gate. Same file set and same exclusions as protected-config-write: MEMORY.md and TODO.md are deliberately ABSENT so the shell path cannot be stricter than the tool path. TWO KNOWN LIMITS, both found in live use the day it shipped and both accepted rather than papered over: (1) FALSE POSITIVES — a command that merely QUOTES one of these shapes (a test fixture, a grep, a heredoc discussing the rule) matches, because regex over a shell string cannot separate quoting a pattern from executing it. This is the same describes-vs-contains problem _provenance.py solves for file paths, and it has no equivalent solution here. Mitigated by verdict=ask plus the one-shot confirm token, so an FP costs a confirmation rather than blocking work outright. (2) INCOMPLETE — programmatic writes (python -c open(...,'a'), node -e fs.writeFileSync) are not matched at all. This rule raises the cost of the obvious shell bypass; it is not a complete mediation of the shell path, and should not be described as one. FIX APPLIED SAME DAY: the character classes exclude newlines ([^|;&\\n\\r]) because [^|;&] matched across newlines, so any write-verb anywhere in a multi-line script plus any protected filename anywhere else in it produced a match — it fired on its own test file three times before this was found.",
+      "description": "CLOSES secure-code-review finding #4 (2026-08-10). protected-config-write matches tool Write/Edit only, so a shell redirect reached the same files without passing the gate. Same file set and same exclusions as protected-config-write: MEMORY.md and TODO.md are deliberately ABSENT so the shell path cannot be stricter than the tool path. TWO KNOWN LIMITS, both found in live use the day it shipped and both accepted rather than papered over: (1) FALSE POSITIVES — a command that merely QUOTES one of these shapes (a test fixture, a grep, a heredoc discussing the rule) matches, because regex over a shell string cannot separate quoting a pattern from executing it. This is the same describes-vs-contains problem _provenance.py solves for file paths, and it has no equivalent solution here. Mitigated by verdict=ask plus the one-shot confirm token, so an FP costs a confirmation rather than blocking work outright. (2) INCOMPLETE — programmatic writes (python -c open(...,'a'), node -e fs.writeFileSync) are not matched at all. This rule raises the cost of the obvious shell bypass; it is not a complete mediation of the shell path, and should not be described as one. FIX APPLIED SAME DAY: the character classes exclude newlines ([^|;&\\n\\r]) because [^|;&] matched across newlines, so any write-verb anywhere in a multi-line script plus any protected filename anywhere else in it produced a match — it fired on its own test file three times before this was found. EXTENDED for v0.38.0 with the guard launch path, matching protected-config-write: scripts/hook and scripts/hook.cmd (not scripts/hook-anything), anything under scripts/hooks/, and .mcp.json (not foo.mcp.json). Separators may be / or one or more backslashes. The same two limits apply; a cp or mv that merely READS one of these files as its source also matches, as it already did for CLAUDE.md.",
       "applies_to": ["*"],
       "match": {
         "tool": ["Bash"],
         "command_patterns": [
-          ">>?\\s*[^|;&\\n\\r]*(CLAUDE\\.md|settings[^/\\\\\\n\\r]*\\.json)",
-          "\\b(tee|cp|mv|rename|Copy-Item|Move-Item)\\b[^|;&\\n\\r]*(CLAUDE\\.md|settings[^/\\\\\\n\\r]*\\.json)",
-          "\\bsed\\s+-i\\b[^|;&\\n\\r]*(CLAUDE\\.md|settings[^/\\\\\\n\\r]*\\.json)",
-          "\\b(Set-Content|Add-Content|Out-File)\\b[^|;&\\n\\r]*(CLAUDE\\.md|settings[^/\\\\\\n\\r]*\\.json)"
+          ">>?\\s*[^|;&\\n\\r]*(CLAUDE\\.md|settings[^/\\\\\\n\\r]*\\.json|(?<![\\w.-])\\.mcp\\.json|scripts[/\\\\]+hook(?:\\.cmd)?(?![\\w.-])|scripts[/\\\\]+hooks(?:[/\\\\]|(?![\\w.-])))",
+          "\\b(tee|cp|mv|rename|Copy-Item|Move-Item)\\b[^|;&\\n\\r]*(CLAUDE\\.md|settings[^/\\\\\\n\\r]*\\.json|(?<![\\w.-])\\.mcp\\.json|scripts[/\\\\]+hook(?:\\.cmd)?(?![\\w.-])|scripts[/\\\\]+hooks(?:[/\\\\]|(?![\\w.-])))",
+          "\\bsed\\s+-i\\b[^|;&\\n\\r]*(CLAUDE\\.md|settings[^/\\\\\\n\\r]*\\.json|(?<![\\w.-])\\.mcp\\.json|scripts[/\\\\]+hook(?:\\.cmd)?(?![\\w.-])|scripts[/\\\\]+hooks(?:[/\\\\]|(?![\\w.-])))",
+          "\\b(Set-Content|Add-Content|Out-File)\\b[^|;&\\n\\r]*(CLAUDE\\.md|settings[^/\\\\\\n\\r]*\\.json|(?<![\\w.-])\\.mcp\\.json|scripts[/\\\\]+hook(?:\\.cmd)?(?![\\w.-])|scripts[/\\\\]+hooks(?:[/\\\\]|(?![\\w.-])))"
         ]
       },
       "verdict": "ask",
       "enforce": true,
       "severity": "high",
-      "reason": "Shell command writes to a protected config file (CLAUDE.md / .claude/settings*.json). These steer every future session — confirm before modifying."
+      "reason": "Shell command writes to a protected config file (CLAUDE.md / .claude/settings*.json) or to the guard launch path (scripts/hook, scripts/hook.cmd, scripts/hooks/**, .mcp.json). These steer every future session or decide whether any guard runs at all. Confirm before modifying."
     },
     {
       "id": "secrets-write",

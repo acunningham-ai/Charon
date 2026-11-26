@@ -5,30 +5,21 @@
   "terminalOutputLimit": 150000,
   "fileReadTokenLimit": 100000,
   "cleanupPeriodDays": 365,
-  "mcpServers": {
-    "vault-ops": {
-      "type": "stdio",
-      "command": "python",
-      "args": [
-        "${CLAUDE_PROJECT_DIR}/scripts/mcp/vault-ops-server.py"
-      ]
-    }
-  },
   "hooks": {
     "UserPromptSubmit": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/load-rules.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/load-rules.py"
           },
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/save-on-mention.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/save-on-mention.py"
           },
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/poisoning-scan.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/poisoning-scan.py"
           }
         ]
       }
@@ -39,27 +30,27 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/deny-destructive.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/deny-destructive.py"
           },
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/validate-write-path.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/validate-write-path.py"
           },
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/validate-interactive-write.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/validate-interactive-write.py"
           },
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/phase-gate.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/phase-gate.py"
           },
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/cerberus/scan-config-edits.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/cerberus/scan-config-edits.py"
           },
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/jit-memory.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/jit-memory.py"
           }
         ]
       },
@@ -68,7 +59,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/poisoning-scan-read.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/poisoning-scan-read.py"
           }
         ]
       },
@@ -77,7 +68,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/deny-destructive.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/deny-destructive.py"
           }
         ]
       }
@@ -88,11 +79,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/validate-memory-frontmatter.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/validate-memory-frontmatter.py"
           },
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/voice-anchor-ralph-loop.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/voice-anchor-ralph-loop.py"
           }
         ]
       },
@@ -101,7 +92,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/ssh-recovery.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/ssh-recovery.py"
           }
         ]
       },
@@ -110,7 +101,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/skill-usage-log.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/skill-usage-log.py"
           }
         ]
       }
@@ -120,7 +111,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/notification-toast.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/notification-toast.py"
           }
         ]
       }
@@ -130,11 +121,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/enforce-memory-index-cochange.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/enforce-memory-index-cochange.py"
           },
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/enforce-cochange.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/enforce-cochange.py"
           }
         ]
       }
@@ -144,23 +135,23 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/check-reauth-flag.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/check-reauth-flag.py"
           },
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/check-todo-freshness.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/check-todo-freshness.py"
           },
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/check-commitments.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/check-commitments.py"
           },
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/check-scheduler-liveness.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/check-scheduler-liveness.py"
           },
           {
             "type": "command",
-            "command": "python \"${CLAUDE_PROJECT_DIR}/scripts/hooks/surface-harness-proposals.py\""
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/scripts/hook\" scripts/hooks/surface-harness-proposals.py"
           }
         ]
       }
@@ -171,7 +162,6 @@
       "Read",
       "Glob",
       "Grep",
-      "Bash(python scripts/*)",
       "Bash(git status)",
       "Bash(git diff *)",
       "Bash(git log *)"

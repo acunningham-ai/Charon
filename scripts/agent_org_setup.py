@@ -92,8 +92,12 @@ def _write(path: Path, data: dict) -> Path | None:
     return backup
 
 
-def enable(dry_run: bool = False, repo: Path = REPO, version: tuple[int, int, int] | None = None) -> tuple[bool, str]:
-    """(changed-or-already-on, message). Never raises for an expected problem."""
+def enable(dry_run: bool = False, repo: Path = REPO, version: tuple[int, int, int] | None = None,
+           settings: Path | None = None) -> tuple[bool, str]:
+    """(changed-or-already-on, message). Never raises for an expected problem.
+
+    `settings` names the settings file to change; None means the user's own
+    (`settings_path()`). post_install_wiring.py passes its --settings value here."""
     pdir = plugin_dir(repo)
     if not (pdir / ".claude-plugin" / "plugin.json").is_file():
         return False, f"Agent Org plugin not found at {pdir}"
@@ -105,7 +109,7 @@ def enable(dry_run: bool = False, repo: Path = REPO, version: tuple[int, int, in
         have = ".".join(map(str, ver))
         return False, (f"Agent Org needs Claude Code 2.1.287 or later; you have {have}. Run `claude update`, "
                        "then: python scripts/agent_org_setup.py")
-    path = settings_path()
+    path = settings if settings is not None else settings_path()
     data, err = _load(path)
     if data is None:
         return False, err
@@ -126,9 +130,9 @@ def enable(dry_run: bool = False, repo: Path = REPO, version: tuple[int, int, in
     return True, f"Agent Org is on: added {pdir} to {VAR} in {path}.{note} Restart Claude Code to load it."
 
 
-def disable(dry_run: bool = False, repo: Path = REPO) -> tuple[bool, str]:
+def disable(dry_run: bool = False, repo: Path = REPO, settings: Path | None = None) -> tuple[bool, str]:
     pdir = plugin_dir(repo)
-    path = settings_path()
+    path = settings if settings is not None else settings_path()
     data, err = _load(path)
     if data is None:
         return False, err

@@ -289,76 +289,75 @@
   <div class="wrap">
     <span class="badge reveal"><span class="tag">MIT</span> Open source · built by a practising CISO</span>
     <h1 class="big reveal" style="--i:1">Context that survives the session.</h1>
-    <p class="sub reveal" style="--i:2">Charon is a <b>second brain</b> for Claude&nbsp;Code — a harness that gives it <b>durable memory</b>, <b>confidence-tagged answers</b>, and a <b>security baseline built by a CISO</b>.</p>
+    <p class="sub reveal" style="--i:2">Charon is a <b>second brain</b> for Claude&nbsp;Code: a harness that gives it <b>durable memory</b>, <b>confidence-tagged answers</b>, and a <b>security baseline built by a CISO</b>.</p>
     <div class="cta reveal" style="--i:3">
       <a class="btn btn-dark lg" href="#install">Get started</a>
       <a class="btn btn-line lg" href="https://github.com/acunningham-ai/Charon">View on GitHub</a>
     </div>
     <div class="hero-meta reveal" style="--i:4"><code>Charon</code> · KAIR-ən · runs on the Claude Code CLI · ~20-min guided setup · your vault starts empty</div>
-    <div class="term reveal" style="--i:5" role="img" aria-label="A Charon session recalling memory and confidence-tagging an answer">
-      <div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">claude code — ~/vault — charon</span></div>
+    <div class="term reveal" style="--i:5" role="img" aria-label="A Charon answer with each claim confidence-tagged">
+      <div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">claude code · ~/vault · charon</span></div>
       <div class="term-body" id="term">
-<div class="line"><span class="dim">▸ session start — restoring memory…</span></div>
-<div class="line"><span class="ok">  ✓</span> recalled <span class="you">3 projects</span>, <span class="you">12 people</span>, <span class="you">47 notes</span></div>
-<div class="line"> </div>
 <div class="line"><span class="prompt">you ▸</span> <span class="you">when does the wildcard cert expire, and who renews it?</span></div>
 <div class="line"> </div>
-<div class="line"><span class="prompt">charon ▸</span></div>
-<div class="line">  <span class="ok">[ verified ]</span>   expires <span class="you">2026-09-14</span> — read from the cert this turn.</div>
-<div class="line">  <span class="amber">[ medium ]</span>     renewal runs through the platform team <span class="dim">(from memory).</span></div>
-<div class="line">  <span class="red">[ assumed ]</span>    auto-renew likely on — <span class="dim">not checked. verify first.</span></div>
+<div class="line"><span class="prompt">claude ▸</span></div>
+<div class="line">  It expires <span class="you">14 Sep 2026</span>; I read it from the cert this turn. <span class="ok">🟢</span></div>
+<div class="line">  Renewal runs through the platform team <span class="dim">(from memory, not re-checked).</span> <span class="amber">🟡</span></div>
+<div class="line">  Auto-renew is probably on, but I have not checked it. Verify first. <span class="red">🔴</span></div>
       </div>
     </div>
-    <p class="term-cap reveal" style="--i:6">Example session on a populated vault — a fresh install starts empty.</p>
+    <p class="term-cap reveal" style="--i:6">Example answer on a populated vault; a fresh install starts empty.</p>
   </div>
 </section>
 
 <!-- WHAT'S NEW IN THIS BUILD (replaced each release) -->
 <section class="band tall alt" id="whats-new">
   <div class="wrap">
-    <div class="sec-head reveal"><p class="kicker">What's new in v0.37.0</p><h2>Handoffs that can't go stale, and answers that don't go quietly wrong.</h2><p>Five capabilities proven in daily use, plus sharper memory search and a tidier memory index. Here's what's new, how you'll use it, and why it matters.</p></div>
+    <div class="sec-head reveal"><p class="kicker">What's new in v0.38.0</p><h2>An install that tells you the truth, and gates that can't quietly switch off.</h2><p>Setup and updates that say plainly what worked and what didn't, hooks that run on any machine, and two new commands: one to take the good ideas from someone else's repo safely, one to stress-test a post before it goes out. Here's what's new, how you'll use it, and why it matters.</p></div>
     <div class="wn">
       <article class="wn-card reveal" style="--i:1">
-        <span class="wn-tag">Handoff</span>
-        <h3>The live half writes itself.</h3>
+        <span class="wn-tag">Install</span>
+        <h3>A half-working install no longer says "done".</h3>
         <dl>
-          <dt>What it is</dt><dd><code>/handoff</code> now fills in the project's open commitments, its earlier handoffs and any drift between them from live state, instead of from memory.</dd>
-          <dt>How you'll use it</dt><dd>Run <code>/handoff &lt;project&gt;</code> at the end of a session, as before. Overdue commitments are flagged at the top.</dd>
-          <dt>Why it matters</dt><dd>A handoff written from memory is stale the moment work continues, and it's the first thing your next session reads.</dd>
+          <dt>What it is</dt><dd>The installer uses the same Python your hooks will run, won't force packages into a Python your Linux distribution protects (it prints the exact fix instead), and exits with status 3 if a required package is still missing. Setup then switches on Agent Org (if you said yes) and Charon's status line, and says loudly if it couldn't.</dd>
+          <dt>How you'll use it</dt><dd>Run <code>install.sh</code> or <code>install.ps1</code> as before. Then <code>sh scripts/hook scripts/laptop_check.py</code> gives a read-only PASS or FAIL for each part of the install.</dd>
+          <dt>Why it matters</dt><dd>An install that reports success while half of it is missing is worse than one that fails: you find out weeks later, from a gate that never fired.</dd>
         </dl>
-        <a class="wn-more" href="https://github.com/acunningham-ai/Charon/blob/main/CAPABILITIES.md">See /handoff →</a>
+        <a class="wn-more" href="#install">See setup →</a>
       </article>
       <article class="wn-card reveal" style="--i:2">
-        <span class="wn-tag">Subagents</span>
-        <h3>"Done" means your task is done.</h3>
+        <span class="wn-tag">Hooks</span>
+        <h3>Safety gates that fail closed.</h3>
         <dl>
-          <dt>What it is</dt><dd>An always-on rule: when a subagent reports back, the main session checks the result against what you actually asked and keeps going on any gap it can fix.</dd>
-          <dt>How you'll use it</dt><dd>Nothing to do. You'll see fewer "finished" reports that only covered part of the job.</dd>
-          <dt>Why it matters</dt><dd>The usual failure isn't a subagent overclaiming. It's the main session accepting a partial answer as the whole one.</dd>
+          <dt>What it is</dt><dd>A small launcher, <code>scripts/hook</code>, starts each hook with whichever Python 3 the machine has: <code>python3</code>, <code>python</code> or <code>py -3</code>. With no Python 3 at all it prints the one-line fix and blocks, instead of letting the gate switch off.</dd>
+          <dt>How you'll use it</dt><dd>Nothing to do; it needs a POSIX <code>sh</code>, which Claude Code already uses (Git Bash on Windows). An older settings file moves across with <code>sh scripts/hook scripts/launcher_migrate.py --settings .claude/settings.json --mcp .mcp.json</code> (shows the change; add <code>--write</code> to apply).</dd>
+          <dt>Why it matters</dt><dd>On a Linux machine with only <code>python3</code>, every hook was silently dead, and a dead safety gate is an open one.</dd>
         </dl>
-        <a class="wn-more" href="agents.html">See how agents report back →</a>
+        <a class="wn-more" href="skills.html">See the hooks →</a>
       </article>
       <article class="wn-card reveal" style="--i:3">
-        <span class="wn-tag">Live source</span>
-        <h3>Today's question gets today's answer.</h3>
+        <span class="wn-tag">Borrowing</span>
+        <h3>Take the good idea, leave the risk.</h3>
         <dl>
-          <dt>What it is</dt><dd>Questions about mail, your calendar or chat go to the live source first. Every live path is tried before "live is down", and a fall-back to captures is said up front.</dd>
-          <dt>How you'll use it</dt><dd>Ask as normal. If someone writes to you at an address the harness can't read, add them to the rule's register.</dd>
-          <dt>Why it matters</dt><dd>An answer from yesterday's captures looks exactly like a correct one.</dd>
+          <dt>What it is</dt><dd><code>/borrow-scan</code> answers "is anything in this repo worth taking, and can we take it safely?" It vets the repo first, compares each idea against what you already have, checks it against ten standing borrow rules, and ranks what's left: take, idea only, or ignore.</dd>
+          <dt>How you'll use it</dt><dd><code>/borrow-scan &lt;repo-url&gt;</code>. It installs nothing, runs nothing, and ports nothing until you pick. "Nothing here" is a valid answer.</dd>
+          <dt>Why it matters</dt><dd>A mechanism can be real, new to you, and still the wrong thing to adopt. The steps that catch that are the ones skipped in an ad-hoc review.</dd>
         </dl>
-        <a class="wn-more" href="capture.html">See live vs captured →</a>
+        <a class="wn-more" href="https://github.com/acunningham-ai/Charon/blob/main/CAPABILITIES.md">See /borrow-scan →</a>
       </article>
       <article class="wn-card reveal" style="--i:4">
-        <span class="wn-tag">Memory &amp; docs</span>
-        <h3>Find it, keep it tidy, hand it over.</h3>
+        <span class="wn-tag">Publishing</span>
+        <h3>Stress-test the post before it's public.</h3>
         <dl>
-          <dt>What it is</dt><dd>Memory search ranks by term instead of matching an exact phrase. <code>MEMORY.md</code> asks before it fills with prose. Two new scripts turn a note into a Word document, or into a clean copy with no internal links or tags left in it.</dd>
-          <dt>How you'll use it</dt><dd>Run <code>/charon-update</code>. For Word export, <code>pip install -r requirements-ingest.txt</code>.</dd>
-          <dt>Why it matters</dt><dd>Multi-word questions find the note, and a stray internal link never reaches a client document.</dd>
+          <dt>What it is</dt><dd><code>/redteam-post</code> runs the full devil's-advocate workflow on the one draft you're about to publish, against your sources and what you've already posted. It returns kill, fix or proceed, with each risk tagged grounded, plausible or invented.</dd>
+          <dt>How you'll use it</dt><dd>Run <code>/redteam-post</code>; it picks your newest draft and says which. Read-only: it never edits the draft and never posts.</dd>
+          <dt>Why it matters</dt><dd>A post can be deleted; screenshots and reshares can't.</dd>
         </dl>
-        <a class="wn-more" href="memory.html">See memory →</a>
+        <a class="wn-more" href="workflows.html">See devil's advocate →</a>
       </article>
     </div>
+    <p class="wn-also reveal">Also in v0.38.0: <b>updates that don't trip over your own files</b>. Files you added no longer block <code>/charon-update</code>, a Cisco rule-corpus update is all or nothing, and the status line shows your folder, model, context used and how much of your 5-hour and 7-day limits are gone. Two new templates ship in <code>07-References/</code>: a sourced, confidence-rated insight block for synthesis, and a per-project operations runbook. <a class="link" href="https://github.com/acunningham-ai/Charon/blob/main/CHANGELOG.md">Read the changelog →</a></p>
+    <p class="wn-also reveal">Built on v0.37.0: <b>handoffs that can't go stale, and answers that don't go quietly wrong</b>. <code>/handoff</code> fills its live half from the commitment register, a subagent's "done" is checked against what you asked, and mail questions go to the live source first. <a class="link" href="memory.html">See memory →</a></p>
     <p class="wn-also reveal">Built on v0.36.0: <b>the right model for each agent, never a silent one</b>. Zeus sizes every agent to the job, and the limits are enforced, not requested. <a class="link" href="agents.html">See your agents work →</a></p>
     <p class="wn-also reveal">Built on v0.35.0, <b>Agent Org</b>: a live pane and dashboard of every agent at work, with Zeus as Chief of Staff. <a class="link" href="agents.html">See your agents work →</a></p>
     <p class="wn-also reveal">Also this week, in v0.34.0: <b>you find out from the system, not from the damage</b>. Failed runs are reviewed into ranked fixes, and rules surface at the moment you act. <a class="link" href="self-healing.html">See self-healing →</a></p>
@@ -412,7 +411,7 @@
           <div class="term-body">
 <div class="line"><span class="dim">▸ scanning harness…</span></div>
 <div class="line"><span class="ok">  ✓</span> static validity   <span class="you">all scripts compile · 3 workflows named</span></div>
-<div class="line"><span class="ok">  ✓</span> config validity   <span class="you">58 commands · 20 rules · 11 agents</span></div>
+<div class="line"><span class="ok">  ✓</span> config validity   <span class="you">60 commands · 21 rules · 11 agents</span></div>
 <div class="line"><span class="amber">  ⚠ [ observe ]</span> capture token 26d old — reauth this week</div>
 <div class="line">      <span class="dim">fix: re-run your capture auth flow</span></div>
 <div class="line"> </div>
@@ -527,13 +526,13 @@ RULE APPLIES to <span class="a">06-Decisions/vendor-x.md</span>
 <!-- SECURITY: posture -->
 <section class="band" id="doctrine">
   <div class="wrap">
-    <div class="sec-head reveal"><p class="kicker">The right discipline, automatically</p><h2>The rule for the task shows up on its own.</h2><p>Eleven path-conditioned rules watch what you're doing and load the right doctrine in context — you don't have to remember which one applies.</p></div>
+    <div class="sec-head reveal"><p class="kicker">The right discipline, automatically</p><h2>The rule for the task shows up on its own.</h2><p>Sixteen path-conditioned rules watch what you're doing and load the right doctrine in context — you don't have to remember which one applies.</p></div>
     <div class="loop">
       <div class="step reveal" style="--i:1"><span class="n">▸</span><h4>Draft a board report</h4><p>The board-reporting rule fires — never a number without the plain-language why.</p></div>
       <div class="step reveal" style="--i:2"><span class="n">▸</span><h4>Touch code</h4><p>The secure-code baseline fires — input validation, secret hygiene, C-1…C-8.</p></div>
       <div class="step reveal" style="--i:3"><span class="n">▸</span><h4>Read a captured email</h4><p>The untrusted-content rule kicks in — treat it as data, never instructions.</p></div>
     </div>
-    <p class="reveal" style="--i:3;text-align:center;color:var(--muted);font-size:14.5px;margin-top:24px;max-width:62ch;margin-left:auto;margin-right:auto;line-height:1.55">Plus four always-fire rules every turn: ask when unsure, tag confidence, save facts on mention, load memory at session start. All of it is markdown you can read and edit.</p>
+    <p class="reveal" style="--i:3;text-align:center;color:var(--muted);font-size:14.5px;margin-top:24px;max-width:62ch;margin-left:auto;margin-right:auto;line-height:1.55">Plus five always-fire rules every turn: ask when unsure, tag confidence, save facts on mention, load memory at session start, and check a subagent's "done" against what you actually asked. All of it is markdown you can read and edit.</p>
     <p class="explore reveal"><a href="skills.html">Explore Skills &amp; Hooks → the rules, deterministic hooks, and named agents</a></p>
   </div>
 </section>
@@ -677,7 +676,7 @@ V8 deps vs registry <span class="g">✓ clean</span>
 <!-- FULL SURFACE -->
 <section class="band alt tall" id="everything">
   <div class="wrap">
-    <div class="sec-head reveal"><p class="kicker">The full surface</p><h2>Everything it does.</h2><p><b>58 commands · 20 rules · 22 hooks · 11 agents · 3 workflows · 4 MCP servers</b>, plus a working capture pipeline. Six pillars have deep-dive pages; the rest of the toolbox is below — nothing hidden, nothing oversold.</p></div>
+    <div class="sec-head reveal"><p class="kicker">The full surface</p><h2>Everything it does.</h2><p><b>60 commands · 21 rules · 22 hooks · 11 agents · 3 workflows · 4 MCP servers</b>, plus a working capture pipeline. Six pillars have deep-dive pages; the rest of the toolbox is below — nothing hidden, nothing oversold.</p></div>
     <div class="scap">
       <a class="scard link reveal" style="--i:1" href="memory.html"><h4>Memory →</h4><p>Durable plain-markdown memory, save-on-mention, on-device semantic search, optional typed graph, and an always-loaded index kept small enough to be read in full.</p></a>
       <a class="scard link reveal" style="--i:1" href="capture.html"><h4>Capture →</h4><p>Email inbox + sent into the vault, voice notes, screenshots — all untrusted by default.</p></a>
@@ -688,18 +687,18 @@ V8 deps vs registry <span class="g">✓ clean</span>
     </div>
     <p class="kicker reveal" style="text-align:center;margin:48px 0 20px">The full toolbox</p>
     <div class="scap">
-      <div class="scard reveal" style="--i:1"><h4>Doctrine · 20 rules</h4><p>The right discipline loads itself — board-reporting when you write a report, secure-code when you touch code, untrusted-handling on captured content, live-source-first when you ask about mail or your calendar, the clean-signal gate when you build an autonomous loop. 5 always-on, 15 that fire on the task at hand.</p></div>
+      <div class="scard reveal" style="--i:1"><h4>Doctrine · 21 rules</h4><p>The right discipline loads itself — board-reporting when you write a report, secure-code when you touch code, untrusted-handling on captured content, live-source-first when you ask about mail or your calendar, the clean-signal gate when you build an autonomous loop, the borrow rules when you weigh someone else's repo. 5 always-on, 16 that fire on the task at hand.</p></div>
       <div class="scard reveal" style="--i:1"><h4>Runs your day</h4><p>Turn a full inbox into a prioritised to-do list, surface only what's actionable, synthesise the week's patterns, reflect at end of day, consolidate scattered notes into one doc, and work through problems methodically.</p></div>
       <div class="scard reveal" style="--i:1"><h4>Reporting &amp; governance</h4><p>Draft a quarterly stakeholder report, turn a control rating into board-ready plain language, apply board &amp; governance doctrine — and refuse to fabricate scores.</p></div>
       <div class="scard reveal" style="--i:2"><h4>Research → compose</h4><p>A standing analyst researches your beats and a live exploited-vulnerability feed; a writer drafts in your voice from the angle it surfaces; a forum feed builds recurring-meeting agendas.</p></div>
-      <div class="scard reveal" style="--i:2"><h4>Content</h4><p>Draft posts, stakeholder bulletins, tweets and emails in your voice — then capture the analytics back into the record.</p></div>
-      <div class="scard reveal" style="--i:2"><h4>Security review · 5</h4><p>A baseline secure-coding pass, an OWASP LLM Top-10 lens, an OWASP agentic lens, a false-positive gate, and a finding-driven safe rebuild.</p></div>
+      <div class="scard reveal" style="--i:2"><h4>Content</h4><p>Draft posts, stakeholder bulletins, tweets and emails in your voice, red-team the one you're about to publish (<code>/redteam-post</code>, read-only, never posts) — then capture the analytics back into the record.</p></div>
+      <div class="scard reveal" style="--i:2"><h4>Security review · 6</h4><p>A baseline secure-coding pass, an OWASP LLM Top-10 lens, an OWASP agentic lens, a false-positive gate, a finding-driven safe rebuild, and <code>/borrow-scan</code>: what in a third-party repo is worth taking, and whether it can be taken safely.</p></div>
       <div class="scard reveal" style="--i:3"><h4>Cerberus · 5</h4><p>Harden a new setup, audit your posture — including permission rules that let any script run or any file leave without asking — vet a plugin or MCP before install, check dependencies against a compromise registry, and recover after a leak.</p></div>
       <div class="scard reveal" style="--i:3"><h4>Guardrail hooks · 22</h4><p>Deterministic checks that run on their own — allowlist every write, block edits to protected zones, flag injection attempts, keep memory well-formed and findable, redact secrets, load the right rules per prompt — and tell you at session start when a dated commitment is overdue or a scheduled job has quietly stopped running.</p></div>
       <div class="scard reveal" style="--i:3"><h4>Local &amp; private</h4><p>On-device semantic search and voice notes transcribed locally — audio never leaves the machine — plus a typed knowledge graph you can query.</p></div>
       <div class="scard reveal" style="--i:1"><h4>Data layer · 4 MCP servers</h4><p>The model reaches your vault through narrow, audited tools: read-only search, safe scoped edits, and entity/relationship queries — plus an opt-in, read-only calendar reader that is off until you wire it.</p></div>
       <div class="scard reveal" style="--i:2"><h4>Hygiene &amp; ops</h4><p>Audit vault health, catch broken links and tag drift, retire stale skills, promote proven rules, roll up usage, and archive old captures.</p></div>
-      <div class="scard reveal" style="--i:3"><h4>Proof &amp; setup</h4><p>16 behaviour scenarios + 37 deterministic checks run every release, a ~20-minute first-run wizard, updates that tell you in plain words what you gained (and ask only what a new capability needs), and MIT — all readable.</p></div>
+      <div class="scard reveal" style="--i:3"><h4>Proof &amp; setup</h4><p>16 behaviour scenarios + 41 deterministic checks run every release, a read-only laptop check that says whether your install really works, a ~20-minute first-run wizard, updates that tell you in plain words what you gained (and ask only what a new capability needs), and MIT — all readable.</p></div>
     </div>
     <div class="scap" style="margin-top:16px">
       <div class="scard reveal" style="--i:1"><h4>Self-healing &amp; self-improvement</h4><p>Failed runs are queued and reviewed into ranked fixes you accept or decline (<code>/harness-review</code>, <code>/harness-fix</code>); <code>/harness-heal</code> checks a pre-approved fix, propose-only; <code>/harness-doctor</code> runs 11 self-tested detectors; <code>/harness-improve</code> surfaces what could work better. You keep the final say. <a class="link" href="self-healing.html">Deep dive →</a></p></div>
@@ -715,8 +714,8 @@ V8 deps vs registry <span class="g">✓ clean</span>
     <div class="steps">
       <div class="st reveal" style="--i:1"><span class="n">1</span><div><h4>Clone</h4><p>Pull the public MIT repo — anywhere outside a cloud-synced folder.</p></div></div>
       <div class="st reveal" style="--i:1"><span class="n">2</span><div><h4><span class="em">Inspect</span> the installer</h4><p>Open <code>install.ps1</code> / <code>install.sh</code> and skim it. Charon is a CISO tool — reading the installer before you run it is the point.</p></div></div>
-      <div class="st reveal" style="--i:2"><span class="n">3</span><div><h4>Run the bootstrap</h4><p>It detects Python 3.10+ and Obsidian, offers auto / manual / skip per prerequisite, and creates <code>~/.secrets/</code> with restricted permissions.</p></div></div>
-      <div class="st reveal" style="--i:2"><span class="n">4</span><div><h4>Cross — the first-run wizard</h4><p>~20 minutes to build your identity, vault, voice and framework. Then point Claude Code at the folder.</p></div></div>
+      <div class="st reveal" style="--i:2"><span class="n">3</span><div><h4>Run the bootstrap</h4><p>It detects Python 3.10+ (the same one your hooks will use) and Obsidian, offers auto / manual / skip per prerequisite, and creates <code>~/.secrets/</code> with restricted permissions. If a required package can't be installed it tells you the exact fix and exits with status 3, never a false "done".</p></div></div>
+      <div class="st reveal" style="--i:2"><span class="n">4</span><div><h4>Cross — the first-run wizard</h4><p>~20 minutes to build your identity, vault, voice and framework. It then switches on Agent Org (if you said yes) and the status line, and says loudly if either didn't wire. Point Claude Code at the folder.</p></div></div>
     </div>
     <div class="code-full reveal" style="--i:2">
       <button class="copy2" id="copy2" aria-label="Copy commands">Copy</button>
@@ -725,7 +724,10 @@ V8 deps vs registry <span class="g">✓ clean</span>
 <span class="d">$</span> cd Charon
 
 <span class="c"># read it, then run the bootstrap — checks prereqs, then the wizard</span>
-<span class="d">$</span> ./install.sh            <span class="c"># Windows: .\install.ps1</span></pre>
+<span class="d">$</span> ./install.sh            <span class="c"># Windows: .\install.ps1</span>
+
+<span class="c"># afterwards: a read-only PASS / FAIL for each part of the install</span>
+<span class="d">$</span> sh scripts/hook scripts/laptop_check.py   <span class="c"># runs on whichever Python 3 you have</span></pre>
     </div>
     <div class="ceiling reveal" style="--i:2">
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2v10M10 15v.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.4"/></svg>

@@ -1,6 +1,7 @@
 ---
 name: update-charon
 description: Check every Charon update source (harness self + vendored rule corpora) and apply available updates. Reads scripts/update/sources.yaml; handles github-self (the Charon repo) and github-vendored (Cisco rule corpus, future borrows). Idempotent — re-running when up to date is a no-op.
+user-invocable: false
 ---
 
 # Update Charon — one command, all sources

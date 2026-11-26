@@ -173,18 +173,14 @@
         <p class="note"><b>Enabling it:</b> retrieval runs on every prompt, so it spends context on every prompt &mdash; which makes it one line you add to your hooks rather than something switched on for you. Build the index, add the line, and it is on. See <code>CAPABILITIES.md</code>.</p>
       </div>
       <div class="visual" style="align-items:center">
-        <svg viewBox="0 0 320 200" width="100%" style="max-width:340px;margin:0 auto" aria-label="Retrieval quality before and after body-token matching: the right note reached the model 64 percent of the time before, 93 percent after">
+        <svg viewBox="0 0 320 200" width="100%" style="max-width:340px;margin:0 auto" aria-label="Illustrative example, not a measurement. Asked whether the build server has antivirus, matching filenames only misses the note; adding note bodies finds the note that answers it">
           <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10">
-            <text x="10" y="18" fill="#3A4046" font-size="10">Right note reached the model</text>
-            <text x="10" y="70" fill="#6B7280">filenames only</text>
-            <rect x="10" y="78" width="186" height="22" rx="4" fill="#F1F2F4" stroke="#DDE0E5" stroke-width="1"/>
-            <rect x="10" y="78" width="119" height="22" rx="4" fill="#E3E6EA"/>
-            <text x="204" y="93" fill="#3A4046" font-weight="600">64%</text>
-            <text x="10" y="132" fill="#0A5049">+ note bodies</text>
-            <rect x="10" y="140" width="186" height="22" rx="4" fill="#F1F2F4" stroke="#DDE0E5" stroke-width="1"/>
-            <rect x="10" y="140" width="173" height="22" rx="4" fill="#0E6F66"/>
-            <text x="204" y="155" fill="#0A5049" font-weight="600">93%</text>
-            <text x="10" y="188" fill="#8A9099" font-size="9">reference deployment &middot; 28-question goldset</text>
+            <text x="10" y="18" fill="#3A4046" font-size="10" font-weight="600">Does the build server have antivirus?</text>
+            <rect x="10" y="60" width="300" height="30" rx="4" fill="#F1F2F4" stroke="#DDE0E5" stroke-width="1"/>
+            <text x="20" y="79" fill="#6B7280">filenames only: misses it</text>
+            <rect x="10" y="110" width="300" height="30" rx="4" fill="#E7F1EF" stroke="#0E6F66" stroke-width="1"/>
+            <text x="20" y="129" fill="#0A5049" font-weight="600">+ note bodies: finds the note that answers it</text>
+            <text x="10" y="188" fill="#8A9099" font-size="9">illustrative example, not a measurement</text>
           </g>
         </svg>
       </div>
@@ -193,7 +189,7 @@
       <div class="col-text">
         <span class="k">scripts/eval/</span>
         <h3>And you can measure your own.</h3>
-        <p>Our number is from one deployment with a small goldset written by the person who built the index &mdash; read it as &ldquo;this went from broken to working&rdquo;, not as a benchmark. Yours is the one that counts, so the measuring harness ships with it.</p>
+        <p>No accuracy figure is quoted here. A number from someone else&rsquo;s notes and questions tells you nothing about yours; only your own goldset does, so the measuring harness ships with it.</p>
         <p>Write one line per memory &mdash; the question that memory should answer &mdash; and run the evaluator. It reports whether the scorer <i>ranked</i> the note and, separately, whether it <b>survived the context budget and actually reached the model</b>. A gap between those two is a budget problem rather than a ranking problem, and the fixes are different.</p>
         <p class="note">The commonest reason retrieval misses: the note never uses the words the question will carry. One goldset line per memory is what surfaces that while you can still fix it.</p>
       </div>

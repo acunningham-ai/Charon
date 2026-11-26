@@ -8,6 +8,8 @@ Usage:
     python test-scenarios/run-deterministic-checks.py             # human-readable
     python test-scenarios/run-deterministic-checks.py --json      # machine-readable
     python test-scenarios/run-deterministic-checks.py --no-color  # disable ANSI
+    python test-scenarios/run-deterministic-checks.py --settings <file> --mcp <file>
+        # check staged copies of .claude/settings.json and .mcp.json instead
 
 Exit code:
     0  if every check passes (WARN tolerated)
@@ -279,20 +281,33 @@ def check_rule_frontmatter() -> CheckResult:
 
 
 def check_always_fire_rules() -> CheckResult:
-    """The four foundational always-fire rules ship and are correctly tagged."""
-    findings = []
-    for name in ALWAYS_FIRE_RULES:
-        path = RULES_DIR / name
-        if not path.exists():
-            findings.append(f"missing: {name}")
-            continue
-        content = path.read_text(encoding="utf-8")
+    """Count every `always: true` rule; the foundational ones must be among them.
+
+    Used to say "all 4 present" from a hard-coded list, so a fifth always-fire rule
+    shipped and the gate still reported 4. Now the count is read from the rules
+    folder (same frontmatter test as D3) and the foundational rules in
+    ALWAYS_FIRE_RULES are a required subset, not the total."""
+    name = "Always-fire rules present"
+    if not RULES_DIR.is_dir():
+        return CheckResult(name, "FAIL", f"missing: {RULES_DIR}")
+    always: list[str] = []
+    for path in sorted(RULES_DIR.glob("*.md")):
+        content = path.read_text(encoding="utf-8", errors="replace")
         m = re.match(r"^---\r?\n(.*?)\r?\n---", content, re.S)
-        if not m or not re.search(r"^\s*always:\s*true", m.group(1), re.M):
-            findings.append(f"{name}: not tagged `always: true`")
+        if m and re.search(r"^\s*always:\s*true", m.group(1), re.M):
+            always.append(path.name)
+    findings = []
+    for rule in ALWAYS_FIRE_RULES:
+        if not (RULES_DIR / rule).exists():
+            findings.append(f"missing: {rule}")
+        elif rule not in always:
+            findings.append(f"{rule}: not tagged `always: true`")
     if findings:
-        return CheckResult("Always-fire rules present", "FAIL", f"{len(findings)} issue(s)", findings)
-    return CheckResult("Always-fire rules present", "PASS", "all 4 present")
+        return CheckResult(name, "FAIL", f"{len(findings)} issue(s)", findings)
+    extra = sorted(set(always) - set(ALWAYS_FIRE_RULES))
+    detail = (f"{len(always)} always-fire rule(s); all {len(ALWAYS_FIRE_RULES)} foundational present"
+              + (f"; also: {', '.join(extra)}" if extra else ""))
+    return CheckResult(name, "PASS", detail)
 
 
 def _should_skip_for_scrub(path: Path) -> bool:
@@ -305,7 +320,7 @@ def _should_skip_for_scrub(path: Path) -> bool:
 
 
 def check_personal_content_scrub() -> CheckResult:
-    """No personal / Vela-specific content leaks into shipped files."""
+    """No personal or organisation-specific content leaks into shipped files."""
     findings = []
     # Walk the repo, skip .git and binary files
     text_extensions = {".md", ".py", ".ps1", ".sh", ".yaml", ".yml", ".json", ".txt", ".bat", ".js"}
@@ -1338,7 +1353,7 @@ def _surface_inventory() -> "dict[str, set[int]]":
     # An unwired script is not a hook; a wired one that nobody documented is the
     # exact drift this check exists to catch.
     hook_scripts: set = set()
-    settings = claude / "settings.json"
+    settings = SETTINGS_FILE  # .claude/settings.json unless --settings points elsewhere
     if settings.exists():
         try:
             data = json.loads(settings.read_text(encoding="utf-8"))
@@ -1980,6 +1995,40 @@ def check_backup_brain_integrity():
                        "backup/restore present, marker-targeted, no credential-copy path")
 
 
+def check_memory_index_guards() -> CheckResult:
+    """The three MEMORY.md guards in deny-destructive.py must fire, pass benign writes,
+    and answer to their confirmation token.
+
+    MEMORY.md is loaded into every session and Claude Code silently drops what does not
+    fit, so the guards that keep it an index (prose block, per-bullet prose budget,
+    16 KB total ceiling) are load-bearing. Runs scripts/test_memory_index_budget.py,
+    which drives real PreToolUse payloads against a FIXTURE MEMORY.md in a temp
+    project (HARNESS_HOOK_TEST=1, never the production log). A missing precondition
+    in that script is a failure, not a skip, so this check cannot pass vacuously.
+    """
+    name = "memory-index-guards"
+    script = REPO_ROOT / "scripts" / "test_memory_index_budget.py"
+    if not script.is_file():
+        return CheckResult(name, "FAIL", "scripts/test_memory_index_budget.py missing")
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(script)], capture_output=True, text=True,
+            encoding="utf-8", errors="replace", timeout=180, cwd=str(REPO_ROOT),
+        )
+    except Exception as exc:
+        return CheckResult(name, "FAIL", f"could not run the test: {exc!r}")
+    out = (proc.stdout or "").strip().splitlines()
+    tally = next((ln for ln in reversed(out) if ln.endswith("passed")), "no tally")
+    if proc.returncode != 0:
+        fails = [ln.strip() for ln in out if ln.startswith("[FAIL]")][:5]
+        r = CheckResult(name, "FAIL", tally)
+        r.findings.extend(fails or [(proc.stderr or "").strip()[:200]])
+        return r
+    return CheckResult(name, "PASS",
+                       f"{tally}: prose block, line budget and 16 KB ceiling fire; "
+                       f"pointer rows and shrinking writes pass; a matching token unlocks")
+
+
 def check_policy_engine_live() -> CheckResult:
     """The policy engine must actually run, for file tools AND for Bash.
 
@@ -2001,7 +2050,7 @@ def check_policy_engine_live() -> CheckResult:
     import os as _os
     import subprocess as _sp
 
-    settings = REPO_ROOT / ".claude" / "settings.json"
+    settings = SETTINGS_FILE  # .claude/settings.json unless --settings points elsewhere
     hook = REPO_ROOT / "scripts" / "hooks" / "deny-destructive.py"
     if not settings.is_file() or not hook.is_file():
         return CheckResult("policy-engine-live", "FAIL", "settings.json or deny-destructive.py missing")
@@ -2061,7 +2110,7 @@ def check_wired_hooks_are_documented() -> CheckResult:
     """
     import json as _json
 
-    settings = REPO_ROOT / ".claude" / "settings.json"
+    settings = SETTINGS_FILE  # .claude/settings.json unless --settings points elsewhere
     caps = REPO_ROOT / "CAPABILITIES.md"
     conf = REPO_ROOT / "CONFIGURATION.md"
     for f in (settings, caps, conf):
@@ -2079,9 +2128,12 @@ def check_wired_hooks_are_documented() -> CheckResult:
         for g in groups:
             for h in g.get("hooks", []):
                 cmd = h.get("command", "")
-                if "/scripts/hooks/" in cmd:
-                    name = cmd.split("/scripts/hooks/")[-1].strip('" ').split()[0]
-                    wired.add(name.rsplit("/", 1)[-1])
+                # Both shapes: `python "<root>/scripts/hooks/x.py"` (old) and
+                # `sh "<root>/scripts/hook" scripts/hooks/x.py` (launcher, no
+                # leading slash). Reading only the old shape would find 0 hooks
+                # after the launcher landed and pass vacuously.
+                for m in re.finditer(r"(?:^|[\s\"'/])scripts/hooks/([A-Za-z0-9_./-]+?\.py)\b", cmd):
+                    wired.add(m.group(1).rsplit("/", 1)[-1])
 
     caps_text = caps.read_text(encoding="utf-8", errors="replace")
     undocumented = sorted(n for n in wired if n not in caps_text)
@@ -2092,6 +2144,9 @@ def check_wired_hooks_are_documented() -> CheckResult:
     unconfigured = sorted(n for n in cfg_files if n not in conf_text)
 
     problems = []
+    if not wired:
+        problems.append("found no wired hooks in settings.json: the command shape changed "
+                        "or nothing is wired; a check that inspects nothing must not pass")
     if undocumented:
         problems.append("not in CAPABILITIES.md: " + ", ".join(undocumented))
     if unconfigured:
@@ -2101,6 +2156,276 @@ def check_wired_hooks_are_documented() -> CheckResult:
     return CheckResult(
         "wired-hooks-documented", "PASS",
         f"{len(wired)} wired hooks documented, {len(cfg_files)} hook configs documented")
+
+
+# ---------- Interpreter launcher (scripts/hook): install hole rows 2, 5a, 5d, 5g ----------
+
+LAUNCHER_REL = "scripts/hook"
+LAUNCHER_CMD_REL = "scripts/hook.cmd"
+# A command that STARTS with one of these names runs whichever interpreter the PATH
+# happens to hold, or none: Linux often has only python3, so every hook is dead
+# there and every PreToolUse gate fails open.
+BARE_INTERPRETER_RE = re.compile(r"^(?:python[0-9.]*w?|py|pypy[0-9.]*)$", re.I)
+SHELLS = {"sh", "bash", "dash"}
+# The exact settings form the launcher contract uses for a hook.
+LAUNCHER_HOOK_RE = re.compile(
+    r'^sh "\$\{CLAUDE_PROJECT_DIR\}/scripts/hook" (scripts/[A-Za-z0-9_./-]+\.py)( [A-Za-z0-9_ .=-]+)?$')
+NO_PYTHON_MSG = "no Python 3 found"
+
+
+def _cmd_head(tokens: list) -> str:
+    """Basename of the first token, lower case, without .exe."""
+    if not tokens:
+        return ""
+    head = str(tokens[0]).replace("\\", "/").rsplit("/", 1)[-1].lower()
+    return head[:-4] if head.endswith(".exe") else head
+
+
+def _goes_through_launcher(tokens: list) -> bool:
+    toks = [str(t).replace("\\", "/") for t in tokens]
+    if not toks:
+        return False
+    first = toks[0]
+    if first.endswith("/" + LAUNCHER_REL) or first.endswith("/" + LAUNCHER_CMD_REL) \
+            or first in (LAUNCHER_REL, LAUNCHER_CMD_REL):
+        return True
+    return (_cmd_head(toks) in SHELLS and len(toks) > 1
+            and (toks[1].endswith("/" + LAUNCHER_REL) or toks[1] == LAUNCHER_REL))
+
+
+def bare_interpreter_findings(settings: dict, mcp: "dict | None") -> "tuple[list[str], list[str], int]":
+    """(findings, warnings, commands inspected) for one settings dict and one .mcp.json dict.
+
+    A finding is any hook, statusLine or MCP command that starts with a bare
+    interpreter, or runs a .py file without going through scripts/hook, plus any
+    Bash allow rule that names a bare interpreter. A warning is an mcpServers block
+    in settings.json, which Claude Code does not read (servers belong in .mcp.json)."""
+    import shlex
+    findings: list[str] = []
+    warnings: list[str] = []
+    seen = 0
+
+    def judge(label: str, tokens: list) -> None:
+        nonlocal seen
+        seen += 1
+        head = _cmd_head(tokens)
+        if BARE_INTERPRETER_RE.match(head):
+            findings.append(f"{label}: starts with bare `{head}`, not the launcher (sh .../{LAUNCHER_REL})")
+        elif any(str(t).lower().endswith(".py") for t in tokens) and not _goes_through_launcher(tokens):
+            findings.append(f"{label}: runs a .py script without the launcher")
+
+    def judge_string(label: str, cmd: str) -> None:
+        try:
+            tokens = shlex.split(cmd, posix=True)
+        except ValueError:
+            findings.append(f"{label}: command does not parse")
+            return
+        judge(label, tokens)
+
+    for event, groups in ((settings.get("hooks") or {}) if isinstance(settings, dict) else {}).items():
+        for gi, group in enumerate(groups if isinstance(groups, list) else []):
+            for h in (group.get("hooks") or []) if isinstance(group, dict) else []:
+                if isinstance(h, dict) and h.get("type", "command") == "command":
+                    matcher = group.get("matcher") or ""
+                    judge_string(f"settings hooks.{event}[{matcher or gi}]", str(h.get("command") or ""))
+
+    status = settings.get("statusLine") if isinstance(settings, dict) else None
+    if isinstance(status, dict) and status.get("command"):
+        judge_string("settings statusLine", str(status["command"]))
+
+    for label, data in (("settings", settings), (".mcp.json", mcp)):
+        servers = data.get("mcpServers") if isinstance(data, dict) else None
+        if not isinstance(servers, dict):
+            continue
+        if label == "settings" and servers:
+            warnings.append("settings.json declares mcpServers (" + ", ".join(sorted(servers))
+                            + "): Claude Code reads project MCP servers from .mcp.json, so move them there")
+        for name, spec in servers.items():
+            if not isinstance(spec, dict) or "command" not in spec:
+                continue
+            args = spec.get("args") if isinstance(spec.get("args"), list) else []
+            judge(f"{label} mcpServers.{name}", [spec.get("command"), *args])
+
+    allow = ((settings.get("permissions") or {}).get("allow") or []) if isinstance(settings, dict) else []
+    for rule in allow:
+        m = re.match(r"^Bash\(\s*(\S+)", str(rule))
+        if m and BARE_INTERPRETER_RE.match(_cmd_head([m.group(1)])):
+            findings.append(f"settings permissions.allow `{rule}` names a bare interpreter")
+    return findings, warnings, seen
+
+
+def check_no_bare_interpreter() -> CheckResult:
+    """No hook, MCP server or statusLine command starts with a bare interpreter.
+
+    Rows 2 and 5a: every hook and both MCP servers said `python`, so on a Linux box
+    with only python3 every hook was dead and the PreToolUse gates failed OPEN, and
+    nothing in this gate noticed, because every check runs through sys.executable.
+    Reads SETTINGS_FILE and MCP_FILE, which --settings / --mcp can point at staged
+    copies."""
+    name = "No bare interpreter in commands"
+    try:
+        settings = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return CheckResult(name, "FAIL", f"{SETTINGS_FILE.name} unreadable: {exc}")
+    mcp = None
+    if MCP_FILE.exists():
+        try:
+            mcp = json.loads(MCP_FILE.read_text(encoding="utf-8"))
+        except Exception as exc:
+            return CheckResult(name, "FAIL", f"{MCP_FILE.name} unreadable: {exc}")
+    findings, warnings, seen = bare_interpreter_findings(settings, mcp)
+    if not seen:
+        return CheckResult(name, "FAIL", "found no hook, statusLine or MCP command to inspect: "
+                                         "a check that inspects nothing must not pass")
+    if findings:
+        return CheckResult(name, "FAIL", f"{len(findings)} of {seen} command(s)/rule(s) bypass the launcher",
+                           findings[:30] + warnings)
+    if warnings:
+        return CheckResult(name, "WARN", f"{seen} command(s) go through {LAUNCHER_REL}", warnings)
+    return CheckResult(name, "PASS", f"{seen} hook/MCP/statusLine command(s) all go through {LAUNCHER_REL}; "
+                                     "no allow rule names a bare interpreter")
+
+
+def _write_shim(path: Path, target: str) -> None:
+    """A tiny sh script named like a program that execs `target` (an absolute path)."""
+    quoted = "'" + target.replace("'", "'\"'\"'") + "'"
+    path.write_text(f"#!/bin/sh\nexec {quoted} \"$@\"\n", encoding="utf-8", newline="\n")
+    path.chmod(0o755)
+
+
+def check_launcher_runtime() -> CheckResult:
+    """A real hook runs through scripts/hook with ONLY python3 on PATH, and the
+    launcher exits 2 (blocks) when PATH holds no interpreter at all.
+
+    Row 5d: every other check runs scripts with sys.executable, which hides a PATH
+    with no `python`. This one controls PATH. The PATH holds a temp folder with
+    just two shims: `python3` (execs this Python) and `sh` (execs the real sh, so
+    the settings form `sh "<root>/scripts/hook" ...` can be run as written). No
+    `python`, no `py`. The hook is deny-destructive.py, the PreToolUse gate whose
+    failing open is the worst outcome, driven with HARNESS_HOOK_TEST=1."""
+    import shutil as _sh
+    import tempfile as _tf
+    name = "Launcher runs hooks (python3-only PATH)"
+    launcher = REPO_ROOT / LAUNCHER_REL
+    hook_rel = "scripts/hooks/deny-destructive.py"
+    if not launcher.is_file():
+        return CheckResult(name, "FAIL", f"missing: {LAUNCHER_REL}")
+    if b"\r" in launcher.read_bytes():
+        return CheckResult(name, "FAIL", f"{LAUNCHER_REL} has CR line endings; sh would choke on them")
+    sh = _sh.which("sh")
+    if not sh:
+        return CheckResult(name, "FAIL", "no `sh` on PATH: the launcher form needs a POSIX sh "
+                                         "(Git Bash on Windows)")
+    problems: list[str] = []
+    harmless = {"tool_name": "Bash", "tool_input": {"command": "ls"}}
+    denied = {"tool_name": "Write", "tool_input": {
+        "file_path": str(REPO_ROOT / "state" / "agent-org" / "approvals.json"), "content": "{}"}}
+
+    def payload(p: dict) -> str:
+        return json.dumps(dict(p, hook_event_name="PreToolUse", session_id="d40-check",
+                               cwd=str(REPO_ROOT)))
+
+    tmp = Path(_tf.mkdtemp(prefix="charon-d40-"))
+    try:
+        shim_dir = tmp / "bin"
+        empty_dir = tmp / "empty"
+        shim_dir.mkdir()
+        empty_dir.mkdir()
+        _write_shim(shim_dir / "python3", Path(sys.executable).as_posix())
+        _write_shim(shim_dir / "sh", Path(sh).as_posix())
+        base = dict(os.environ, HARNESS_HOOK_TEST="1", CLAUDE_PROJECT_DIR=str(REPO_ROOT))
+        base.pop("HARNESS_UNATTENDED_ALLOWLIST", None)
+        only_py3 = dict(base, PATH=str(shim_dir))
+
+        def run(argv, env, stdin, cwd=REPO_ROOT):
+            return subprocess.run(argv, input=stdin, capture_output=True, text=True,
+                                  encoding="utf-8", errors="replace", env=env,
+                                  cwd=str(cwd), timeout=120)
+
+        r = run([sh, str(launcher), hook_rel], only_py3, payload(harmless))
+        if r.returncode != 0:
+            problems.append(f"harmless command through the launcher: exit {r.returncode}, expected 0 "
+                            f"({(r.stderr or '').strip()[:160]})")
+        r = run([sh, str(launcher), hook_rel], only_py3, payload(denied))
+        # Exit 2 alone is not proof (Python's own "can't open file" is 2 as well);
+        # the hook's block message is.
+        if r.returncode != 2 or "BLOCKED" not in (r.stderr or "") or NO_PYTHON_MSG in (r.stderr or ""):
+            problems.append(f"denied write through the launcher: exit {r.returncode}, expected the "
+                            f"hook's own block (2) ({(r.stderr or '').strip()[:160]})")
+
+        # The settings form itself, run by a shell exactly as written.
+        try:
+            cfg = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            cfg = {}
+        wired = [h.get("command", "")
+                 for g in (cfg.get("hooks") or {}).get("PreToolUse", [])
+                 if "Bash" in (g.get("matcher") or "").split("|")
+                 for h in g.get("hooks", []) if "deny-destructive.py" in h.get("command", "")]
+        form = "settings form not in launcher shape (see D39); launcher run directly"
+        if wired and LAUNCHER_HOOK_RE.match(wired[0]):
+            r = run([sh, "-c", wired[0]], only_py3, payload(harmless))
+            form = "settings form run as written"
+            if r.returncode != 0:
+                problems.append(f"settings command `{wired[0]}` under sh: exit {r.returncode}, "
+                                f"expected 0 ({(r.stderr or '').strip()[:160]})")
+
+        # No interpreter at all: must block with the one-line fix, never exit 0 or 127.
+        r = run([sh, str(launcher), hook_rel], dict(base, PATH=""), payload(harmless), cwd=empty_dir)
+        if r.returncode != 2 or NO_PYTHON_MSG not in (r.stderr or ""):
+            problems.append(f"empty PATH: exit {r.returncode}, expected 2 with '{NO_PYTHON_MSG}' "
+                            f"({(r.stderr or '').strip()[:160]})")
+    except Exception as exc:
+        problems.append(f"launcher check errored: {type(exc).__name__}: {exc}")
+    finally:
+        _sh.rmtree(tmp, ignore_errors=True)
+    if problems:
+        return CheckResult(name, "FAIL", f"{len(problems)} problem(s)", problems)
+    return CheckResult(name, "PASS", "deny-destructive allows and blocks through the launcher with only "
+                                     f"python3 on PATH; {form}; empty PATH exits 2 with the fix line")
+
+
+# Tests the gate must NOT auto-run, each with its reason. Keep this short: an
+# excluded test is a test the release never runs.
+DISCOVERY_EXCLUDE = {
+    "test_memory_index_budget.py": "already run by D38 (memory-index-guards); running it twice adds time, not coverage",
+}
+DISCOVERY_ENV = "CHARON_GATE_TEST_DISCOVERY"
+
+
+def check_discovered_tests() -> CheckResult:
+    """Run every scripts/test_*.py; any non-zero exit fails the gate.
+
+    Row 38: each new test used to need a gate edit, so new tests silently stayed
+    out of the release. Now a test joins by existing. Excluding one needs an entry
+    in DISCOVERY_EXCLUDE with a written reason."""
+    name = "Auto-discovered scripts/test_*.py"
+    if os.environ.get(DISCOVERY_ENV):
+        return CheckResult(name, "WARN", "skipped: already inside a gate run (no recursion)")
+    tests = sorted((REPO_ROOT / "scripts").glob("test_*.py"))
+    if not tests:
+        return CheckResult(name, "FAIL", "found no scripts/test_*.py: a check that runs nothing must not pass")
+    env = dict(os.environ, **{DISCOVERY_ENV: "1"})
+    ran, failed, skipped = [], [], []
+    for t in tests:
+        if t.name in DISCOVERY_EXCLUDE:
+            skipped.append(f"{t.name} (excluded: {DISCOVERY_EXCLUDE[t.name]})")
+            continue
+        try:
+            r = subprocess.run([sys.executable, str(t)], capture_output=True, text=True,
+                               encoding="utf-8", errors="replace", cwd=str(REPO_ROOT),
+                               env=env, timeout=600)
+            rc = r.returncode
+            tail = next((ln.strip() for ln in reversed(((r.stdout or "") + "\n" + (r.stderr or "")).splitlines())
+                         if ln.strip()), "")
+        except subprocess.TimeoutExpired:
+            rc, tail = None, "timed out after 600s"
+        ran.append(t.name)
+        if rc != 0:
+            failed.append(f"{t.name}: exit {rc}: {tail[:160]}")
+    if failed:
+        return CheckResult(name, "FAIL", f"{len(failed)} of {len(ran)} test file(s) failed", failed + skipped)
+    return CheckResult(name, "PASS", f"{len(ran)} test file(s) exit 0: {', '.join(ran)}", skipped)
 
 
 CHECKS = [
@@ -2141,6 +2466,10 @@ CHECKS = [
     ("D35", check_backup_brain_integrity),
     ("D36", check_wired_hooks_are_documented),
     ("D37", check_policy_engine_live),
+    ("D38", check_memory_index_guards),
+    ("D39", check_no_bare_interpreter),
+    ("D40", check_launcher_runtime),
+    ("D41", check_discovered_tests),
 ]
 
 
@@ -2202,12 +2531,29 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Charon deterministic test checks")
     parser.add_argument("--json", action="store_true", help="emit JSON")
     parser.add_argument("--no-color", action="store_true", help="disable ANSI colors")
+    parser.add_argument("--settings", metavar="PATH",
+                        help="check this settings file instead of .claude/settings.json "
+                             "(e.g. a staged copy); relative paths are from the repo root")
+    parser.add_argument("--mcp", metavar="PATH",
+                        help="check this MCP file instead of .mcp.json (e.g. a staged copy)")
     args = parser.parse_args()
     Ansi.configure(args.no_color)
+
+    global SETTINGS_FILE, MCP_FILE
+    for opt, attr in (("settings", "SETTINGS_FILE"), ("mcp", "MCP_FILE")):
+        value = getattr(args, opt)
+        if value:
+            p = Path(value)
+            p = p if p.is_absolute() else REPO_ROOT / p
+            if not p.is_file():
+                parser.error(f"--{opt}: no such file: {value}")
+            globals()[attr] = p.resolve()
 
     results = [(num, fn()) for num, fn in CHECKS]
     if args.json:
         return print_json(results)
+    if args.settings or args.mcp:
+        print(f"settings: {SETTINGS_FILE}\nmcp:      {MCP_FILE}")
     return print_human(results)
 
 

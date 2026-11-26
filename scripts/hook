@@ -1,0 +1,100 @@
+#!/bin/sh
+# scripts/hook: run one of Charon's Python scripts with the first working Python 3.
+#
+# Usage:   sh "<repo>/scripts/hook" <repo-relative .py path> [args...]
+# Example: sh "${CLAUDE_PROJECT_DIR}/scripts/hook" scripts/hooks/deny-destructive.py
+#
+# Why it exists: Linux often ships only `python3`, Windows often only `python` or
+# the `py` launcher. A settings file that names one interpreter leaves every hook
+# dead (and every PreToolUse gate open) on the machines that lack it. This finds
+# the interpreter at run time instead, so no tracked file is ever rewritten per
+# machine (a dirty tree blocks /charon-update).
+#
+# Contract (shared with scripts/hook.cmd, the Windows cmd.exe twin):
+#   - the repo root is found from this file's own location, never from cwd;
+#   - first tries Charon's private virtual environment, $HOME/.charon-venv (the
+#     installers make it when the system Python is externally managed, PEP 668,
+#     and put the requirements there): bin/python3, bin/python, then
+#     Scripts/python.exe (the Windows layout, for Git Bash). Each is used only if
+#     it is an executable file that, run with -S, PRINTS a Python 3 marker, so a
+#     venv folder, or a python inside it, that is a link to something that is
+#     not a Python 3 interpreter (or to nothing) is skipped. A link to a real
+#     interpreter is used: POSIX venvs link bin/python3 to the base Python by
+#     default, so refusing links would refuse every normal venv;
+#   - then tries python3, then python, then `py -3` on PATH, and accepts Python 3
+#     only (each candidate is probed, which also skips the Windows Store
+#     `python3` stub);
+#   - runs <repo>/<script> with the remaining args; stdin passes straight through
+#     (exec), and the script's exit code is the launcher's exit code;
+#   - no Python 3 found: one line on stderr naming the fix, exit 2. Exit 2 makes a
+#     PreToolUse gate BLOCK, so a missing interpreter fails closed, never open;
+#   - a script path that is absolute, holds `..` or a backslash, or is not .py is
+#     refused with exit 2;
+#   - never writes any file.
+#
+# Called as `sh <path>`, it needs no exec bit. It uses only shell builtins, so it
+# behaves the same with an empty or minimal PATH. The working directory is left as
+# the caller set it.
+
+if [ "$#" -lt 1 ]; then
+    echo "charon hook: usage: sh scripts/hook <repo-relative .py path> [args...]" >&2
+    exit 2
+fi
+
+_hook_script=$1
+shift
+
+case $_hook_script in
+    /* | *\\* | [A-Za-z]:* | *..* )
+        echo "charon hook: refused script path: give a repo-relative .py path with no .. steps" >&2
+        exit 2 ;;
+    *.py) ;;
+    *)
+        echo "charon hook: refused script path: only .py scripts run through the launcher" >&2
+        exit 2 ;;
+esac
+
+# Either separator: on Windows the caller may pass C:\...\scripts\hook.
+case $0 in
+    *[\\/]*) _hook_dir=${0%[\\/]*} ;;
+    *)       _hook_dir=. ;;
+esac
+_hook_root=$(CDPATH= cd -- "$_hook_dir/.." && pwd) || {
+    echo "charon hook: cannot find the Charon folder from $0" >&2
+    exit 2
+}
+
+_hook_probe='import sys; sys.exit(0 if sys.version_info[0] == 3 else 1)'
+
+# Charon's private venv first. No venv, or none of its pythons passes the probe:
+# fall through to the PATH search below, unchanged. The venv probe must PRINT a
+# marker, not just exit 0, so a link to a program that exits 0 for anything
+# (/bin/true, say) can never be taken for Python and run a gate that then
+# "passes" without checking anything.
+_hook_venv_probe='import sys; sys.stdout.write("charon-py3" if sys.version_info[0] == 3 else "")'
+if [ -n "${HOME-}" ]; then
+    for _hook_py in "$HOME/.charon-venv/bin/python3" "$HOME/.charon-venv/bin/python" \
+        "$HOME/.charon-venv/Scripts/python.exe"; do
+        if [ -f "$_hook_py" ] && [ -x "$_hook_py" ]; then
+            _hook_out=$("$_hook_py" -S -c "$_hook_venv_probe" </dev/null 2>/dev/null)
+            if [ "$_hook_out" = "charon-py3" ]; then
+                exec "$_hook_py" "$_hook_root/$_hook_script" "$@"
+            fi
+        fi
+    done
+fi
+
+for _hook_py in python3 python; do
+    if command -v "$_hook_py" >/dev/null 2>&1 \
+        && "$_hook_py" -S -c "$_hook_probe" </dev/null >/dev/null 2>&1; then
+        exec "$_hook_py" "$_hook_root/$_hook_script" "$@"
+    fi
+done
+
+if command -v py >/dev/null 2>&1 \
+    && py -3 -S -c "$_hook_probe" </dev/null >/dev/null 2>&1; then
+    exec py -3 "$_hook_root/$_hook_script" "$@"
+fi
+
+echo "charon hook: no Python 3 found (tried python3, python, py -3). Install Python 3 so one of those is on PATH, then restart Claude Code." >&2
+exit 2

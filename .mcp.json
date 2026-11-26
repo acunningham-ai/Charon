@@ -3,16 +3,26 @@
   "mcpServers": {
     "vault-readonly": {
       "type": "stdio",
-      "command": "python",
+      "command": "sh",
       "args": [
-        "${CLAUDE_PROJECT_DIR}/scripts/mcp/vault-readonly-server.py"
+        "${CLAUDE_PROJECT_DIR}/scripts/hook",
+        "scripts/mcp/vault-readonly-server.py"
       ]
     },
     "vault-graph": {
       "type": "stdio",
-      "command": "python",
+      "command": "sh",
       "args": [
-        "${CLAUDE_PROJECT_DIR}/scripts/mcp/vault-graph-server.py"
+        "${CLAUDE_PROJECT_DIR}/scripts/hook",
+        "scripts/mcp/vault-graph-server.py"
+      ]
+    },
+    "vault-ops": {
+      "type": "stdio",
+      "command": "sh",
+      "args": [
+        "${CLAUDE_PROJECT_DIR}/scripts/hook",
+        "scripts/mcp/vault-ops-server.py"
       ]
     }
   }

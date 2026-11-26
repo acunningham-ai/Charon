@@ -1,19 +1,24 @@
 # Charon update sources
 # --------------------
-# Manifest read by `python -m scripts.update.charon_update` and the
+# Manifest read by `sh scripts/hook scripts/update/charon_update.py` and the
 # `/charon-update` slash command. One entry per updateable source.
+#
+# post_update_smoke: a command that starts with `python` (or python3 / py)
+# runs on the updater's own interpreter, not a name looked up on PATH.
 #
 # Adding a new vendored corpus? Add an entry below. No code changes needed
 # unless the source type isn't already supported.
 #
 # Supported types:
 #   github-self      — the harness repo itself; checks origin/<branch> for
-#                      new commits and offers a fast-forward merge if the
-#                      working tree is clean.
+#                      new commits and offers a fast-forward merge if no
+#                      tracked file is modified (untracked files warn only).
 #   github-vendored  — content vendored from an upstream GitHub repo; checks
 #                      the upstream SHA, clones shallow at the new SHA,
-#                      copies files into local paths, re-pins SHA in named
-#                      files. Files NOT in copy_paths are left untouched.
+#                      pre-flights every copy_paths source, stages and swaps
+#                      the copies, then re-pins SHA in named files. Any
+#                      failure rolls everything back. Files NOT in
+#                      copy_paths are left untouched.
 
 sources:
 

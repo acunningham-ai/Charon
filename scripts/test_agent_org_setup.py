@@ -65,6 +65,17 @@ with tempfile.TemporaryDirectory() as tmp:
     check("no settings file yet: created with just our variable",
           ok and json.loads(settings.read_text(encoding="utf-8")) == {"env": {"CLAUDE_CODE_PLUGIN_DIRS": pdir}})
 
+    # enable()/disable() take an explicit settings path (post_install_wiring.py --settings)
+    explicit = Path(tmp) / "elsewhere" / "settings.json"
+    default_before = settings.read_text(encoding="utf-8")
+    ok, msg = S.enable(version=GOOD, settings=explicit)
+    check("explicit settings path: written there, default file untouched",
+          ok and json.loads(explicit.read_text(encoding="utf-8")) == {"env": {"CLAUDE_CODE_PLUGIN_DIRS": pdir}}
+          and settings.read_text(encoding="utf-8") == default_before)
+    ok, msg = S.disable(settings=explicit)
+    check("explicit settings path: disable removes ours there",
+          ok and "CLAUDE_CODE_PLUGIN_DIRS" not in json.loads(explicit.read_text(encoding="utf-8"))["env"])
+
 failed = [n for n, passed in results if not passed]
 for n, passed in results:
     print(("PASS  " if passed else "FAIL  ") + n)

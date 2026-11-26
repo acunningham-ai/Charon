@@ -4,6 +4,162 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-11-26
+
+
+**An install that tells you the truth, and safety gates that can't quietly switch off.** Setup and updates now say
+plainly what worked and what didn't, hooks start on whichever Python 3 a machine has, and two new commands: one to take
+the good ideas from someone else's repo safely, one to stress-test a post before it goes out. Update with
+`/charon-update`.
+
+### Added: the hook launcher (`scripts/hook`, `scripts/hook.cmd`)
+
+**What it is.** A small launcher that runs one of Charon's Python scripts with the first working Python 3 it finds:
+Charon's private virtual environment (`~/.charon-venv`, made by the installer on a protected Python) when there is one,
+then `python3`, then `python`, then `py -3`. Each candidate is probed, so only Python 3 is accepted (this also skips the
+Windows Store `python3` stub). The settings form is `sh "${CLAUDE_PROJECT_DIR}/scripts/hook" scripts/hooks/<name>.py`;
+`hook.cmd` is the twin for callers that only have cmd.exe. It finds the Charon folder from its own location, refuses an
+absolute path, a `..` step or anything that is not a `.py`, and writes nothing. With no Python 3 at all it prints the
+one-line fix and exits 2, so a PreToolUse gate **blocks**.
+
+**Why it matters.** Every hook used to start with a bare `python`. Many Linux distributions ship only `python3`, so on
+those machines no hook ran at all: no rules loaded, no start-up checks, and every safety gate was off, with nothing
+to say so. A dead gate is an open gate. Now a missing interpreter fails closed. New release checks: **D39** fails if
+any hook, status line or MCP server command starts with a bare interpreter, and **D40** drives a real gate through
+the launcher with only `python3` on PATH and proves an empty PATH blocks.
+
+**What you configure.** Nothing, beyond a POSIX `sh` (Git Bash on Windows, which Claude Code already uses for hooks).
+`scripts/launcher_migrate.py --settings .claude/settings.json --mcp .mcp.json` moves an older settings file and
+`.mcp.json` onto the launcher form: dry run by default, `--write` to apply, and it writes nothing if any command can't be
+converted without changing what runs.
+
+### Added: `/borrow-scan` and the `borrow-admissibility` rule
+
+**What it is.** `/borrow-scan <repo-url>` answers *"is there anything in this third-party repo worth taking, and can we
+take it safely?"* It vets each artifact with `/cerberus-vet` in its own isolated sub-agent first (CRITICAL stops, HIGH
+is idea-only), takes a capability inventory as data rather than source code, diffs each claimed mechanism against your
+real `.claude/` and `scripts/` tree, checks the survivors against the new `borrow-admissibility` rule, and ranks them
+TAKE / IDEA ONLY / IGNORE in one `type: borrow-scan` note under `07-References/borrow-scans/`. It never installs or
+runs anything, ports nothing until you pick, and only runs when you invoke it. The rule holds ten standing tests:
+borrow patterns rather than install frameworks; no `curl | bash` or config-rewriting setup; licence by what an install
+actually pulls in; clean-room re-authoring; in-house before a new dependency; local-first; no second store of facts;
+no duplication; nothing always-on without your say-so; Claude-only by default (a default you can change).
+
+**Why it matters.** `/cerberus-vet` says whether something is safe to install; nothing said whether it was worth
+having. Reviews of other people's repos were improvised each time, and the steps that matter most, diffing against what
+you already have and checking admissibility, were the ones skipped. A mechanism can be real, new and still the wrong
+thing to adopt. "Nothing here" is a valid, valued result.
+
+### Added: `/redteam-post`
+
+**What it is.** The heavy adversarial pass on the one post you are about to publish. It runs the full `devils-advocate`
+workflow on the draft, framed as the decision to publish it in this form under your name, with the exact wording, its
+sources and your already-published posts as input. It returns kill / proceed-with-fixes / proceed, up to three
+must-fixes, risks tagged grounded / plausible / invented, and the strongest case for posting. It picks your newest draft
+unless you name one, takes your name and role from setup unless you pass `--as`, and is read-only: it never edits the
+draft and never posts.
+
+**Why it matters.** A post can be deleted; screenshots, reshares and search indexing can't. That asymmetry earns the
+multi-agent treatment for the posts that carry real risk, and it is deliberately not for every draft.
+
+### Added: `scripts/laptop_check.py`
+
+**What it is.** One read-only report that says whether an install really works, for after an install or an update.
+Seven checks: which Python the launcher picks; every hook and MCP command goes through the launcher to a script that
+exists; every wired hook fires; the always-fire rules load; Agent Org and the status line are wired; every agent parses;
+and the folder is clean enough for `/charon-update`. Hooks fire from a temporary copy, with home, temp, memory and
+secrets folders redirected into it and credential-looking environment variables removed, and any change to the real
+repo is a FAIL. It prints OK / not OK, never your settings values. `--json` for machines.
+
+**Why it matters.** "Installed" and "working" were different things, and the only way to tell them apart was to notice
+something never happened. This turns that into a PASS / FAIL you can run in a minute.
+
+### Added: Claude Code wiring after install and update, and a Charon status line
+
+**What it is.** `scripts/post_install_wiring.py` runs at the end of setup (`--mode install`) and after every
+`/charon-update` that pulls a new Charon (`--mode update`). It switches Agent Org on if you said yes, retries once, and reads your settings back
+to prove it; a recorded no is respected. It points Claude Code's status line at `scripts/statusline.py`: your folder on
+the first line, then model, context used, and how much of your 5-hour and 7-day limits you have used. A status line you
+already have is never replaced without asking, every write keeps a timestamped backup, and if anything didn't wire it
+prints a loud block with the exact command that fixes it. `--check` and `--dry-run` write nothing.
+
+**Why it matters.** Agent Org could be answered "yes" at setup and still never get registered, with nothing to say
+so. A step that fails silently is a step you never find out about.
+
+### Added: two reference templates
+
+- **`07-References/insight-schema.md`**: the typed block every synthesis command emits (`/weekly-checkin`,
+  `/eod-reflect`, `/knowledge-consolidate`): a closed `type`, a closed `confidence`, an `importance` of 1 to 10 and at
+  least one source, with citations `/score-vault` checks still resolve. A claim put in front of a board needs a stated
+  source and confidence; this makes that structural.
+- **`07-References/runbook-template.md`**: a per-project operations runbook for anything with a live runtime: deploy
+  and rollback, restart order, health check, degraded modes, named bugs, a secret inventory (names and locations, never
+  values), backups and incidents. `CLAUDE.md` holds what the assistant should know; the runbook holds what you do when
+  it breaks.
+
+### Fixed: the installer
+
+- **Same Python as the hooks.** `install.sh` and `install.ps1` search `python3`, `python`, `py -3` in the launcher's
+  order, so the Python that gets the packages is the one the hooks run.
+- **A protected Python gets a private virtual environment, not a forced install.**
+  *What it does:* on a Python the operating system protects (PEP 668, "externally managed", as many Linux
+  distributions and Homebrew ship), `install.sh` and `install.ps1` never pip into it and never pass
+  `--break-system-packages`. They create `~/.charon-venv` (`%USERPROFILE%\.charon-venv` on Windows) with that same
+  Python, install `requirements.txt` into it, and run the restore step and the first-run wizard with the venv's python.
+  The hook launcher (`scripts/hook`, `scripts/hook.cmd`) now tries that venv's interpreter first (`bin/python3`, then
+  `bin/python`, or `Scripts\python.exe` on Windows) before searching `PATH`, so every hook and MCP server uses the
+  venv's packages with no activation step. `--dry-run` / `-DryRun` names the venv it would create and creates nothing.
+  *Intent:* the packages Charon needs land somewhere Charon owns, without overriding a protection the user's system put
+  there on purpose. *Why it matters:* before, a protected Python got only a printed fix, so on a stock Ubuntu or
+  Debian install the wizard and the MCP servers had no PyYAML or mcp until the user worked through it by hand; and
+  even a venv the user made was invisible to the hooks unless Claude Code was started from a shell with it activated.
+  Now the install completes on those machines, and the hooks find what was installed. The launcher takes the venv's
+  interpreter only if, run, it prints a Python 3 check value: a broken venv, or one that is a link to something that is
+  not Python (even a program that exits 0 for anything), is skipped and the `PATH` search runs as before, so a bad venv
+  can never make a safety gate "pass" without running. A link to a real venv is followed. If the venv can't be made or
+  filled, the installer says so loudly, prints the exact fix, carries on, and exits 3.
+- **Refuses root, elevated and piped runs.** Run as root or "as administrator" it stops with exit 77 (a per-user
+  install would leave root-owned files in your home); piped in (`curl ... | bash`, `irm ... | iex`) it stops with exit
+  66 (it has no folder to install from, and its questions would read the rest of the script as answers). Both checks
+  run before anything else.
+- **Backup search you can aim.** On macOS / Linux, `BACKUP_SEARCH_DIR=<folder>` limits the backup-drive search to that
+  folder instead of `/Volumes`, `/media`, `/mnt` and `/run/media`.
+- **No false "done".** It re-checks PyYAML and mcp at the end and exits with status 3 if either is still missing.
+- **Scripted installs.** `--non-interactive` / `-NonInteractive` never prompts (sudo runs as `sudo -n`, the restore
+  offer is skipped); `--dry-run` / `-DryRun` only reports. `--answers FILE` / `-AnswersFile FILE` hands the wizard its
+  answers (a missing file is exit 64, checked before anything runs). The wizard takes `--non-interactive --answers FILE`,
+  stops with a list if a required answer is missing, and turns Agent Org on only for an explicit yes.
+
+### Fixed: `/charon-update`
+
+- **Your own files no longer block an update.** Only a modified tracked file blocks; untracked files (folders the
+  wizard made, your notes) are listed as a warning.
+- **The Cisco rule-corpus update is all or nothing.** It used to fail part way and leave a mixed corpus. Now every
+  upstream path is checked first, copies are staged and swapped in, the pinned SHA is rewritten last, and any failure,
+  Ctrl-C included, puts every file back.
+- **Smoke tests run on the updater's own Python**, not whatever `python` is on PATH.
+- **Wiring is re-checked after every Charon update that lands**, through `post_install_wiring.py`, with a loud fix if
+  it isn't complete. It never fails the update itself, because the pull has already landed.
+
+### Security: the guards protect their own launch path
+
+- **Capability.** The protected-config rule now also covers `scripts/hook`, `scripts/hook.cmd`, `.mcp.json` and
+  everything under `scripts/hooks/`, for Write, Edit, MultiEdit and NotebookEdit, and for the shell forms that write a
+  file (redirects, cp/mv/tee, sed -i, Set-Content/Out-File). The broad `Bash(python scripts/*)` allow rule is gone, so
+  running a script under `scripts/` asks first.
+- **Intent.** Every hook and MCP server now starts through one launcher. That file, and the hooks themselves, must not
+  be editable without the user seeing it.
+- **Why it matters.** Before this, one edit turning the launcher into `exit 0` would have switched every guard off with
+  no prompt and no log, and the allow rule let the agent run any script under `scripts/` (some take an output path)
+  without asking. MultiEdit and NotebookEdit also slipped past the protected-config rule; they no longer do.
+  `scripts/test_policy_protects_launcher.py` proves it (it fails on the old policy and passes on the new one).
+
+### Release gate
+
+41 checks now. Beyond D39 and D40 above, **D41** runs every `scripts/test_*.py` and fails the release if any exits
+non-zero, so a new test joins the gate just by existing (excluding one needs a written reason). Public counts in
+`README.md`, `CAPABILITIES.md` and the homepage are reconciled to what ships (D29).
+
 ## [0.37.0] - 2026-10-09
 
 **Handoffs that can't go stale, and two rules that stop answers going quietly wrong.** Five capabilities proven in the
@@ -646,6 +802,12 @@ tokens. Ranking is weaker than recall — the note often arrives without being r
 first — and that is the next thing being improved. The goldset is small and was
 written by the same person who built the index, so treat 93% as *"this went from
 broken to working"*, not as a benchmark.
+
+**Correction, 24 November 2026.** The 93% and 64% figures above are withdrawn. They
+came from the reference deployment's own goldset; Charon ships this hook unwired,
+with no memory corpus and no acceptance suite, so a fresh install cannot reproduce
+either figure, and no figure replaces them. Measure your own, as the next paragraph
+describes.
 
 **And you can measure your own**, which matters more than our number:
 `scripts/eval/` ships the harness. Write one line per memory — the question that
@@ -2261,7 +2423,9 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.36.0...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.38.0...HEAD
+[0.38.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.38.0
+[0.37.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.37.0
 [0.36.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.36.0
 [0.35.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.35.1
 [0.35.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.35.0

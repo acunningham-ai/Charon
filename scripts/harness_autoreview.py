@@ -20,7 +20,11 @@ asserts the non-import by ast-parse — mirrors agentic-harness-watch.py's cover
 
 Security baseline for the `claude -p` calls it makes (07-References/security-baselines.md):
   C-1 hardened prompt  — scripts/harness-review/harness-review.txt (+ trusted metadata block)
-  C-2 tool-min         — --allowedTools "Read Write Glob Grep" (no Bash/Web/Agent/MCP)
+  C-2 tool-min         — --allowedTools "Read Write Glob Grep", plus
+                         --disallowedTools "Bash PowerShell Agent WebFetch WebSearch" and
+                         --strict-mcp-config (no MCP servers). --allowedTools only
+                         pre-approves; it removes nothing, so the deny list is the control.
+                         Built by build_claude_cmd() so a test can inspect it.
   C-3 write-path hook  — HARNESS_UNATTENDED_ALLOWLIST -> validate-write-path.py
                          (artefact only to 00-Inbox/_harness/*-review-*.md)
   C-4 budget cap       — --max-budget-usd per event
@@ -99,6 +103,12 @@ BUDGET_USD = "1.50"
 PER_EVENT_TIMEOUT = 420  # seconds
 DEFAULT_MAX_BATCH = 5     # per-drain cap — bounds a flood of repeated failures
 TAIL_CHAR_CAP = 4000      # size-cap the untrusted log excerpt before it touches the prompt
+
+# C-2. `--allowedTools` only PRE-APPROVES tools; it removes nothing, so a headless run
+# given only an allow list can still reach Bash. The deny list is what takes the
+# dangerous tools away. The review needs Read/Write/Glob/Grep only; none of these.
+ALLOWED_TOOLS = "Read Write Glob Grep"
+DISALLOWED_TOOLS = "Bash PowerShell Agent WebFetch WebSearch"
 
 EVENT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,79}$")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -283,6 +293,31 @@ def build_review_block(event: dict, output_path: str, remediations: list) -> str
     )
 
 
+def build_claude_cmd(claude_exe: str, prompt_file: str, settings_file: str | None,
+                     vault: str, memory_dir: str) -> list:
+    """The full `claude -p` argument list for one review. Pure: runs nothing, so a test
+    can inspect the C-2 / C-4 controls without spawning claude.
+
+    --append-system-prompt-file keeps Claude Code's built-in safety rules (a bare
+    --system-prompt would replace them). --settings adds the Read-deny layer that
+    survives --dangerously-skip-permissions (ASI02 / C-8). --strict-mcp-config loads
+    no MCP servers at all: none were passed with --mcp-config, so the run gets none of
+    the user's servers or connectors (mail, calendar and the like)."""
+    cmd = [claude_exe, "-p",
+           "--model", "sonnet",
+           "--allowedTools", ALLOWED_TOOLS,
+           "--disallowedTools", DISALLOWED_TOOLS,
+           "--strict-mcp-config",
+           "--dangerously-skip-permissions",
+           "--max-budget-usd", BUDGET_USD,
+           "--add-dir", str(vault),
+           "--add-dir", str(memory_dir),
+           "--append-system-prompt-file", str(prompt_file)]
+    if settings_file:
+        cmd += ["--settings", str(settings_file)]
+    return cmd
+
+
 def _toast(title: str, message: str) -> None:
     if sys.platform != "win32":
         return  # Windows toast only; the verdict log + the note itself are the cross-platform signal
@@ -395,19 +430,9 @@ def review_one(event: dict, dry_run: bool = False) -> dict:
     print(f"--- reviewing {event.get('bat')} (exit {event.get('exit_code')}) -> {rel_path}")
     try:
         # cwd=VAULT so the vault's .claude/settings.json (which registers validate-write-path)
-        # is the resolved project settings. --append-system-prompt-file keeps Claude Code's
-        # built-in safety rules (a bare --system-prompt would replace them). --settings adds the
-        # Read-deny layer that survives --dangerously-skip-permissions (ASI02 / C-8).
-        cmd = [claude_exe, "-p",
-               "--model", "sonnet",
-               "--allowedTools", "Read Write Glob Grep",
-               "--dangerously-skip-permissions",
-               "--max-budget-usd", BUDGET_USD,
-               "--add-dir", str(VAULT),
-               "--add-dir", str(MEMORY_DIR),
-               "--append-system-prompt-file", str(PROMPT_FILE)]
-        if settings_file:
-            cmd += ["--settings", settings_file]
+        # is the resolved project settings. Flag rationale: build_claude_cmd().
+        cmd = build_claude_cmd(claude_exe, str(PROMPT_FILE), settings_file,
+                               str(VAULT), str(MEMORY_DIR))
         proc = subprocess.run(
             cmd, input=user_turn, text=True, env=env, cwd=str(VAULT),
             capture_output=True, timeout=PER_EVENT_TIMEOUT,

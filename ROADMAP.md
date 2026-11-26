@@ -314,6 +314,10 @@ When the harness operates a deployed service (SSH, `sudo`, remote DB), the crede
 
 Agent Org (v0.35.0) lets Zeus plan a task and propose single-use specialists. Next: Zeus proposes the **model** for each agent from what it needs to do: a small, fast one for a mechanical lookup, a stronger one for judgement. It would be shown on the approval card with its reason, never silent, with the user's own model as the default.
 
+### 📅 Failures that teach (after 1.0)
+
+Today a failed check is reported again each day until someone acts on it. Next: the harness notices when the **same failure comes back** and escalates differently instead of re-filing it, and keeps a record of approaches that already failed so a repair attempt cannot repeat an earlier one. Two companions: every high-priority rule names the check that enforces it, so the harness can list the rules that are guidance only; and a build's "done" check is shown failing on the old code before it passes on the new. Built in the author's harness first, then ported.
+
 ## Medium-term (3-6 months)
 
 ### 📅 Observability + replay layer (Langfuse self-host)

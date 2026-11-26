@@ -13,10 +13,23 @@ state file is removed; a second run treats each populated question as
 Usage:
     python scripts/first-run.py [--logo full|small] [--no-logo]
                                  [--phase identity_paths|org_framework|voice|workflow]
-                                 [--dry-run]
+                                 [--dry-run] [--non-interactive] [--answers FILE]
 
-    --phase   Run a single phase only (re-run the voice exercise, etc.).
-    --dry-run Show planned writes; don't touch the filesystem.
+    --phase           Run a single phase only (re-run the voice exercise, etc.).
+    --dry-run         Show planned writes; don't touch the filesystem.
+    --non-interactive Never prompt. Answers come from --answers FILE, then any saved
+                      state, then each question's default. A required question with
+                      none of those stops the run with a list of what is missing.
+                      Also the behaviour whenever stdin is not a terminal.
+                      agent_org_enable never takes its default: only a typed yes, or
+                      agent_org_enable: y in the answers file, turns Agent Org on.
+    --answers FILE    JSON or YAML mapping of question id to answer.
+
+After the files are written, the wizard runs scripts/post_install_wiring.py
+--mode install (same interpreter) to wire the Agent Org pane and the status line
+into Claude Code, and prints the result loudly. The Agent Org answer is recorded
+in ~/.charon-agent-org.json so a later check can tell "answered yes but not
+registered" apart from "answered no".
 
 No external runtime deps beyond PyYAML. PyYAML missing → clear error
 message + exit, no crash.
@@ -31,6 +44,7 @@ import shutil
 import subprocess
 import sys
 import textwrap
+import time
 from pathlib import Path
 from typing import Any
 
@@ -62,24 +76,75 @@ QUICK_MODE_ASK_IDS = {
     "identity_name",
     "identity_role",
     "identity_org",
-    "agent_org_enable",  # v0.35.0: offered at install, default yes
+    "agent_org_enable",  # offered at install; only an explicit yes turns it on
     "capture_pipeline_setup",
     "m365_tenant_id",
     "m365_client_id",
 }
 
-# Defaults applied silently in Quick mode for identity_paths questions
-# we DON'T ask. Keys are question IDs; values are raw default strings that
-# get passed through expand_default() (same path as YAML defaults).
+# Defaults applied in Quick mode for identity_paths questions we DON'T ask. Keys
+# are question IDs; values are raw default strings that get passed through
+# expand_default() (same path as YAML defaults). vault_path is not here: Quick
+# mode uses default_vault() (HARNESS_VAULT_ROOT, else the Charon folder), never
+# the current folder, and prints the path it chose.
 QUICK_MODE_AUTO_DEFAULTS = {
-    "vault_path": "$cwd",
     "secrets_path": "$home/.secrets",
     "anthropic_key_setup": "n",
 }
 
+# Questions only an explicit answer may set (decision 2026-11-25: Agent Org is turned
+# on ONLY by an explicit yes). Their YAML default is never used: not with no terminal,
+# not in catch-up, and not by pressing Enter at the prompt. With no answer the feature
+# stays off, nothing is recorded, and the run says how to turn it on later.
+EXPLICIT_ANSWER_ONLY = {"agent_org_enable"}
+AGENT_ORG_TURN_ON = ("To turn it on later: python scripts/agent_org_setup.py "
+                     "(or run the wizard again with agent_org_enable: y in an --answers file).")
+
 
 QUESTIONS_FILE = Path(__file__).resolve().parent / "first-run-questions.yaml"
 STATE_FILE = Path.home() / ".charon-first-run-state.json"
+# Durable record of the agent_org_enable answer. The state file above is deleted at
+# the end of a complete run, so without this a later check could not tell "you said
+# yes but it never got registered" from "you said no". post_install_wiring.py reads
+# it (RECORD_NAME there); keep the name and the key in step.
+AGENT_ORG_RECORD = Path.home() / ".charon-agent-org.json"
+WIRING_SCRIPT = Path(__file__).resolve().parent / "post_install_wiring.py"
+ANSWERS_FILE_MAX_BYTES = 1_000_000
+ANSWER_MAX_CHARS = 20_000
+ANSWER_MAX_LINES = 2_000
+REPO_ROOT = Path(__file__).resolve().parent.parent
+# Seconds the post-install wiring may run before it is stopped. Unattended it never
+# waits for a person; interactive it may ask about replacing a status line.
+# HARNESS_WIRING_TIMEOUT overrides both (whole seconds, 1 to 3600).
+WIRING_TIMEOUT_UNATTENDED = 300
+WIRING_TIMEOUT_INTERACTIVE = 1800
+# An existing memory file the wizard is about to change is copied to
+# <name><tag><timestamp> beside it first. Not *.md, so nothing loads it as memory.
+MEMORY_BACKUP_TAG = ".bak-first-run-"
+
+
+class SetupInputError(Exception):
+    """A problem with unattended input (answers file or missing answers)."""
+
+
+def stdin_is_tty() -> bool:
+    """True only when a person can type into stdin.
+
+    On Windows isatty() is also True for the NUL device (`< NUL`, or a closed stdin
+    handed to a child process), which would send an unattended run into input()
+    and an EOFError. So on Windows the handle must also be a real console."""
+    try:
+        if sys.stdin is None or not sys.stdin.isatty():
+            return False
+        if not sys.platform.startswith("win"):
+            return True
+        import ctypes
+        import msvcrt
+        handle = msvcrt.get_osfhandle(sys.stdin.fileno())
+        mode = ctypes.c_ulong()
+        return bool(ctypes.windll.kernel32.GetConsoleMode(ctypes.c_void_p(handle), ctypes.byref(mode)))
+    except (AttributeError, ValueError, OSError):
+        return False
 
 
 # ---------- Vault scaffolding ----------
@@ -317,10 +382,45 @@ def expand_path(raw: str) -> Path:
     return Path(expanded).resolve()
 
 
+def default_vault() -> tuple[Path, str]:
+    """The vault used when no vault_path answer was given: HARNESS_VAULT_ROOT if set,
+    else the Charon folder this wizard lives in. Never the current folder, which
+    depends on where the wizard happened to be started from."""
+    explicit = os.environ.get("HARNESS_VAULT_ROOT")
+    if explicit:
+        return Path(explicit).resolve(), "HARNESS_VAULT_ROOT"
+    return REPO_ROOT, "the Charon folder"
+
+
 # ---------- Validators ----------
 
+def check_writable_dir(answer: str) -> tuple[bool, str]:
+    """Could this folder be used (created if missing, then written)? Read-only: it
+    never creates the folder or writes a probe file, so parsing, --dry-run and a
+    refused run leave the disk untouched. The folder is made when files are written."""
+    try:
+        p = expand_path(answer)
+        if p.exists():
+            if not p.is_dir():
+                return False, f"Path exists but is not a directory: {p}"
+            nearest = p
+        else:
+            nearest = p.parent
+            while not nearest.exists():
+                if nearest.parent == nearest:
+                    return False, f"No existing folder above {p}"
+                nearest = nearest.parent
+            if not nearest.is_dir():
+                return False, f"Can't create {p}: {nearest} is not a directory"
+        if not os.access(nearest, os.W_OK | os.X_OK):
+            return False, f"Can't write to {nearest}"
+    except (OSError, ValueError, RuntimeError) as e:
+        return False, f"Can't use {answer}: {type(e).__name__}"
+    return True, ""
+
+
 def validate_answer(answer: str, validators: str | None) -> tuple[bool, str]:
-    """Return (ok, error_message)."""
+    """Return (ok, error_message). Never writes to disk."""
     if not validators:
         return True, ""
     names = [v.strip() for v in validators.split(",") if v.strip()]
@@ -329,17 +429,9 @@ def validate_answer(answer: str, validators: str | None) -> tuple[bool, str]:
             if not answer.strip():
                 return False, "Answer can't be blank."
         elif name == "writable_dir":
-            try:
-                p = expand_path(answer)
-                if p.exists() and not p.is_dir():
-                    return False, f"Path exists but is not a directory: {p}"
-                if not p.exists():
-                    p.mkdir(parents=True, exist_ok=True)
-                test = p / ".charon-write-test"
-                test.write_text("ok", encoding="utf-8")
-                test.unlink()
-            except Exception as e:
-                return False, f"Can't write to {answer}: {e}"
+            ok, err = check_writable_dir(answer)
+            if not ok:
+                return False, err
         elif name == "exists_path":
             if not expand_path(answer).exists():
                 return False, f"Path doesn't exist: {answer}"
@@ -400,7 +492,8 @@ def ask_question(q: dict, prior: str | None) -> str:
                 break
             print("    Please answer k, u, or w.")
 
-    default = expand_default(q.get("default"))
+    # An explicit-answer-only question has no default: Enter asks again.
+    default = "" if q["id"] in EXPLICIT_ANSWER_ONLY else expand_default(q.get("default"))
     qtype = q["type"]
     default_hint = f" [{default}]" if default and qtype not in ("secret", "multiline") else ""
 
@@ -448,6 +541,134 @@ def ask_question(q: dict, prior: str | None) -> str:
             print(f"    {err}  Try again.")
             continue
         return answer
+
+
+# ---------- Unattended input (no terminal, or --non-interactive) ----------
+
+def _no_terminal_hint() -> str:
+    return ("Give the answers in a file with --answers FILE (JSON or YAML: question id -> answer), "
+            "or run the wizard in a terminal. In Git Bash (mintty) Python sees no terminal: use "
+            "PowerShell or cmd, or `winpty python scripts/first-run.py`.")
+
+
+def _coerce_file_answer(q: dict, value: Any) -> str:
+    """Turn one answers-file value into the string the wizard stores, or raise."""
+    qid, qtype = q["id"], q["type"]
+    if qtype == "secret":
+        raise SetupInputError(
+            f"{qid}: secrets are never read from an answers file. Leave it out and run "
+            f"`python scripts/first-run.py --phase {q['phase']}` in a terminal to enter it.")
+    if qtype == "yes-no":
+        if isinstance(value, bool):
+            return "y" if value else "n"
+        text = str(value).strip().lower() if isinstance(value, str) else ""
+        if text in ("y", "yes", "1", "true"):
+            return "y"
+        if text in ("n", "no", "0", "false"):
+            return "n"
+        raise SetupInputError(f"{qid}: expected y or n.")
+    if qtype == "multiline" and isinstance(value, list):
+        # Size is checked BEFORE joining: YAML aliases let a small file repeat one
+        # long string many times, so a join first could build gigabytes in memory.
+        if len(value) > ANSWER_MAX_LINES:
+            raise SetupInputError(f"{qid}: list answer has more than {ANSWER_MAX_LINES} lines.")
+        total = 0
+        for v in value:
+            if not isinstance(v, str):
+                raise SetupInputError(f"{qid}: every line of a list answer must be text.")
+            total += len(v) + 1
+            if total > ANSWER_MAX_CHARS + 1:
+                raise SetupInputError(f"{qid}: list answer is longer than {ANSWER_MAX_CHARS} characters.")
+        value = "\n".join(v.rstrip() for v in value)
+    if not isinstance(value, str):
+        # YAML reads an unquoted 07:00 as the number 420; refuse rather than guess.
+        raise SetupInputError(f"{qid}: expected text; put the value in quotes.")
+    if "\x00" in value or len(value) > ANSWER_MAX_CHARS:
+        raise SetupInputError(f"{qid}: value is too long or holds a NUL character.")
+    if qtype == "choice":
+        allowed = [str(c) for c in (q.get("choices") or [])]
+        if allowed and value.strip().lower() not in [c.lower() for c in allowed]:
+            raise SetupInputError(f"{qid}: must be one of {', '.join(allowed)}.")
+        value = value.strip().lower()
+    if value.strip():
+        ok, err = validate_answer(value, q.get("validate"))
+        if not ok:
+            raise SetupInputError(f"{qid}: {err}")
+    return value
+
+
+def _key_label(key: Any) -> str:
+    """A short, printable name for an answers-file key, for an error message. Never
+    repr() of a container (aliases could make that huge) and never longer than 60."""
+    if isinstance(key, (str, int, float, bool, bytes)) or key is None:
+        text = "".join(ch for ch in str(key)[:200] if ch.isprintable())
+        return repr(text if len(text) <= 60 else text[:57] + "...")
+    return "(a key that is not text)"
+
+
+def load_answers_file(path: Path, questions: list[dict]) -> dict[str, str]:
+    """Read --answers FILE (JSON or YAML mapping of question id -> answer).
+
+    Every problem is collected and reported together; nothing is half-applied."""
+    try:
+        if not path.is_file():
+            raise SetupInputError(f"answers file not found: {path}")
+        if path.stat().st_size > ANSWERS_FILE_MAX_BYTES:
+            raise SetupInputError(f"answers file is larger than {ANSWERS_FILE_MAX_BYTES} bytes: {path}")
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except SetupInputError:
+        raise
+    except yaml.YAMLError as exc:
+        # Location only. A parser message quotes the file's own text (a snippet of
+        # the line, an unknown tag), and an answers file can hold private values.
+        mark = getattr(exc, "problem_mark", None) or getattr(exc, "context_mark", None)
+        where = f" near line {mark.line + 1}, column {mark.column + 1}" if mark is not None else ""
+        raise SetupInputError(f"could not read answers file {path}: not valid YAML or JSON{where} "
+                              f"({type(exc).__name__}; the file's text is not shown).")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise SetupInputError(f"could not read answers file {path} ({type(exc).__name__}).")
+    if data is None:
+        return {}
+    if not isinstance(data, dict):
+        raise SetupInputError(f"answers file {path} must hold a mapping of question id -> answer.")
+    by_id = {q["id"]: q for q in questions}
+    out: dict[str, str] = {}
+    problems: list[str] = []
+    for key, value in data.items():
+        if not isinstance(key, str) or key not in by_id:
+            problems.append(f"{_key_label(key)}: not a question id in first-run-questions.yaml")
+            continue
+        try:
+            out[key] = _coerce_file_answer(by_id[key], value)
+        except SetupInputError as exc:
+            problems.append(str(exc))
+    if problems:
+        raise SetupInputError("answers file " + str(path) + " has problems:\n  - " + "\n  - ".join(problems))
+    return out
+
+
+def resolve_unattended(q: dict, prior: str | None) -> tuple[str, str | None]:
+    """Answer one question without a person: saved/file answer, then default.
+
+    Returns (answer, problem). A problem means a required question has nothing to
+    use, or its default failed validation. Never calls input()."""
+    if prior is not None and str(prior).strip():
+        return prior, None
+    if q["id"] in EXPLICIT_ANSWER_ONLY:
+        # Never a default (decision 2026-11-25): left unanswered, so the feature stays off.
+        return "", None
+    if q["id"] == "vault_path":
+        default = str(default_vault()[0])  # never the current folder
+    else:
+        default = expand_default(q.get("default"))
+    if default.strip():
+        ok, err = validate_answer(default, q.get("validate"))
+        if not ok:
+            return "", f"{q['id']}: default {default!r} failed validation ({err})"
+        return default, None
+    if q.get("required") and not q.get("skippable", True):
+        return "", f"{q['id']}: required, and has no default ({q['prompt']})"
+    return "", None
 
 
 # ---------- Template rendering ----------
@@ -512,6 +733,34 @@ def plan_writes(
         body = substitute(tdef["body"], answers, types)
         plans.append((target, tid, body))
     return plans
+
+
+# ---------- Backups before an overwrite ----------
+
+def backup_before_overwrite(target: Path, body: str, mem: Path) -> Path | None:
+    """Copy an existing memory file that is about to change to
+    <name>.bak-first-run-<timestamp> beside it. Returns the backup, or None when
+    there is nothing to keep (not a memory file, new file, or same text). Raises
+    OSError if the copy fails, so the caller can leave the original alone."""
+    try:
+        target.relative_to(mem)
+    except ValueError:
+        return None
+    if not target.is_file():
+        return None
+    try:
+        if target.read_text(encoding="utf-8") == body:
+            return None
+    except (OSError, UnicodeDecodeError):
+        pass  # unreadable as text: keep a copy all the same
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    backup = target.with_name(f"{target.name}{MEMORY_BACKUP_TAG}{stamp}")
+    n = 1
+    while backup.exists():
+        n += 1
+        backup = target.with_name(f"{target.name}{MEMORY_BACKUP_TAG}{stamp}-{n}")
+    shutil.copy2(target, backup)
+    return backup
 
 
 # ---------- MEMORY.md index update ----------
@@ -661,7 +910,12 @@ def bootstrap_capture_pipeline(repo: Path, answers: dict[str, str]) -> None:
 
     print("\nBootstrapping capture pipeline...")
 
-    if not shutil.which("node") or not shutil.which("npm"):
+    shadowed = programs_in_cwd(("node", "npm"))
+    if shadowed:
+        print(f"  Ignored {', '.join(shadowed)} in the current folder ({Path.cwd()}): only node and npm")
+        print("  found on PATH outside the current folder are run.")
+    npm = resolve_npm()
+    if not find_program("node") or not npm:
         print("  Node.js / npm not detected on PATH.")
         print("  Install Node 18+, then run:")
         print(f"       cd {cp_dir}")
@@ -670,22 +924,88 @@ def bootstrap_capture_pipeline(repo: Path, answers: dict[str, str]) -> None:
         return
 
     try:
-        subprocess.run(["npm", "install"], cwd=str(cp_dir), check=True)
+        # The resolved path, never bare "npm": on Windows npm is npm.cmd, which a
+        # bare name cannot start (CreateProcess does not apply PATHEXT).
+        subprocess.run([npm, "install"], cwd=str(cp_dir), check=True)
         print("  npm install: ok")
     except subprocess.CalledProcessError as e:
-        print(f"  npm install failed (exit {e.returncode}). Run it manually:")
+        print(f"  npm install failed (exit {e.returncode}, using {npm}). Its output is above. Run it manually:")
         print(f"       cd {cp_dir}")
         print("       npm install")
         print_capture_next_steps(cp_dir, answers)
         return
-    except FileNotFoundError:
-        print("  npm not found on PATH (race with Node install?). Run manually:")
+    except OSError as e:
+        print(f"  npm could not be started ({npm}): {type(e).__name__}: {e}")
+        print("  Run it manually:")
         print(f"       cd {cp_dir}")
         print("       npm install")
         print_capture_next_steps(cp_dir, answers)
         return
 
     print_capture_next_steps(cp_dir, answers)
+
+
+def _pathexts() -> list[str]:
+    return [e.lower() for e in (os.environ.get("PATHEXT") or ".COM;.EXE;.BAT;.CMD").split(";") if e]
+
+
+def _program_names(name: str) -> list[str]:
+    """File names `name` may have on disk: as given, or with each PATHEXT on Windows."""
+    if sys.platform.startswith("win") and not os.path.splitext(name)[1]:
+        return [name + e for e in _pathexts()]
+    return [name]
+
+
+def _same_dir(a: str, b: str) -> bool:
+    try:
+        return os.path.normcase(os.path.realpath(a)) == os.path.normcase(os.path.realpath(b))
+    except (OSError, ValueError):
+        return False
+
+
+def find_program(name: str) -> str | None:
+    """Full path to a program on PATH, never one in the current folder.
+
+    shutil.which() is not used: on Windows it can search the current folder before
+    PATH (Python versions differ), and on every platform a relative PATH entry such
+    as "." resolves against the current folder. Either way a node or npm.cmd dropped
+    into the folder the wizard was started from would run as the user. So only
+    absolute PATH entries that are not the current folder are searched."""
+    here = os.getcwd()
+    win = sys.platform.startswith("win")
+    for entry in (os.environ.get("PATH") or "").split(os.pathsep):
+        entry = entry.strip().strip('"')
+        if not entry or not os.path.isabs(entry) or _same_dir(entry, here):
+            continue
+        for fname in _program_names(name):
+            full = os.path.join(entry, fname)
+            if os.path.isfile(full) and (win or os.access(full, os.X_OK)):
+                return full
+    return None
+
+
+def programs_in_cwd(names: tuple[str, ...]) -> list[str]:
+    """Which of these programs sit in the current folder (and so are ignored)."""
+    found = []
+    for name in names:
+        for fname in _program_names(name):
+            if os.path.isfile(os.path.join(os.getcwd(), fname)):
+                found.append(fname)
+    return found
+
+
+def resolve_npm() -> str | None:
+    """Full path to npm, or None. Never one in the current folder (find_program).
+    On Windows only a PATHEXT launcher (npm.cmd) is accepted: the extensionless
+    `npm` beside it is a POSIX shell script that Windows cannot run directly."""
+    if not sys.platform.startswith("win"):
+        return find_program("npm")
+    exts = _pathexts()
+    for name in ("npm.cmd", "npm"):
+        found = find_program(name)
+        if found and os.path.splitext(found)[1].lower() in exts:
+            return found
+    return None
 
 
 # ---------- Main flow ----------
@@ -701,7 +1021,11 @@ def filter_phases(all_phases: list[dict], only: str | None) -> list[dict]:
     return matching
 
 
-def run_phase(phase: dict, questions: list[dict], answers: dict[str, str], mode: str = "full") -> None:
+def run_phase(phase: dict, questions: list[dict], answers: dict[str, str], mode: str = "full",
+              interactive: bool = True, problems: list[str] | None = None) -> None:
+    """Ask a phase's questions. Unattended (interactive=False): never prompts and
+    never saves state; each question is resolved by resolve_unattended() and any
+    problem is appended to `problems` for main() to report in one go."""
     qs_in_phase = [q for q in questions if q["phase"] == phase["id"]]
     if mode == "quick":
         # Quick mode: only ask the three identity questions; auto-defaults
@@ -716,6 +1040,13 @@ def run_phase(phase: dict, questions: list[dict], answers: dict[str, str], mode:
         if not depends_on_satisfied(q, answers):
             continue
         prior = answers.get(q["id"])
+        if not interactive:
+            ans, problem = resolve_unattended(q, prior)
+            if problem and problems is not None:
+                problems.append(problem)
+            answers[q["id"]] = ans
+            apply_implicit_propagations(answers, q["id"], mode)
+            continue
         try:
             ans = ask_question(q, prior)
         except KeyboardInterrupt:
@@ -727,12 +1058,20 @@ def run_phase(phase: dict, questions: list[dict], answers: dict[str, str], mode:
         save_state(answers)
 
 
-def confirm_and_write(plans, vault, mem, answers, env_lines, anthropic_target, dry_run, repo, mode):
+def confirm_and_write(plans, vault, mem, answers, env_lines, anthropic_target, dry_run, repo, mode,
+                      interactive: bool = True, anthropic_key: str | None = None,
+                      secrets: Path | None = None) -> bool:
+    """Show the plan, then write it. Returns False only when the person declined.
+
+    Nothing touches the disk before the confirmation (or, unattended, before this
+    point): not the API key, not the secrets folder, not the vault folders."""
     heading("Summary — what's about to happen")
     if plans:
         print("Files to create / update:")
         for target, tid, _body in plans:
             print(f"  - {target}  ({tid})")
+        print("  (an existing memory file that changes is first copied to"
+              f" <name>{MEMORY_BACKUP_TAG}<time> beside it)")
     else:
         print("(no files to write — all template requirements unmet)")
     if anthropic_target:
@@ -756,20 +1095,42 @@ def confirm_and_write(plans, vault, mem, answers, env_lines, anthropic_target, d
 
     if dry_run:
         print("\n--dry-run: nothing written.")
-        return
+        return True
 
     print()
-    ok = input("Write these files now? [Y/n]: ").strip().lower()
-    if ok and ok not in ("y", "yes"):
-        print("Aborted. State preserved — re-run any time.")
-        return
+    if interactive:
+        ok = input("Write these files now? [Y/n]: ").strip().lower()
+        if ok and ok not in ("y", "yes"):
+            print("Aborted. State preserved — re-run any time.")
+            return False
+    else:
+        print("Non-interactive run: writing without asking.")
 
     for target, _tid, body in plans:
+        try:
+            backup = backup_before_overwrite(target, body, mem)
+        except OSError as exc:
+            print(f"  SKIPPED {target}: could not back up the existing file first "
+                  f"({type(exc).__name__}), so it was left as it was.")
+            continue
+        if backup:
+            print(f"  backed up {target.name} to {backup}")
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(body, encoding="utf-8")
         print(f"  wrote {target}")
     update_memory_index(mem, plans)
     print("  updated MEMORY.md")
+
+    if secrets is not None and not secrets.exists():
+        try:
+            secrets.mkdir(parents=True, exist_ok=True)
+            os.chmod(secrets, 0o700)
+        except OSError as exc:
+            print(f"  could not create the secrets folder {secrets} ({type(exc).__name__})")
+        else:
+            print(f"  created secrets folder {secrets}")
+    if anthropic_key:
+        print(f"  wrote {write_anthropic_secret(secrets or secrets_dir(), anthropic_key)}")
 
     created_folders, created_readmes = scaffold_vault_structure(vault, mode)
     if created_folders:
@@ -784,6 +1145,7 @@ def confirm_and_write(plans, vault, mem, answers, env_lines, anthropic_target, d
     clear_state()
     print("\nDone. State file cleared.")
     print("Re-run any time with `python scripts/first-run.py` to update individual sections.")
+    return True
 
 
 def configure_stdio_for_unicode() -> None:
@@ -877,19 +1239,161 @@ def _run_restore(tool: Path, extra: list) -> bool:
     return False
 
 
-def apply_agent_org(answers: dict[str, str], dry_run: bool) -> None:
-    """Act on agent_org_enable: yes adds the plugin folder to CLAUDE_CODE_PLUGIN_DIRS in the
-    user's Claude Code settings (merged, backed up, version-checked). See agent_org_setup.py."""
-    if (answers.get("agent_org_enable") or "").strip().lower() not in ("y", "yes"):
-        return
-    import agent_org_setup
-
-    _ok, msg = agent_org_setup.enable(dry_run=dry_run)
+def _loud(lines: list[str]) -> None:
+    bar = "=" * min(70, banner.terminal_width())
     print()
-    soft(f"Agent Org: {msg}")
+    print(bar)
+    for line in lines:
+        print(f"  {line}")
+    print(bar)
 
 
-def run_catch_up(dry_run: bool = False) -> int:
+def _python_cmd() -> str:
+    return "python" if os.name == "nt" else "python3"
+
+
+def record_agent_org_answer(answers: dict[str, str], dry_run: bool) -> None:
+    """Write the agent_org_enable answer to AGENT_ORG_RECORD, so a later check
+    (post_install_wiring.py --check, run by /harness-doctor) can flag "answered yes
+    but not registered" after the wizard's state file is gone. A blank answer
+    records nothing."""
+    raw = (answers.get("agent_org_enable") or "").strip().lower()
+    if raw in ("y", "yes"):
+        value = "y"
+    elif raw in ("n", "no"):
+        value = "n"
+    else:
+        return
+    if dry_run:
+        print(f"\n--dry-run: would record agent_org_enable={value} in {AGENT_ORG_RECORD}")
+        return
+    payload = {
+        "agent_org_enable": value,
+        "recorded": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "recorded_by": "first-run.py",
+    }
+    try:
+        AGENT_ORG_RECORD.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    except OSError as exc:
+        _loud([
+            f"WARNING: could not record your Agent Org answer in {AGENT_ORG_RECORD}",
+            f"({type(exc).__name__}). A later check cannot tell whether you said yes.",
+        ])
+
+
+def agent_org_explicit(answers: dict[str, str]) -> str | None:
+    """'y' or 'n' when agent_org_enable holds an explicit answer, else None."""
+    raw = (answers.get("agent_org_enable") or "").strip().lower()
+    if raw in ("y", "yes"):
+        return "y"
+    if raw in ("n", "no"):
+        return "n"
+    return None
+
+
+def print_agent_org_left_off() -> None:
+    print()
+    print("Agent Org: left OFF. It is turned on only by an explicit yes, and this run had none")
+    print("(no terminal to ask, and no agent_org_enable answer). Nothing was recorded for it.")
+    print(f"  {AGENT_ORG_TURN_ON}")
+
+
+def _wiring_timeout(interactive: bool) -> int:
+    raw = os.environ.get("HARNESS_WIRING_TIMEOUT", "").strip()
+    if raw.isdigit():
+        return max(1, min(int(raw), 3600))
+    return WIRING_TIMEOUT_INTERACTIVE if interactive else WIRING_TIMEOUT_UNATTENDED
+
+
+def report_wiring_outcome(rc: int | None, dry_run: bool, mode: str, agent_org_left_off: bool) -> None:
+    """E1: a wiring run that did not complete is repeated as the LAST lines of the
+    wizard's output and on stderr, so it cannot scroll away above later output or
+    show only in an exit code. Silent when the wiring completed, or on a dry run."""
+    if rc == 0 or dry_run:
+        return
+    why = "it could not run, or timed out" if rc is None else f"exit {rc}"
+    fix = f"{_python_cmd()} scripts/post_install_wiring.py --mode {mode}"
+    print()
+    print(f"Claude Code wiring: NOT COMPLETE ({why}). The block above names what is not wired.")
+    if agent_org_left_off:
+        print("Agent Org is off because no explicit yes was given; that part is expected.")
+    print(f"Fix, then check: {fix}   then   {fix} --check")
+    sys.stdout.flush()
+    sys.stderr.write(f"Claude Code wiring did not complete ({why}). Run: {fix}\n")
+    sys.stderr.flush()
+
+
+def apply_agent_org(answers: dict[str, str], dry_run: bool, interactive: bool = True,
+                    mode: str = "install") -> int | None:
+    """Record the agent_org_enable answer, then run post_install_wiring.py, which
+    wires the Agent Org pane (when the answer is yes) and the status line into
+    Claude Code and proves both by reading the settings back.
+
+    Agent Org is turned on only by an explicit yes (decision 2026-11-25). With no
+    explicit answer nothing is recorded, the run says how to turn it on later, and
+    the wiring runs --non-interactive, so it cannot ask its own default-yes question.
+
+    Same interpreter as this wizard; --non-interactive and --dry-run pass through.
+    The call is stopped after _wiring_timeout() seconds. The result is printed loudly
+    either way. Returns the script's exit code, or None if it could not run or timed
+    out. Never fails the wizard: the files are already written."""
+    record_agent_org_answer(answers, dry_run)
+    explicit = agent_org_explicit(answers)
+    if explicit is None:
+        print_agent_org_left_off()
+    fix = f"{_python_cmd()} scripts/post_install_wiring.py --mode {mode}"
+    if not WIRING_SCRIPT.is_file():
+        _loud([
+            "CLAUDE CODE WIRING DID NOT RUN: scripts/post_install_wiring.py is missing.",
+            "The Agent Org pane and the status line are NOT set up by this install.",
+            "Restore the script (run /charon-update, or re-clone), then run:",
+            f"    {fix}",
+        ])
+        return None
+    cmd = [sys.executable, str(WIRING_SCRIPT), "--mode", mode]
+    if not interactive or explicit is None:
+        cmd.append("--non-interactive")
+    if dry_run:
+        cmd.append("--dry-run")
+    timeout = _wiring_timeout(interactive)
+    print()
+    print(f"Wiring Claude Code (Agent Org pane and status line): {WIRING_SCRIPT.name} --mode {mode}")
+    sys.stdout.flush()
+    try:
+        rc = subprocess.run(cmd, timeout=timeout).returncode
+    except subprocess.TimeoutExpired:
+        _loud([
+            f"CLAUDE CODE WIRING TIMED OUT after {timeout} seconds and was stopped.",
+            "The Agent Org pane and the status line may NOT be set up. Run:",
+            f"    {fix}",
+        ])
+        return None
+    except OSError as exc:
+        _loud([
+            f"CLAUDE CODE WIRING COULD NOT START: {type(exc).__name__}: {exc}",
+            "The Agent Org pane and the status line may NOT be set up. Run:",
+            f"    {fix}",
+        ])
+        return None
+    if rc == 0:
+        _loud(["CLAUDE CODE WIRING: OK. The Agent Org pane and the status line are wired.",
+               "Restart Claude Code if it is already open."])
+    elif dry_run:
+        _loud([f"CLAUDE CODE WIRING (dry run, exit {rc}): nothing was changed.",
+               "The lines above say what a real run would do."])
+    else:
+        _loud([
+            f"CLAUDE CODE WIRING: NOT COMPLETE (exit {rc}).",
+            "Something is NOT wired; the lines above name it and print the fix.",
+            "Re-run any time:",
+            f"    {fix}",
+            f"Check the state any time: {_python_cmd()} scripts/post_install_wiring.py --mode {mode} --check",
+        ])
+    return rc
+
+
+def run_catch_up(dry_run: bool = False, interactive: bool = True,
+                 answers_file: Path | None = None) -> int:
     """Ask only the questions that capability shipped AFTER you installed needs.
 
     The gap this closes: `charon-update` pulls new code and runs
@@ -937,11 +1441,28 @@ def run_catch_up(dry_run: bool = False) -> int:
          "Everything is skippable; skipping leaves the safe default in place.")
 
     answers = load_state()
+    if answers_file is not None:
+        try:
+            answers.update(load_answers_file(answers_file, data["questions"]))
+        except SetupInputError as exc:
+            sys.stderr.write(f"Error: {exc}\n")
+            return 2
+    left_open: list[str] = []
     for q in askable:
         owners = whats_new.questions_owed_by(notes, q["id"])
         if owners:
             soft(f"needed by: {', '.join(owners)}")
         if not depends_on_satisfied(q, answers):
+            continue
+        if not interactive:
+            # Catch-up questions are all skippable: a default is used, a file answer
+            # wins, and anything with neither stays owed for a later run.
+            ans, _problem = resolve_unattended({**q, "required": False}, answers.get(q["id"]))
+            if ans.strip():
+                answers[q["id"]] = ans
+                print(f"  {q['id']}: {ans if q['type'] != 'secret' else '(stored)'}  (no terminal: default or file answer)")
+            else:
+                left_open.append(q["id"])
             continue
         try:
             answers[q["id"]] = ask_question(q, answers.get(q["id"]))
@@ -951,17 +1472,35 @@ def run_catch_up(dry_run: bool = False) -> int:
             return 130
         save_state(answers)
 
+    if not interactive:
+        if not dry_run:
+            save_state(answers)
+        if left_open:
+            print(f"\n  Left unanswered (no default and no terminal): {', '.join(left_open)}")
+            print(f"  {_no_terminal_hint()}")
+        if any(q in left_open for q in EXPLICIT_ANSWER_ONLY):
+            print_agent_org_left_off()
+
     # Render only the templates that actually consume a newly-answered question --
     # a catch-up must never rewrite files unrelated to what it just asked.
     fresh = {q["id"] for q in askable if answers.get(q["id"], "").strip()}
+    wiring_ran, wiring_rc = False, None
     if "agent_org_enable" in fresh:
-        apply_agent_org(answers, dry_run)
+        # Catch-up is the /charon-update path, so the wiring runs in update mode.
+        wiring_rc = apply_agent_org(answers, dry_run, interactive=interactive, mode="update")
+        wiring_ran = True
+
+    def finish(code: int) -> int:
+        if wiring_ran:  # last, so a wiring failure is the final thing on screen (E1)
+            report_wiring_outcome(wiring_rc, dry_run, "update", agent_org_explicit(answers) is None)
+        return code
+
     templates = data.get("templates") or {}
     touched = {tid: t for tid, t in templates.items()
                if any(f"{{{{{qid}}}}}" in (t.get("body") or "") for qid in fresh)}
     if not touched:
         print("\nAnswers saved. No files needed rewriting.")
-        return 0
+        return finish(0)
 
     types = {q["id"]: q.get("type", "string") for q in data["questions"]}
     vault, mem = vault_root(), memory_root()
@@ -971,15 +1510,24 @@ def run_catch_up(dry_run: bool = False) -> int:
         print(f"  - {target}  ({tid})")
     if dry_run:
         print("\n--dry-run: nothing written")
-        return 0
-    if sys.stdin.isatty() and (input("\nProceed? [Y/n]: ").strip().lower() or "y") not in ("y", "yes"):
+        return finish(0)
+    if interactive and (input("\nProceed? [Y/n]: ").strip().lower() or "y") not in ("y", "yes"):
         print("Nothing written. Answers are saved; re-run --catch-up when ready.")
-        return 0
+        return finish(0)
+    written = 0
     for target, _tid, body in plans:
+        try:
+            backup = backup_before_overwrite(target, body, mem)
+        except OSError as exc:
+            print(f"  SKIPPED {target}: could not back up the existing file first ({type(exc).__name__}).")
+            continue
+        if backup:
+            print(f"  backed up {target.name} to {backup}")
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(body, encoding="utf-8")
-    print(f"Wrote {len(plans)} file(s).")
-    return 0
+        written += 1
+    print(f"Wrote {written} file(s).")
+    return finish(0)
 
 
 def main():
@@ -1003,7 +1551,23 @@ def main():
     parser.add_argument(
         "--full",
         action="store_true",
-        help="Full install: all 27 questions across 5 phases. ~20 minutes. (Default if --quick not set and not interactive.)",
+        help="Full install: all 27 questions across 5 phases. ~20 minutes. (In a terminal with neither "
+             "--quick nor --full, the wizard asks which; without a terminal it uses --quick.)",
+    )
+    parser.add_argument(
+        "--non-interactive",
+        action="store_true",
+        help="Never prompt (also automatic when stdin is not a terminal). Answers come from "
+             "--answers, then saved state, then each question's default; a required question "
+             "with none of those stops the run and lists what is missing, writing nothing.",
+    )
+    parser.add_argument(
+        "--answers",
+        type=Path,
+        metavar="FILE",
+        help="JSON or YAML file mapping question ids to answers, e.g. "
+             '{"identity_name": "...", "identity_role": "...", "identity_org": "..."}. '
+             "Secrets are never read from it.",
     )
     parser.add_argument(
         "--scaffold-only",
@@ -1020,9 +1584,11 @@ def main():
              "to run by hand any time. Not the full wizard.",
     )
     args = parser.parse_args()
+    # One switch for every prompt in the wizard: no terminal means no input() call.
+    interactive = stdin_is_tty() and not args.non_interactive
 
     if args.catch_up:
-        sys.exit(run_catch_up(dry_run=args.dry_run))
+        sys.exit(run_catch_up(dry_run=args.dry_run, interactive=interactive, answers_file=args.answers))
 
     if args.scaffold_only:
         vault = vault_root()
@@ -1049,7 +1615,7 @@ def main():
     # Offered BEFORE any question: a migrating user's answers already exist on the
     # backup drive. Skipped for --dry-run and non-interactive runs so automation and
     # CI are never blocked on a prompt.
-    if not args.no_restore_prompt and not args.dry_run and sys.stdin.isatty():
+    if not args.no_restore_prompt and not args.dry_run and interactive:
         offer_restore_from_backup()
 
     data = load_questions()
@@ -1062,6 +1628,17 @@ def main():
     if answers:
         print(f"\nResuming from saved state: {STATE_FILE}")
         print(f"  ({len(answers)} prior answers)")
+    fresh_start = not answers
+    if args.answers is not None:
+        try:
+            from_file = load_answers_file(args.answers, questions)
+        except SetupInputError as exc:
+            sys.stderr.write(f"Error: {exc}\n")
+            sys.exit(2)
+        answers.update(from_file)
+        print(f"\nUsing {len(from_file)} answer(s) from {args.answers}")
+    if not interactive:
+        print("\nNon-interactive: no prompts. Answers come from --answers, saved state, then defaults.")
 
     # ---------- Mode selection (quick vs full) ----------
     # Mode is only relevant when starting fresh (no resume state) and not
@@ -1079,7 +1656,9 @@ def main():
         mode = "quick"
     elif args.full:
         mode = "full"
-    elif not answers:
+    elif fresh_start and not interactive:
+        mode = "quick"  # no terminal to ask which; quick needs the fewest answers
+    elif fresh_start:
         # Fresh start, no flag → interactive prompt
         print()
         print("How configured do you want to start?")
@@ -1105,7 +1684,7 @@ def main():
         print()
         soft(
             "Quick mode — four questions (name, role, organisation, and whether to turn on Agent Org). "
-            "Vault path defaults to current directory, secrets to ~/.secrets, "
+            "Vault path defaults to HARNESS_VAULT_ROOT, else the Charon folder; secrets to ~/.secrets, "
             "Anthropic-key setup deferred, voice / framework / integrations skipped. "
             "You can refine any of those any time with `python scripts/first-run.py --phase <name>`."
         )
@@ -1114,12 +1693,30 @@ def main():
         for qid, raw_default in QUICK_MODE_AUTO_DEFAULTS.items():
             if qid not in answers:
                 answers[qid] = expand_default(raw_default)
-        save_state(answers)
+        if not answers.get("vault_path"):
+            answers["vault_path"] = str(default_vault()[0])  # never the current folder
+        if interactive:
+            save_state(answers)
 
+    problems: list[str] = []
     for phase in phases:
-        run_phase(phase, questions, answers, mode=mode)
+        run_phase(phase, questions, answers, mode=mode, interactive=interactive, problems=problems)
 
-    vault = expand_path(answers.get("vault_path") or str(Path.cwd()))
+    if problems:
+        # Unattended and something required has no answer: stop before writing
+        # anything (no state file either), and name every gap at once.
+        sys.stderr.write(
+            "\nError: setup cannot finish without a terminal. These answers are missing or invalid:\n"
+            + "".join(f"  - {p}\n" for p in problems)
+            + _no_terminal_hint() + "\nNothing was written.\n")
+        sys.exit(2)
+
+    default_vault_path, default_vault_source = default_vault()
+    vault = expand_path(answers.get("vault_path") or str(default_vault_path))
+    if vault == default_vault_path.resolve():
+        print(f"\nVault: {vault}  ({default_vault_source}; set vault_path to choose another)")
+    else:
+        print(f"\nVault: {vault}")
     if answers.get("vault_path"):
         os.environ["HARNESS_VAULT_ROOT"] = str(vault)
     secrets = expand_path(answers.get("secrets_path") or str(Path.home() / ".secrets"))
@@ -1131,17 +1728,28 @@ def main():
     repo = Path(__file__).resolve().parent.parent
     plans = plan_writes(templates, answers, types, vault, mem, repo)
 
+    # The key is written by confirm_and_write, after the confirmation: a declined or
+    # dry run must not leave a secrets folder or key file behind.
     anthropic_target = None
+    anthropic_key = None
     if answers.get("anthropic_key_setup") == "y" and answers.get("anthropic_key_value"):
-        if not args.dry_run:
-            anthropic_target = write_anthropic_secret(secrets, answers["anthropic_key_value"])
-        else:
-            anthropic_target = secrets / "anthropic.json"
+        anthropic_target = secrets / "anthropic.json"
+        anthropic_key = answers["anthropic_key_value"]
 
     env_lines = env_var_hints(env_vars, answers)
 
-    confirm_and_write(plans, vault, mem, answers, env_lines, anthropic_target, args.dry_run, repo, mode)
-    apply_agent_org(answers, args.dry_run)
+    written = confirm_and_write(plans, vault, mem, answers, env_lines, anthropic_target,
+                                args.dry_run, repo, mode, interactive=interactive,
+                                anthropic_key=anthropic_key, secrets=secrets)
+    # Wire Claude Code after a whole-wizard run or a workflow re-run (where the Agent
+    # Org question lives). Other single-phase refinements leave the wiring alone.
+    wiring_ran, wiring_rc = False, None
+    if not written:
+        print("Claude Code wiring skipped because nothing was written. Run it on its own any time:")
+        print(f"    {_python_cmd()} scripts/post_install_wiring.py --mode install")
+    elif not args.phase or args.phase == "workflow":
+        wiring_rc = apply_agent_org(answers, args.dry_run, interactive=interactive, mode="install")
+        wiring_ran = True
 
     # Quick-mode tail: explicit refinement-commands print so the user knows
     # exactly what to run to deepen any phase later. No-op for full mode
@@ -1157,6 +1765,10 @@ def main():
         print("  python scripts/first-run.py --phase engines          # research beats / newsletter senders / forums")
         print()
         print("Or run `python scripts/first-run.py` again to walk every phase in --full mode.")
+
+    # Last, so a wiring failure is the final thing on screen (E1).
+    if wiring_ran:
+        report_wiring_outcome(wiring_rc, args.dry_run, "install", agent_org_explicit(answers) is None)
 
 
 if __name__ == "__main__":

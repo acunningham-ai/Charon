@@ -25,6 +25,18 @@ state/
 06-Decisions/
 09-Archive/
 
+# Vault folders the first-run wizard scaffolds at the repo root (first-run.py,
+# VAULT_SCAFFOLD_ALWAYS). They hold YOUR notes, not shipped files, so a fresh
+# install leaves `git status` clean and `git add -A` cannot commit them.
+# Anchored with a leading slash so they match only at the root; no tracked file
+# lives under any of them. 01-Daily, 06-Decisions and 09-Archive are above.
+/00-Inbox/
+/02-BUs/
+/03-Domains/
+/04-People/
+/05-Meetings/
+/08-Projects/
+
 # Memory directory (user-specific; lives under ~/.claude/projects/<...>/memory/ by default, but if a user co-locates it inside the vault, skip it)
 memory/sessions/
 memory/*.md

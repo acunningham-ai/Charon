@@ -9,7 +9,7 @@ reads-untrusted: true
 
 You are doing **topic-scoped** synthesis — taking scattered references to a single concept across memory, captures, and project files, and distilling them into a durable framework document.
 
-**Output convention:** within the framework body, tag prose findings inline with 🟢 verified / 🟡 medium / 🔴 assumed per `confidence-tags.md`. Published frameworks need to make the verified/inferred boundary visible — board / auditor-facing content survives only as well as its provenance.
+**Output convention:** within the framework body, tag prose findings inline with 🟢 verified / 🟡 from memory / 🔴 unverified per `confidence-tags.md`. Published frameworks need to make the verified/inferred boundary visible — board / auditor-facing content survives only as well as its provenance.
 
 This is the **highest-effort, likely highest-value** skill in the harness. It exists because most vaults are capture-rich and synthesis-thin — most synthesised frameworks live in the user's head, not in `07-References/`. This skill exists to materialise them.
 
@@ -70,7 +70,7 @@ Active disagreement with the user is on the table — if the synthesis surfaces 
 
 ### 6. Draft the framework doc — STOP HERE for review
 
-You MUST emit insight blocks preceding each item in the "Key decisions / conventions" and "Open questions" sections. Inline citations (`[claim](path "title, date")`) MUST be used for any prose claim drawing on a source.
+You MUST emit insight blocks preceding each item in the "Key decisions / conventions" and "Open questions" sections (schema and allowed values: `07-References/insight-schema.md`). Inline citations (`[claim](path "title, date")`) MUST be used for any prose claim drawing on a source.
 
 Use this structure (adjust to topic shape; not all sections apply to every topic):
 

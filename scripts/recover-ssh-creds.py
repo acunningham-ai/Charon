@@ -1,21 +1,31 @@
-#!/usr/bin/env python
-"""Recovery recipe for SSH credentials.
+#!/usr/bin/env python3
+"""Check whether an SSH fallback credential exists in your secrets file.
 
-Source order (canonical first):
-  1. <secrets-dir>/<service>.json — CANONICAL.
-  2. ~/.claude/history.jsonl — LAST FALLBACK ONLY. Stale on rotation.
+Source: <secrets-dir>/<service>.json, the ONLY source. <secrets-dir> comes from
+scripts/lib/harness_paths.secrets_dir() (HARNESS_SECRETS_DIR, default ~/.secrets).
 
-Per `CLAUDE.md` "Recovery Recipes": history grep is the last fallback
-because inline-typed creds go stale on rotation.
+What changed, and why
+---------------------
+* Earlier versions also searched ~/.claude/history.jsonl for passwords typed into
+  past sessions. That search is gone. Session history is never a credential
+  source: a password typed once into a chat is stale on rotation, and searching
+  for it teaches the assistant that transcripts are a place to look for secrets.
+* Earlier versions PRINTED the credential. That put the value into the
+  assistant's context and the session transcript. This script never prints the
+  value, on stdout or stderr. It reports only whether the credential exists.
 
-Prints credential to stdout. Exits 1 if not found.
+Supply the credential to the tool that needs it without it entering the
+conversation, for example an SSH key or agent, or a broker that pipes it into
+`ssh` without printing it. Never paste it into a chat.
+
+Exit 0 if the credential exists, 1 if not (escalate to the user), 2 on bad
+arguments.
 
 Usage:
-  python recover-ssh-creds.py [user] [--service <name>]
+  scripts/recover-ssh-creds.py [user] [--service <name>]
 
-  user      — defaults to whatever you've nominated as DEFAULT_USER below
-  --service — secrets filename (default `<service>.json` in your secrets dir).
-              Configure DEFAULT_SERVICE below or pass --service.
+  user      defaults to DEFAULT_USER below
+  --service secrets filename without .json (default DEFAULT_SERVICE below)
 
 Schema expected in the secrets JSON:
   {
@@ -27,12 +37,9 @@ Schema expected in the secrets JSON:
       }
     }
   }
-
-Called by the assistant when SSH auth fails before escalating.
 """
 import argparse
 import json
-import os
 import re
 import sys
 from pathlib import Path
@@ -40,87 +47,68 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lib.harness_paths import secrets_dir  # noqa: E402
 
-# Configure these for your environment, or pass via CLI / first-run wizard.
+# Configure these for your environment, or pass via the CLI.
 DEFAULT_USER = "deploy"
 DEFAULT_SERVICE = "ssh-fallback"
 
+# Both values are echoed in messages, and the service name becomes a file name:
+# a closed character set keeps them inert and stops `..` or a path separator from
+# pointing the lookup outside the secrets directory.
+_NAME_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$")
 
-def grep_history(history_path: str, user: str) -> str | None:
-    """Search ~/.claude/history.jsonl for prior credentials typed inline.
 
-    Returns the most recent matching credential, or None.
+def _valid_name(value: str) -> bool:
+    return bool(_NAME_RE.match(value or "")) and ".." not in value
+
+
+def credential_exists(secrets_path: Path, service: str, user: str) -> tuple[bool, str]:
+    """Return (exists, note). Never returns or logs the credential value.
+
+    `note` is a fixed, value-free string explaining a miss.
     """
-    if not os.path.exists(history_path):
-        return None
+    if not secrets_path.is_file():
+        return False, "secrets file not found"
     try:
-        with open(history_path, "r", encoding="utf-8") as f:
-            content = f.read()
-    except OSError:
-        return None
-
-    patterns = [
-        rf"{re.escape(user)}.{{0,80}}?(?:password|pwd)\s+(?:is|=|:)\s+([A-Za-z0-9!@#$%^&*]{{6,}})",
-        rf"(?:password|pwd)\s+(?:is|=|:)\s+([A-Za-z0-9!@#$%^&*]{{6,}}).{{0,80}}?{re.escape(user)}",
-    ]
-    candidates = []
-    for pat in patterns:
-        candidates.extend(re.findall(pat, content, re.IGNORECASE))
-    if candidates:
-        # history.jsonl is append-only, last match is most recent
-        return candidates[-1]
-    return None
-
-
-def read_secrets(secrets_path: str, service: str, user: str) -> str | None:
-    """Read credential from the configured secrets JSON file."""
-    if not os.path.exists(secrets_path):
-        return None
+        data = json.loads(secrets_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        # Deliberately no exception text: a decode error can quote file content.
+        return False, "secrets file unreadable or not valid JSON"
     try:
-        with open(secrets_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except (OSError, json.JSONDecodeError):
-        return None
-
-    # Schema: <service>.ssh.password_fallback.<user>
-    return (
-        data.get(service, {})
-        .get("ssh", {})
-        .get("password_fallback", {})
-        .get(user)
-    )
+        value = data[service]["ssh"]["password_fallback"][user]
+    except (KeyError, TypeError):
+        return False, "no entry for this user"
+    if not isinstance(value, str) or not value:
+        return False, "entry present but empty or not a string"
+    return True, ""
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(
+        description="Report whether an SSH fallback credential exists in the secrets "
+                    "file. Never prints the value; never searches session history.")
     ap.add_argument("user", nargs="?", default=DEFAULT_USER,
                     help=f"SSH user (default: {DEFAULT_USER}).")
     ap.add_argument("--service", default=DEFAULT_SERVICE,
-                    help=f"Service name for secrets file lookup (default: {DEFAULT_SERVICE}.json).")
+                    help=f"Secrets file name without .json (default: {DEFAULT_SERVICE}).")
     args = ap.parse_args()
 
-    secrets_path = str(secrets_dir() / f"{args.service}.json")
-    pwd = read_secrets(secrets_path, args.service, args.user)
-    if pwd:
-        print(pwd)
-        print(f"# source: {secrets_path}", file=sys.stderr)
+    if not _valid_name(args.user) or not _valid_name(args.service):
+        print("FAILED: user and --service may contain only letters, digits, '_', '.' "
+              "and '-' (no '..').", file=sys.stderr)
+        return 2
+
+    secrets_path = secrets_dir() / f"{args.service}.json"
+    found, note = credential_exists(secrets_path, args.service, args.user)
+    if found:
+        print(f'FOUND: a credential for user "{args.user}" exists in '
+              f"{args.service}.json in your secrets directory (value not shown).")
+        print("Supply it to ssh without printing it (an SSH key or agent, or a broker "
+              "that pipes it in). Never paste it into the conversation.")
         return 0
 
-    history = os.path.join(os.path.expanduser("~"), ".claude", "history.jsonl")
-    pwd = grep_history(history, args.user)
-    if pwd:
-        print(pwd)
-        print(
-            "# source: ~/.claude/history.jsonl (LAST FALLBACK — may be stale; "
-            "rotate via secrets file if auth fails)",
-            file=sys.stderr,
-        )
-        return 0
-
-    print(
-        f'FAILED: no credential for user "{args.user}" in '
-        f"{secrets_path} or ~/.claude/history.jsonl. Escalate to the user.",
-        file=sys.stderr,
-    )
+    print(f'NOT FOUND: no credential for user "{args.user}" in {args.service}.json '
+          f"in your secrets directory ({note}). Escalate to the user. Session history "
+          f"is never searched for credentials.", file=sys.stderr)
     return 1
 
 
