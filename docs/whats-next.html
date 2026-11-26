@@ -36,14 +36,14 @@
     <div class="eyebrow">Roadmap · what just shipped &amp; what's coming</div>
     <h1 class="big">What's next for Charon</h1>
     <p class="sub">Charon ships in tranches — each capability proven on the author's own vault first, then genericised. Here's what <b>just landed</b>, and what is still being proven before it ships.</p>
-    <p class="asof">As of v0.38.0 · the pills below move with each release.</p>
+    <p class="asof">As of v0.38.1 · the pills below move with each release.</p>
   </div>
 </header>
 
 <section>
   <div class="wrap">
     <div class="sec-head">
-      <div class="kicker">Just shipped &middot; v0.38.0</div>
+      <div class="kicker">Just shipped &middot; v0.38.1</div>
       <h2>An install that tells you the truth, and guards that can't quietly switch off</h2>
       <p>Setup and updates that say plainly what worked and what didn't, every hook started the same way on any machine, and two new commands: one to take good ideas from someone else's repo safely, one to stress-test a post before it goes out.</p>
     </div>
@@ -53,6 +53,12 @@
         <h4>Every guard starts the same way</h4>
         <p>Every hook and MCP server now starts through one launcher that finds a working Python 3 on the machine, and the launcher, the hooks and <code>.mcp.json</code> can't be edited without you being asked first.</p>
         <p class="out">Outcome: a guard doesn't go missing because a machine names Python differently.</p>
+      </div>
+      <div class="card">
+        <div class="ctop"><span class="cmd">Agent Org</span><span class="pill ok">on by default</span></div>
+        <h4>The pane is there when you open Claude Code</h4>
+        <p>Setup and <code>/charon-update</code> now switch Agent Org on unless you have said no, and tell you plainly that they did, that Claude Code needs a restart, and how to turn it off. <code>python scripts/agent_org_setup.py --disable</code> records your no, so later updates leave it off.</p>
+        <p class="out">Outcome: you see your agents working without hunting for a setting.</p>
       </div>
       <div class="card">
         <div class="ctop"><span class="cmd">install.sh · install.ps1</span><span class="pill ok">upgraded</span></div>
@@ -425,7 +431,7 @@
         </tbody>
       </table>
     </div>
-    <p class="tbl-note"><b>shipped</b> = in the current release <b>v0.38.0</b>, live now, <code>git pull</code> to get it · <b>in shadow</b> = running silently on a real vault while it earns trust · <b>planned</b> = designed, gated on the highest bar because it can change files.</p>
+    <p class="tbl-note"><b>shipped</b> = in the current release <b>v0.38.1</b>, live now, <code>git pull</code> to get it · <b>in shadow</b> = running silently on a real vault while it earns trust · <b>planned</b> = designed, gated on the highest bar because it can change files.</p>
   </div>
 </section>
 

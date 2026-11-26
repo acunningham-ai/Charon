@@ -10,8 +10,10 @@ A fresh install on Linux can come up only partly working. Until the fix ships, c
    ship only `python3`. Without `python`, no hook runs: rules don't load, start-up checks don't run and
    the safety gates are off. Check with `which python`. If nothing prints, on Debian or Ubuntu run
    `sudo apt install python-is-python3` (on other distributions, make `python` point at `python3`).
-2. **Agent Org may not be switched on.** If there is no `/agent-org` command, run
-   `python3 scripts/agent_org_setup.py` in the Charon folder, then quit and restart Claude Code.
+2. **Agent Org may not be switched on.** From v0.38.1 it is on by default, and `/charon-update`
+   switches it on unless you said no (see [Agent Org](#agent-org-on-by-default)). On an older version,
+   if there is no `/agent-org` command, run `python3 scripts/agent_org_setup.py` in the Charon folder,
+   then quit and restart Claude Code.
 3. **Requests are not yet routed to Zeus automatically.** The agents load, but nothing sends work to
    them. Ask for him by name ("Zeus, ...") until the routing rule ships.
 4. **The Cisco rule-corpus update fails part way.** Update Charon itself only, for now:
@@ -239,9 +241,13 @@ The four environment variables (defaults are sensible — override if you need):
 | `HARNESS_CAPTURE_ROOT` | `~/capture-pipeline` | Capture pipeline install (if you wire M365 / Slack / etc.). |
 | `HARNESS_SECRETS_DIR` | `~/.secrets` | Where the harness reads credential JSON files. |
 
-## Agent Org (asked during setup)
+## Agent Org (on by default)
 
-The setup wizard asks one question, *"Turn on Agent Org?"* (default yes), quick mode included. Yes adds the plugin folder to `CLAUDE_CODE_PLUGIN_DIRS` in `~/.claude/settings.json`. It merges with anything already there and keeps a backup. It needs Claude Code 2.1.287 or later; on an older version it changes nothing and tells you how to finish after `claude update`. Restart Claude Code afterwards. Existing installs are asked by `/charon-update`. Undo: `python scripts/agent_org_setup.py --disable`. See [AGENT-ORG.md](AGENT-ORG.md).
+**Agent Org is switched on by default**, on a fresh install and on `/charon-update`, with or without a terminal. In a terminal the wizard still asks *"Turn on Agent Org?"*, and pressing Enter means yes. With no terminal and no answer it is switched on and recorded as a default yes in `~/.charon-agent-org.json`, so you can see the choice was made for you. Every run that switches it on says so in a block of `=` lines, tells you how to turn it off, and tells you to **restart Claude Code**: the pane only appears in a session started after the change.
+
+Switching it on adds the plugin folder to `CLAUDE_CODE_PLUGIN_DIRS` in `~/.claude/settings.json`. It merges with anything already there and keeps a backup. It needs Claude Code 2.1.287 or later; on an older version it changes nothing and tells you how to finish after `claude update`.
+
+**To turn it off:** `python scripts/agent_org_setup.py --disable` (from the Charon folder; `python3` on Linux and macOS), then restart Claude Code. That also records a "no", and **a recorded "no" is always respected**: later installs and updates leave Agent Org off. Answering no to the wizard's question, or `agent_org_enable: n` in an `--answers` file, records the same "no". To turn it back on: `python scripts/agent_org_setup.py`. See [AGENT-ORG.md](AGENT-ORG.md).
 
 ## Verify
 
@@ -309,7 +315,8 @@ and commit that.
 | `winget` not found (Windows) | Install App Installer from Microsoft Store, then re-run. Or pick (m)anual at the prompt. |
 | Python install via bootstrap "succeeded" but `python --version` doesn't work | Open a fresh shell — PATH only updates for new sessions. |
 | Hooks not firing (Linux) | `which python` prints nothing: install `python-is-python3` (Debian/Ubuntu) or make `python` point at `python3`. See Known issues at the top. |
-| No `/agent-org` command, no live pane | `python3 scripts/agent_org_setup.py`, then restart Claude Code. |
+| No `/agent-org` command, no live pane | Restart Claude Code first (the pane only loads in a new session). Still missing: `python3 scripts/agent_org_setup.py`, then restart again. If you turned it off earlier, that run turns it back on and records a yes. |
+| Want Agent Org off | `python3 scripts/agent_org_setup.py --disable`, then restart Claude Code. It records a "no", so updates leave it off. |
 | Hooks not firing | Verify `.claude/settings.json` exists and hooks point at `${CLAUDE_PROJECT_DIR}/scripts/...`. Set `CLAUDE_PROJECT_DIR` to your vault root. |
 | Toast notifications don't appear (non-Windows) | Expected — the hook is a no-op outside Windows. See [`CONFIGURATION.md`](CONFIGURATION.md) for swapping in `notify-send` / `osascript`. |
 | `MEMORY.md not found` on `score-vault` | First-run hasn't run yet, OR `HARNESS_MEMORY_ROOT` points at the wrong place. Confirm with `python -c "from scripts.lib.harness_paths import memory_root; print(memory_root())"`. |

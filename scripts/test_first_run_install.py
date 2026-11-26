@@ -22,6 +22,10 @@ What it proves:
      interpreter, passes --non-interactive and --dry-run through, records the
      Agent Org answer in ~/.charon-agent-org.json, and is loud when the script
      exits 1 or is missing.
+  5. Agent Org is on by default: no answer and no terminal records a default yes
+     and says so loudly (with the off switch and the restart line), on install and
+     in catch-up; Enter at the prompt means yes; a recorded "no", including one
+     written by agent_org_setup.py --disable, is kept by every later run.
 """
 from __future__ import annotations
 
@@ -201,6 +205,15 @@ def write_answers(root: Path, data: dict, name: str = "answers.json") -> Path:
 
 
 IDENTITY = {"identity_name": "Test User", "identity_role": "Tester", "identity_org": "Example org"}
+# What the wizard must say when it switches Agent Org on by default.
+SWITCHING_ON = "AGENT ORG IS BEING SWITCHED ON"
+DISABLE = "scripts/agent_org_setup.py --disable"
+RESTART = "RESTART CLAUDE CODE"
+
+
+def agent_org_record(home: Path) -> dict:
+    p = home / ".charon-agent-org.json"
+    return json.loads(p.read_text(encoding="utf-8")) if p.is_file() else {}
 
 
 def wiring_log(root: Path) -> dict | None:
@@ -271,11 +284,11 @@ with tempfile.TemporaryDirectory() as t:
     check("wiring exit 0: loud OK block printed", "CLAUDE CODE WIRING: OK" in out)
     rec = home / ".charon-agent-org.json"
     rec_data = json.loads(rec.read_text(encoding="utf-8")) if rec.is_file() else {}
-    # X1: with no terminal the "y" default is never recorded; only an explicit yes enables.
-    check("X1: no terminal and no explicit answer: no Agent Org answer recorded (default never used)",
-          not rec.exists(), f"record={rec_data}")
-    check("X1: no terminal and no explicit answer: run says how to turn Agent Org on later",
-          "agent_org_setup.py" in out and "explicit yes" in out, out[-900:])
+    # On by default (2026-11-26, reverses X1): no terminal and no answer means yes.
+    check("default on: no terminal and no answer: recorded as a default yes",
+          rec_data.get("agent_org_enable") == "y" and rec_data.get("source") == "default", f"record={rec_data}")
+    check("default on: no terminal and no answer: announced loudly, with the off switch and the restart line",
+          SWITCHING_ON in out and DISABLE in out and RESTART in out, out[-1200:])
     check("state file cleared after a complete run", not (home / ".charon-first-run-state.json").exists())
     left = unignored(files_under(repo) - before, GitIgnore((repo / ".gitignore").read_text(encoding="utf-8")))
     check("full non-interactive install: git status would be clean", not left, f"unignored={left}")
@@ -370,7 +383,7 @@ def snapshot(*roots: Path) -> set[str]:
 VOICE = {"voice_emphasis": "plain", "voice_cadence": "short", "voice_personality": "dry",
          "voice_closer": "thanks", "voice_anti_voice": "hype"}
 
-# X1: an explicit yes in an answers file is the unattended way to turn Agent Org on.
+# An explicit yes in an answers file is recorded as an answer, not as a default.
 with tempfile.TemporaryDirectory() as t:
     root = Path(t)
     repo = make_copy(root)
@@ -378,13 +391,12 @@ with tempfile.TemporaryDirectory() as t:
     home = Path(env["HOME"])
     r = run_wizard(repo, env, "--non-interactive", "--no-logo",
                    "--answers", str(write_answers(root, {**IDENTITY, "agent_org_enable": "y"})))
-    rec = home / ".charon-agent-org.json"
-    check("X1: agent_org_enable: y in an answers file is recorded as y",
-          r.returncode == 0 and rec.is_file()
-          and json.loads(rec.read_text(encoding="utf-8")).get("agent_org_enable") == "y",
-          (r.stdout + r.stderr)[-500:])
+    rec = agent_org_record(home)
+    check("agent_org_enable: y in an answers file is recorded as y (source answer), no default notice",
+          r.returncode == 0 and rec.get("agent_org_enable") == "y" and rec.get("source") == "answer"
+          and SWITCHING_ON not in r.stdout, (r.stdout + r.stderr)[-500:])
 
-# X1: catch-up with no terminal must not save the default yes, nor run the wiring for it.
+# Catch-up (the /charon-update path) with no terminal and no answer: on by default.
 with tempfile.TemporaryDirectory() as t:
     root = Path(t)
     repo = make_copy(root)
@@ -393,12 +405,94 @@ with tempfile.TemporaryDirectory() as t:
     r = run_wizard(repo, env, "--catch-up", "--non-interactive")
     state = home / ".charon-first-run-state.json"
     saved = json.loads(state.read_text(encoding="utf-8")) if state.is_file() else {}
-    check("X1: catch-up without a terminal never saves a default agent_org_enable",
-          "agent_org_enable" not in saved and not (home / ".charon-agent-org.json").exists()
-          and wiring_log(root) is None,
-          f"rc={r.returncode} saved={saved} wiring={wiring_log(root)} out={(r.stdout + r.stderr)[-500:]}")
-    check("X1: catch-up without a terminal says how to turn Agent Org on later",
-          "agent_org_setup.py" in r.stdout, r.stdout[-600:])
+    rec, log = agent_org_record(home), wiring_log(root)
+    check("default on: catch-up without a terminal saves yes, records a default yes, runs the update wiring",
+          saved.get("agent_org_enable") == "y" and rec.get("agent_org_enable") == "y"
+          and rec.get("source") == "default" and log is not None
+          and log["argv"] == ["--mode", "update", "--non-interactive"],
+          f"rc={r.returncode} saved={saved} rec={rec} wiring={log} out={(r.stdout + r.stderr)[-500:]}")
+    check("default on: catch-up without a terminal announces it, with the off switch and the restart line",
+          SWITCHING_ON in r.stdout and DISABLE in r.stdout and RESTART in r.stdout, r.stdout[-900:])
+
+# A recorded "no" stays no: on a later install and on a later update (catch-up).
+with tempfile.TemporaryDirectory() as t:
+    root = Path(t)
+    repo = make_copy(root)
+    env = make_env(root, repo)
+    home = Path(env["HOME"])
+    (home / ".charon-agent-org.json").write_text(json.dumps({"agent_org_enable": "n"}), encoding="utf-8")
+    r = run_wizard(repo, env, "--non-interactive", "--no-logo", "--answers", str(write_answers(root, IDENTITY)))
+    rec = agent_org_record(home)
+    check("recorded no, later install (no terminal): kept as no, not switched on, says off",
+          r.returncode == 0 and rec.get("agent_org_enable") == "n" and SWITCHING_ON not in r.stdout
+          and "using your recorded answer (no)" in r.stdout and "Agent Org is off" in r.stdout,
+          f"rec={rec} out={(r.stdout + r.stderr)[-700:]}")
+    (root / "wiring.json").unlink(missing_ok=True)
+    r = run_wizard(repo, env, "--catch-up", "--non-interactive")
+    state = home / ".charon-first-run-state.json"
+    saved = json.loads(state.read_text(encoding="utf-8")) if state.is_file() else {}
+    rec = agent_org_record(home)
+    check("recorded no, later update (catch-up, no terminal): kept as no, not switched on",
+          rec.get("agent_org_enable") == "n" and saved.get("agent_org_enable") == "n"
+          and SWITCHING_ON not in r.stdout,
+          f"rc={r.returncode} saved={saved} rec={rec} out={(r.stdout + r.stderr)[-600:]}")
+
+# agent_org_setup.py --disable after a default-on install: later updates leave it off.
+with tempfile.TemporaryDirectory() as t:
+    root = Path(t)
+    repo = make_copy(root)
+    env = make_env(root, repo)
+    home = Path(env["HOME"])
+    r = run_wizard(repo, env, "--non-interactive", "--no-logo", "--answers", str(write_answers(root, IDENTITY)))
+    before = agent_org_record(home).get("agent_org_enable")
+    d = subprocess.run([sys.executable, str(repo / "scripts" / "agent_org_setup.py"), "--disable"],
+                       cwd=str(repo), env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", timeout=120)
+    after_disable = agent_org_record(home).get("agent_org_enable")
+    r = run_wizard(repo, env, "--catch-up", "--non-interactive")
+    rec = agent_org_record(home)
+    check("disable after a default-on install: records no, and a later update keeps it no",
+          before == "y" and d.returncode == 0 and after_disable == "n"
+          and rec.get("agent_org_enable") == "n" and SWITCHING_ON not in r.stdout,
+          f"before={before} disable_rc={d.returncode} disable_out={d.stdout[-300:]} rec={rec} "
+          f"out={(r.stdout + r.stderr)[-500:]}")
+    # --quick: catch-up left a state file, which would otherwise resume in full mode.
+    # The state file holds "n" now, so remove it: the durable record alone must carry the no.
+    (home / ".charon-first-run-state.json").unlink(missing_ok=True)
+    r = run_wizard(repo, env, "--non-interactive", "--quick", "--no-logo",
+                   "--answers", str(write_answers(root, IDENTITY)))
+    check("disable: a later reinstall (no terminal, no state file) completes and keeps it no",
+          r.returncode == 0 and agent_org_record(home).get("agent_org_enable") == "n"
+          and SWITCHING_ON not in r.stdout and "using your recorded answer (no)" in r.stdout,
+          f"rc={r.returncode} out={(r.stdout + r.stderr)[-500:]}")
+
+# Interactive Enter at the Agent Org question means yes; Enter on a recorded "no" keeps it.
+# ask_question() is the real prompt, driven in-process with input() replaced.
+import importlib.util  # noqa: E402
+
+_spec = importlib.util.spec_from_file_location("first_run_for_test", REPO / "scripts" / "first-run.py")
+FR = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(FR)  # type: ignore[union-attr]
+_q = next(q for q in FR.load_questions()["questions"] if q["id"] == "agent_org_enable")
+_prompts: list[str] = []
+
+
+def _enter(prompt: str = "") -> str:
+    _prompts.append(prompt)
+    return ""
+
+
+FR.input = _enter  # module global shadows the builtin inside first-run.py
+import contextlib as _cl  # noqa: E402
+import io as _io  # noqa: E402
+
+with _cl.redirect_stdout(_io.StringIO()):
+    enter_fresh = FR.ask_question(_q, None)
+    enter_on_no = FR.ask_question(_q, "n")
+check("interactive Enter on the Agent Org question: yes (the [y] default is shown)",
+      enter_fresh == "y" and any("[y]" in p for p in _prompts), f"answer={enter_fresh!r} prompts={_prompts}")
+check("interactive Enter on a recorded no: keeps no", enter_on_no == "n", f"answer={enter_on_no!r}")
+check("agent_org_enable is no longer explicit-answer-only", "agent_org_enable" not in FR.EXPLICIT_ANSWER_ONLY)
 
 # A1 + --full nothing written: refused and dry runs create no folder anywhere.
 with tempfile.TemporaryDirectory() as t:

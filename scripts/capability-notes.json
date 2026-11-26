@@ -132,7 +132,7 @@
       "id": "agent_org_setup",
       "class": "script",
       "shipped_in": null,
-      "blurb": "New: Agent Org. A live pane beside the conversation and a local dashboard show every agent running, every tool call and every safety gate as it happens, and Zeus, a Chief of Staff, plans multi-part tasks and hands each part to the right seat. Specialists he proposes run only after you approve them. Say yes to turn it on (needs Claude Code 2.1.287 or later).",
+      "blurb": "New: Agent Org. A live pane beside the conversation and a local dashboard show every agent running, every tool call and every safety gate as it happens, and Zeus, a Chief of Staff, plans multi-part tasks and hands each part to the right seat. Specialists he proposes run only after you approve them. It is on by default; restart Claude Code to see the pane, and run python scripts/agent_org_setup.py --disable to turn it off (needs Claude Code 2.1.287 or later).",
       "questions": [
         "agent_org_enable"
       ]

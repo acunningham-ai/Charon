@@ -179,10 +179,14 @@ dashboard button opens a demo page on its own port. Nothing real appears, and Ap
 
 ## 4. Turning it on and off
 
-- **New install:** the setup wizard asks *"Turn on Agent Org?"* (default yes).
-- **Existing install:** `/charon-update` tells you it arrived and asks the same question.
-- **By hand:** `python scripts/agent_org_setup.py` to turn it on, `--check` to see what it would change, and
-  `--disable` to turn it off. Restart Claude Code afterwards.
+Agent Org is **on by default** (since v0.38.1).
+
+- **New install:** the setup wizard asks *"Turn on Agent Org?"* with yes as the default. With no terminal to ask in,
+  it switches Agent Org on and says so.
+- **Existing install:** `/charon-update` switches it on the same way unless you have already said no.
+- **Turning it off:** `python scripts/agent_org_setup.py --disable`. This records your "no" in `~/.charon-agent-org.json`, so later
+  installs and updates leave it off. `python scripts/agent_org_setup.py` turns it back on; `--check` shows what it would change.
+- Restart Claude Code after any change to see the pane.
 
 Turning it on adds this repo's `plugins/agent-org-reporter` folder to `CLAUDE_CODE_PLUGIN_DIRS` in the `env` block of
 `~/.claude/settings.json`. Anything already listed there stays, a timestamped backup is kept beside the file, and

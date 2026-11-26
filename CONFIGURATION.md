@@ -253,7 +253,7 @@ any of those change.
 
 ## Agent Org
 
-Turned on by the setup question `agent_org_enable` (default yes), by `/charon-update` for existing installs, or by `python scripts/agent_org_setup.py` (`--check`, `--disable`). Needs Claude Code 2.1.287+.
+On by default since v0.38.1: setup and `/charon-update` switch it on unless you have recorded a "no" (setup question `agent_org_enable`, or `python scripts/agent_org_setup.py --disable`, which records the no in `~/.charon-agent-org.json` so it stays off). `python scripts/agent_org_setup.py` turns it back on; `--check` previews. Needs Claude Code 2.1.287+.
 
 | Setting | Where | Default |
 |---|---|---|

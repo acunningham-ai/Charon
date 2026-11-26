@@ -21,15 +21,18 @@ Usage:
                       state, then each question's default. A required question with
                       none of those stops the run with a list of what is missing.
                       Also the behaviour whenever stdin is not a terminal.
-                      agent_org_enable never takes its default: only a typed yes, or
-                      agent_org_enable: y in the answers file, turns Agent Org on.
+                      Agent Org is on by default: with no answer it is switched on
+                      (and the run says so, how to turn it off, and to restart
+                      Claude Code). A recorded "no" is always kept.
     --answers FILE    JSON or YAML mapping of question id to answer.
 
 After the files are written, the wizard runs scripts/post_install_wiring.py
 --mode install (same interpreter) to wire the Agent Org pane and the status line
 into Claude Code, and prints the result loudly. The Agent Org answer is recorded
 in ~/.charon-agent-org.json so a later check can tell "answered yes but not
-registered" apart from "answered no".
+registered" apart from "answered no", and so a "no" (including one recorded by
+`agent_org_setup.py --disable`) is used again by every later run instead of the
+default.
 
 No external runtime deps beyond PyYAML. PyYAML missing → clear error
 message + exit, no crash.
@@ -76,7 +79,7 @@ QUICK_MODE_ASK_IDS = {
     "identity_name",
     "identity_role",
     "identity_org",
-    "agent_org_enable",  # offered at install; only an explicit yes turns it on
+    "agent_org_enable",  # offered at install; on by default, a recorded "no" is kept
     "capture_pipeline_setup",
     "m365_tenant_id",
     "m365_client_id",
@@ -92,13 +95,14 @@ QUICK_MODE_AUTO_DEFAULTS = {
     "anthropic_key_setup": "n",
 }
 
-# Questions only an explicit answer may set (decision 2026-11-25: Agent Org is turned
-# on ONLY by an explicit yes). Their YAML default is never used: not with no terminal,
-# not in catch-up, and not by pressing Enter at the prompt. With no answer the feature
-# stays off, nothing is recorded, and the run says how to turn it on later.
-EXPLICIT_ANSWER_ONLY = {"agent_org_enable"}
-AGENT_ORG_TURN_ON = ("To turn it on later: python scripts/agent_org_setup.py "
-                     "(or run the wizard again with agent_org_enable: y in an --answers file).")
+# Questions only an explicit answer may set: their YAML default is never used (not
+# with no terminal, not in catch-up, not by pressing Enter). Empty since 2026-11-26:
+# the 2026-11-25 "explicit yes only" rule for agent_org_enable was reversed (Agent
+# Org should be on by default), so it now takes its YAML default "y" like any other
+# question. A recorded "no" still wins: see seed_agent_org_from_record().
+EXPLICIT_ANSWER_ONLY: set[str] = set()
+AGENT_ORG_TURN_OFF = ("To turn it off: python scripts/agent_org_setup.py --disable "
+                      "(that also records a \"no\", so later updates leave it off).")
 
 
 QUESTIONS_FILE = Path(__file__).resolve().parent / "first-run-questions.yaml"
@@ -655,7 +659,7 @@ def resolve_unattended(q: dict, prior: str | None) -> tuple[str, str | None]:
     if prior is not None and str(prior).strip():
         return prior, None
     if q["id"] in EXPLICIT_ANSWER_ONLY:
-        # Never a default (decision 2026-11-25): left unanswered, so the feature stays off.
+        # Never a default for these: left unanswered. (Empty set since 2026-11-26.)
         return "", None
     if q["id"] == "vault_path":
         default = str(default_vault()[0])  # never the current folder
@@ -1252,11 +1256,43 @@ def _python_cmd() -> str:
     return "python" if os.name == "nt" else "python3"
 
 
-def record_agent_org_answer(answers: dict[str, str], dry_run: bool) -> None:
+def recorded_agent_org_answer() -> str | None:
+    """'y' or 'n' from AGENT_ORG_RECORD (written by this wizard, by the wiring, and by
+    `agent_org_setup.py --disable`), else None. Never raises."""
+    try:
+        data = json.loads(AGENT_ORG_RECORD.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    raw = str(data.get("agent_org_enable") or "").strip().lower()
+    return "y" if raw in ("y", "yes") else "n" if raw in ("n", "no") else None
+
+
+def seed_agent_org_from_record(answers: dict[str, str]) -> bool:
+    """Agent Org is on by default, so a recorded "no" must reach every later run as
+    the answer, or the default would quietly switch it back on: the state file is
+    deleted after a complete run, and catch-up reads only the state file. When this
+    run holds no agent_org_enable answer (state or --answers file), the recorded one
+    is used as the prior answer: unattended it is kept, interactive it is offered as
+    'Existing' with keep as the default. Returns True when a recorded answer was used."""
+    if (answers.get("agent_org_enable") or "").strip():
+        return False
+    rec = recorded_agent_org_answer()
+    if rec is None:
+        return False
+    answers["agent_org_enable"] = rec
+    print(f"\nAgent Org: using your recorded answer ({'yes' if rec == 'y' else 'no'}) from {AGENT_ORG_RECORD}.")
+    return True
+
+
+def record_agent_org_answer(answers: dict[str, str], dry_run: bool, defaulted: bool = False) -> None:
     """Write the agent_org_enable answer to AGENT_ORG_RECORD, so a later check
     (post_install_wiring.py --check, run by /harness-doctor) can flag "answered yes
-    but not registered" after the wizard's state file is gone. A blank answer
-    records nothing."""
+    but not registered" after the wizard's state file is gone, and so a later run
+    reuses a "no". `defaulted` marks a yes that came from the default (no answer
+    given), recorded as source "default" so it is visible. A blank answer records
+    nothing."""
     raw = (answers.get("agent_org_enable") or "").strip().lower()
     if raw in ("y", "yes"):
         value = "y"
@@ -1264,11 +1300,13 @@ def record_agent_org_answer(answers: dict[str, str], dry_run: bool) -> None:
         value = "n"
     else:
         return
+    source = "default" if defaulted and value == "y" else "answer"
     if dry_run:
-        print(f"\n--dry-run: would record agent_org_enable={value} in {AGENT_ORG_RECORD}")
+        print(f"\n--dry-run: would record agent_org_enable={value} ({source}) in {AGENT_ORG_RECORD}")
         return
     payload = {
         "agent_org_enable": value,
+        "source": source,
         "recorded": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "recorded_by": "first-run.py",
     }
@@ -1291,11 +1329,18 @@ def agent_org_explicit(answers: dict[str, str]) -> str | None:
     return None
 
 
-def print_agent_org_left_off() -> None:
-    print()
-    print("Agent Org: left OFF. It is turned on only by an explicit yes, and this run had none")
-    print("(no terminal to ask, and no agent_org_enable answer). Nothing was recorded for it.")
-    print(f"  {AGENT_ORG_TURN_ON}")
+def print_agent_org_default_on(dry_run: bool) -> None:
+    """Loud notice for a yes that came from the default, before the wiring runs."""
+    if dry_run:
+        print("\nAgent Org: no answer given, so a real run would switch it ON (on by default).")
+        print(f"  {AGENT_ORG_TURN_OFF}")
+        return
+    _loud([
+        "AGENT ORG IS BEING SWITCHED ON: no answer was given, and it is on by default.",
+        "Recorded as a default yes in " + str(AGENT_ORG_RECORD) + ".",
+        "RESTART CLAUDE CODE afterwards to show the Agent Org pane.",
+        AGENT_ORG_TURN_OFF,
+    ])
 
 
 def _wiring_timeout(interactive: bool) -> int:
@@ -1305,7 +1350,7 @@ def _wiring_timeout(interactive: bool) -> int:
     return WIRING_TIMEOUT_INTERACTIVE if interactive else WIRING_TIMEOUT_UNATTENDED
 
 
-def report_wiring_outcome(rc: int | None, dry_run: bool, mode: str, agent_org_left_off: bool) -> None:
+def report_wiring_outcome(rc: int | None, dry_run: bool, mode: str) -> None:
     """E1: a wiring run that did not complete is repeated as the LAST lines of the
     wizard's output and on stderr, so it cannot scroll away above later output or
     show only in an exit code. Silent when the wiring completed, or on a dry run."""
@@ -1315,8 +1360,6 @@ def report_wiring_outcome(rc: int | None, dry_run: bool, mode: str, agent_org_le
     fix = f"{_python_cmd()} scripts/post_install_wiring.py --mode {mode}"
     print()
     print(f"Claude Code wiring: NOT COMPLETE ({why}). The block above names what is not wired.")
-    if agent_org_left_off:
-        print("Agent Org is off because no explicit yes was given; that part is expected.")
     print(f"Fix, then check: {fix}   then   {fix} --check")
     sys.stdout.flush()
     sys.stderr.write(f"Claude Code wiring did not complete ({why}). Run: {fix}\n")
@@ -1324,23 +1367,25 @@ def report_wiring_outcome(rc: int | None, dry_run: bool, mode: str, agent_org_le
 
 
 def apply_agent_org(answers: dict[str, str], dry_run: bool, interactive: bool = True,
-                    mode: str = "install") -> int | None:
+                    mode: str = "install", defaulted: bool = False) -> int | None:
     """Record the agent_org_enable answer, then run post_install_wiring.py, which
-    wires the Agent Org pane (when the answer is yes) and the status line into
+    wires the Agent Org pane (unless the answer is no) and the status line into
     Claude Code and proves both by reading the settings back.
 
-    Agent Org is turned on only by an explicit yes (decision 2026-11-25). With no
-    explicit answer nothing is recorded, the run says how to turn it on later, and
-    the wiring runs --non-interactive, so it cannot ask its own default-yes question.
+    Agent Org is on by default (decision 2026-11-26). `defaulted` means the yes came
+    from the default because no answer was given: it is recorded as a default yes
+    and announced loudly here, with how to turn it off and the restart line. With
+    no answer at all (blank) nothing is recorded and the wiring decides from the
+    durable record, switching it on when that holds no "no".
 
     Same interpreter as this wizard; --non-interactive and --dry-run pass through.
     The call is stopped after _wiring_timeout() seconds. The result is printed loudly
     either way. Returns the script's exit code, or None if it could not run or timed
     out. Never fails the wizard: the files are already written."""
-    record_agent_org_answer(answers, dry_run)
+    record_agent_org_answer(answers, dry_run, defaulted=defaulted)
     explicit = agent_org_explicit(answers)
-    if explicit is None:
-        print_agent_org_left_off()
+    if defaulted and explicit == "y":
+        print_agent_org_default_on(dry_run)
     fix = f"{_python_cmd()} scripts/post_install_wiring.py --mode {mode}"
     if not WIRING_SCRIPT.is_file():
         _loud([
@@ -1351,7 +1396,7 @@ def apply_agent_org(answers: dict[str, str], dry_run: bool, interactive: bool = 
         ])
         return None
     cmd = [sys.executable, str(WIRING_SCRIPT), "--mode", mode]
-    if not interactive or explicit is None:
+    if not interactive:
         cmd.append("--non-interactive")
     if dry_run:
         cmd.append("--dry-run")
@@ -1375,9 +1420,14 @@ def apply_agent_org(answers: dict[str, str], dry_run: bool, interactive: bool = 
             f"    {fix}",
         ])
         return None
-    if rc == 0:
-        _loud(["CLAUDE CODE WIRING: OK. The Agent Org pane and the status line are wired.",
+    if rc == 0 and explicit == "n":
+        _loud(["CLAUDE CODE WIRING: OK. The status line is wired; Agent Org is off, as you answered no.",
+               "To turn Agent Org on later: python scripts/agent_org_setup.py",
                "Restart Claude Code if it is already open."])
+    elif rc == 0:
+        _loud(["CLAUDE CODE WIRING: OK. The Agent Org pane and the status line are wired.",
+               "RESTART CLAUDE CODE to show the Agent Org pane if it is already open.",
+               AGENT_ORG_TURN_OFF])
     elif dry_run:
         _loud([f"CLAUDE CODE WIRING (dry run, exit {rc}): nothing was changed.",
                "The lines above say what a real run would do."])
@@ -1447,6 +1497,9 @@ def run_catch_up(dry_run: bool = False, interactive: bool = True,
         except SetupInputError as exc:
             sys.stderr.write(f"Error: {exc}\n")
             return 2
+    # A recorded "no" (e.g. from agent_org_setup.py --disable) is kept, never defaulted over.
+    seed_agent_org_from_record(answers)
+    agent_org_had_answer = bool((answers.get("agent_org_enable") or "").strip())
     left_open: list[str] = []
     for q in askable:
         owners = whats_new.questions_owed_by(notes, q["id"])
@@ -1478,8 +1531,6 @@ def run_catch_up(dry_run: bool = False, interactive: bool = True,
         if left_open:
             print(f"\n  Left unanswered (no default and no terminal): {', '.join(left_open)}")
             print(f"  {_no_terminal_hint()}")
-        if any(q in left_open for q in EXPLICIT_ANSWER_ONLY):
-            print_agent_org_left_off()
 
     # Render only the templates that actually consume a newly-answered question --
     # a catch-up must never rewrite files unrelated to what it just asked.
@@ -1487,12 +1538,14 @@ def run_catch_up(dry_run: bool = False, interactive: bool = True,
     wiring_ran, wiring_rc = False, None
     if "agent_org_enable" in fresh:
         # Catch-up is the /charon-update path, so the wiring runs in update mode.
-        wiring_rc = apply_agent_org(answers, dry_run, interactive=interactive, mode="update")
+        defaulted = not interactive and not agent_org_had_answer
+        wiring_rc = apply_agent_org(answers, dry_run, interactive=interactive, mode="update",
+                                    defaulted=defaulted)
         wiring_ran = True
 
     def finish(code: int) -> int:
         if wiring_ran:  # last, so a wiring failure is the final thing on screen (E1)
-            report_wiring_outcome(wiring_rc, dry_run, "update", agent_org_explicit(answers) is None)
+            report_wiring_outcome(wiring_rc, dry_run, "update")
         return code
 
     templates = data.get("templates") or {}
@@ -1637,6 +1690,9 @@ def main():
             sys.exit(2)
         answers.update(from_file)
         print(f"\nUsing {len(from_file)} answer(s) from {args.answers}")
+    # Agent Org is on by default, so a recorded "no" must count as this run's answer.
+    seed_agent_org_from_record(answers)
+    agent_org_had_answer = bool((answers.get("agent_org_enable") or "").strip())
     if not interactive:
         print("\nNon-interactive: no prompts. Answers come from --answers, saved state, then defaults.")
 
@@ -1748,7 +1804,10 @@ def main():
         print("Claude Code wiring skipped because nothing was written. Run it on its own any time:")
         print(f"    {_python_cmd()} scripts/post_install_wiring.py --mode install")
     elif not args.phase or args.phase == "workflow":
-        wiring_rc = apply_agent_org(answers, args.dry_run, interactive=interactive, mode="install")
+        # A yes nobody typed: no terminal, and no answer in state, file or record.
+        defaulted = not interactive and not agent_org_had_answer
+        wiring_rc = apply_agent_org(answers, args.dry_run, interactive=interactive, mode="install",
+                                    defaulted=defaulted)
         wiring_ran = True
 
     # Quick-mode tail: explicit refinement-commands print so the user knows
@@ -1768,7 +1827,7 @@ def main():
 
     # Last, so a wiring failure is the final thing on screen (E1).
     if wiring_ran:
-        report_wiring_outcome(wiring_rc, args.dry_run, "install", agent_org_explicit(answers) is None)
+        report_wiring_outcome(wiring_rc, args.dry_run, "install")
 
 
 if __name__ == "__main__":

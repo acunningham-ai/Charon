@@ -4,6 +4,32 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+## [0.38.1] - 2026-11-26
+
+### Changed: Agent Org is on by default, and turning it off sticks
+
+**What it is.** Agent Org (the live agent pane and Zeus) is now switched on by default, on a fresh install and on
+`/charon-update`, with or without a terminal. In a terminal the wizard and the wiring still ask, and pressing Enter
+means yes. With no terminal and no answer, `scripts/post_install_wiring.py` switches it on, reads the settings back to
+prove it, and records a **default yes** in `~/.charon-agent-org.json` (marked `"source": "default"`), so you can see the
+choice was made for you. Every run that switches it on prints a block of `=` lines saying three things: that Agent
+Org was switched on, how to turn it off, and that you must **restart Claude Code** to see the pane. A recorded "no" is
+always respected and never overridden.
+
+**How to turn it off.** `python scripts/agent_org_setup.py --disable` (from the Charon folder; `python3` on Linux and
+macOS), then restart Claude Code. It removes the plugin folder from your settings **and now records a "no"**, in the
+durable record and in the wizard's saved answers if those hold a yes, so later installs, updates and catch-up runs
+leave Agent Org off. The wizard now reads that record too, so a "no" given once is used again instead of the default.
+To turn it back on: `python scripts/agent_org_setup.py`, which records a yes.
+
+**Why it matters.** After an update to v0.38.0 the status line was wired but the Agent Org pane was not: the previous
+rule switched Agent Org on only after an explicit yes, so an update run without a terminal, or a question nobody saw,
+left the main feature quietly off. Default on, said out loud, with an off switch that survives every later update,
+gets the feature to the people who installed Charon for it without taking the choice away from anyone. This reverses
+the 2026-11-25 "explicit yes only" decision.
+
+**What you configure.** Nothing. If you already answered no, nothing changes for you.
+
 ## [0.38.0] - 2026-11-26
 
 
@@ -2423,7 +2449,8 @@ Private repo during initial validation. Public toggle pending:
 
 See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
-[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.38.0...HEAD
+[Unreleased]: https://github.com/acunningham-ai/Charon/compare/v0.38.1...HEAD
+[0.38.1]: https://github.com/acunningham-ai/Charon/releases/tag/v0.38.1
 [0.38.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.38.0
 [0.37.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.37.0
 [0.36.0]: https://github.com/acunningham-ai/Charon/releases/tag/v0.36.0

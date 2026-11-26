@@ -15,12 +15,17 @@ It is careful with a file it does not own:
   * it MERGES: any folders already listed stay, every other setting stays, and running
     it twice changes nothing the second time.
 
-Run by `first-run.py` (and its `--catch-up`, which `/charon-update` uses) when you
-answer yes to `agent_org_enable`, or by hand:
+Agent Org is on by default (decision 2026-11-26):`post_install_wiring.py`, run by
+`first-run.py` and by `/charon-update`, switches it on unless a "no" is recorded.
+By hand:
 
-    python scripts/agent_org_setup.py            # enable
+    python scripts/agent_org_setup.py            # enable (and record "yes")
     python scripts/agent_org_setup.py --check    # say what it would do, write nothing
-    python scripts/agent_org_setup.py --disable  # remove this repo's folder from the list
+    python scripts/agent_org_setup.py --disable  # remove this repo's folder, record "no"
+
+`--disable` records the "no" in ~/.charon-agent-org.json (and in the wizard's state
+file, if one holds an answer), so later installs and updates leave Agent Org off.
+Run it without --disable to turn it back on.
 
 Restart Claude Code afterwards: the variable is read when a session starts.
 """
@@ -39,6 +44,12 @@ from pathlib import Path
 MIN_VERSION = (2, 1, 287)
 VAR = "CLAUDE_CODE_PLUGIN_DIRS"
 REPO = Path(__file__).resolve().parents[1]
+# Where the agent_org_enable answer is kept, both in the user's home folder.
+# post_install_wiring.py reads them in this order (state file first); first-run.py
+# writes both. Keep the names and the key in step with those two scripts.
+ANSWER_KEY = "agent_org_enable"
+STATE_NAME = ".charon-first-run-state.json"
+RECORD_NAME = ".charon-agent-org.json"
 
 
 def plugin_dir(repo: Path = REPO) -> Path:
@@ -153,7 +164,68 @@ def disable(dry_run: bool = False, repo: Path = REPO, settings: Path | None = No
     return True, f"Agent Org is off: removed {pdir} from {VAR}. Backup: {backup}. Restart Claude Code."
 
 
-def main(argv: list[str] | None = None) -> int:
+def _answer_in(path: Path) -> tuple[dict | None, str | None]:
+    """(the file's JSON object or None, its normalised answer 'y' / 'n' / None)."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None, None
+    if not isinstance(data, dict):
+        return None, None
+    raw = str(data.get(ANSWER_KEY) or "").strip().lower()
+    return data, ("y" if raw in ("y", "yes") else "n" if raw in ("n", "no") else None)
+
+
+def _replace_json(path: Path, data: dict) -> None:
+    tmp = path.with_name(path.name + ".tmp-agent-org")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def record_answer(value: str, home: Path | None = None) -> tuple[bool, str]:
+    """Record the user's Agent Org choice ('y' or 'n') where installs and updates read it.
+
+    Writes ~/.charon-agent-org.json, and changes the answer in the wizard's state file
+    only if that file already holds a different one (it is read FIRST, so a stale "y"
+    there would otherwise win over the "n" just recorded). Never creates the state
+    file. Nothing is rewritten when the answer is already recorded."""
+    if value not in ("y", "n"):
+        raise ValueError("value must be 'y' or 'n'")
+    home = home if home is not None else Path.home()
+    word = "yes" if value == "y" else "no"
+    record = home / RECORD_NAME
+    notes: list[str] = []
+    ok = True
+    _, current = _answer_in(record)
+    if current == value:
+        notes.append(f'"{word}" was already recorded in {record}.')
+    else:
+        try:
+            _replace_json(record, {ANSWER_KEY: value, "source": "answer",
+                                   "recorded": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                                   "recorded_by": "agent_org_setup.py"})
+            notes.append(f'Recorded "{word}" in {record}.')
+        except OSError as exc:
+            ok = False
+            notes.append(f'Could not record "{word}" in {record} ({type(exc).__name__}).')
+    state = home / STATE_NAME
+    data, current = _answer_in(state)
+    if data is not None and current is not None and current != value:
+        data[ANSWER_KEY] = value
+        try:
+            _replace_json(state, data)
+            notes.append(f'Changed the saved setup answer in {state} to "{word}".')
+        except OSError as exc:
+            ok = False
+            notes.append(f"Could not change the saved setup answer in {state} ({type(exc).__name__}); "
+                         "it still holds the old answer.")
+    return ok, " ".join(notes)
+
+
+def main(argv: list[str] | None = None, *, home: Path | None = None,
+         settings: Path | None = None, version: tuple[int, int, int] | None = None) -> int:
+    """`home`, `settings` and `version` exist for tests; the command line always uses
+    the real home, the real settings file and the installed Claude Code version."""
     try:
         sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
     except Exception:
@@ -161,10 +233,28 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Turn Agent Org on or off for this machine.")
     g = ap.add_mutually_exclusive_group()
     g.add_argument("--check", action="store_true", help="say what would change; write nothing")
-    g.add_argument("--disable", action="store_true", help="remove this repo's plugin folder")
+    g.add_argument("--disable", action="store_true",
+                   help="remove this repo's plugin folder and record 'no', so updates leave it off")
     a = ap.parse_args(argv)
-    ok, msg = (disable(dry_run=False) if a.disable else enable(dry_run=a.check))
+    if a.disable:
+        ok, msg = disable(dry_run=False, settings=settings)
+        print(msg)
+        rec_ok, rec_msg = record_answer("n", home=home)
+        print(rec_msg)
+        if rec_ok:
+            print("Agent Org stays off through later installs and updates. "
+                  "To turn it back on: python scripts/agent_org_setup.py")
+        else:
+            print("WARNING: the 'no' could not be fully recorded, so a later install or update "
+                  "may switch Agent Org back on. Fix the file named above, then run this again.")
+        return 0 if ok and rec_ok else 1
+    ok, msg = enable(dry_run=a.check, settings=settings, version=version)
     print(msg)
+    if ok and not a.check:
+        rec_ok, rec_msg = record_answer("y", home=home)
+        print(rec_msg)
+        if not rec_ok:
+            return 1
     return 0 if ok else 1
 
 

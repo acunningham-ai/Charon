@@ -11,11 +11,17 @@ the status line.
 
 What it does, in your Claude Code user settings (default `~/.claude/settings.json`):
 
-1. **Agent Org.** If you said yes to `agent_org_enable`, it switches the mod on
+1. **Agent Org. On by default** (decision 2026-11-26; this reverses the 2026-11-25
+   "explicit yes only" rule). Unless a "no" is recorded it switches the mod on
    through `agent_org_setup.py` (merged, backed up, idempotent), tries once more if
    that fails, then reads the settings back to prove the plugin folder really is
-   listed. A recorded "no" is respected and never overridden. Where the answer is
-   read from: see `recorded_answer()`.
+   listed. With no recorded answer, an interactive run asks ([Y/n], Enter = yes)
+   and a run without a terminal switches it on and records a default "yes" in
+   ~/.charon-agent-org.json so the choice is visible. A recorded "no" is respected
+   and never overridden. Every run that switches it on prints a loud block saying
+   so, how to turn it off (`agent_org_setup.py --disable`, which also records the
+   "no"), and that Claude Code must be restarted to show the pane. Where the answer
+   is read from: see `recorded_answer()`.
 2. **Status line.** Points `statusLine` at `scripts/statusline.py` through the
    `scripts/hook` launcher:  sh "<repo>/scripts/hook" scripts/statusline.py
    The same `sh` form is used on every platform (Claude Code runs commands through
@@ -49,14 +55,16 @@ import agent_org_setup as aos  # noqa: E402
 REPO = Path(__file__).resolve().parents[1]
 LAUNCHER = "scripts/hook"
 STATUSLINE_SCRIPT = "scripts/statusline.py"
-ANSWER_KEY = "agent_org_enable"
+ANSWER_KEY = aos.ANSWER_KEY
 # Where the agent_org_enable answer lands, read in this order:
 #   1. the wizard's state file: answers sit here while first-run runs, and stay
 #      after `first-run.py --catch-up` (the /charon-update path);
 #   2. a durable record written once the answer is known, which survives the
 #      wizard clearing its state file at the end of a complete run.
-STATE_NAME = ".charon-first-run-state.json"
-RECORD_NAME = ".charon-agent-org.json"
+# `agent_org_setup.py --disable` writes "no" to the record AND to the state file
+# when that holds a different answer, so the off switch survives this order.
+STATE_NAME = aos.STATE_NAME
+RECORD_NAME = aos.RECORD_NAME
 # Characters that would change the meaning of the status line command inside its
 # double quotes (or end them). A repo path holding one is refused, not escaped.
 _UNSAFE_IN_COMMAND = set('"$`\\')
@@ -69,6 +77,7 @@ class Item:
     detail: str
     fix: str = ""
     changed: bool = False
+    announce: tuple[str, ...] = ()  # printed as a loud block after the summary lines
 
 
 @dataclass
@@ -132,14 +141,32 @@ def recorded_answer(home: Path) -> tuple[str | None, str]:
     return None, ""
 
 
-def _record_answer(home: Path, answer: str) -> None:
+def _record_answer(home: Path, answer: str, source: str = "answer") -> None:
+    """source: 'answer' (the person said it) or 'default' (no answer; on by default)."""
     try:
         (home / RECORD_NAME).write_text(
-            json.dumps({ANSWER_KEY: "y" if answer == "yes" else "n",
-                        "recorded": time.strftime("%Y-%m-%dT%H:%M:%S")}, indent=2) + "\n",
+            json.dumps({ANSWER_KEY: "y" if answer == "yes" else "n", "source": source,
+                        "recorded": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                        "recorded_by": "post_install_wiring.py"}, indent=2) + "\n",
             encoding="utf-8")
     except OSError:
         pass  # the settings change itself is the record that matters
+
+
+def _python_cmd() -> str:
+    return "python" if os.name == "nt" else "python3"
+
+
+def switched_on_notice(why: str) -> tuple[str, ...]:
+    """The loud lines every run that switches Agent Org on must print."""
+    py = _python_cmd()
+    return (
+        "AGENT ORG WAS SWITCHED ON.",
+        f"Why: {why}.",
+        "RESTART CLAUDE CODE to show the Agent Org pane (it is read when a session starts).",
+        f"To turn it off: {py} scripts/agent_org_setup.py --disable",
+        "  (run from the Charon folder; that also records a \"no\", so later updates leave it off)",
+    )
 
 
 def agent_org_registered(settings: Path, repo: Path) -> tuple[bool | None, str]:
@@ -209,22 +236,29 @@ def wire_agent_org(ctx: Ctx) -> Item:
                                      f"does not list {pdir} (answer read from {source}).",
                         _fix_command(ctx))
         return Item(name, False, f"not registered in {ctx.settings}, and no answer is recorded "
-                                 f"(looked in ~/{STATE_NAME} and ~/{RECORD_NAME}).",
+                                 f"(looked in ~/{STATE_NAME} and ~/{RECORD_NAME}). Agent Org is on by "
+                                 "default, so the next install or update switches it on.",
                     _fix_command(ctx))
 
+    # On by default (decision 2026-11-26):no recorded answer means switch it on.
     if answer is None:
         if ctx.dry_run:
-            return Item(name, False, "not registered and no answer recorded; a real run would ask "
-                                     "(or, non-interactive, leave it off and report it).",
-                        _fix_command(ctx))
-        if not ctx.interactive:
-            return Item(name, False, "not registered, and no answer is recorded, so it was not "
-                                     "switched on without asking.", _fix_command(ctx))
-        if not _ask(ctx, "Turn on Agent Org (the live agent pane beside the conversation)? [Y/n]: ", True):
-            _record_answer(ctx.home, "no")
-            return Item(name, True, "left off: you answered no. To turn it on later: "
-                                    "python scripts/agent_org_setup.py")
-        _record_answer(ctx.home, "yes")
+            return Item(name, False, "not registered and no answer recorded; a real run would switch it "
+                                     "on (on by default) and record a default yes. Would add "
+                                     f"{pdir} to {aos.VAR}.", "run again without --dry-run")
+        if ctx.interactive:
+            if not _ask(ctx, "Turn on Agent Org (the live agent pane beside the conversation)? [Y/n]: ", True):
+                _record_answer(ctx.home, "no")
+                return Item(name, True, "left off: you answered no. To turn it on later: "
+                                        "python scripts/agent_org_setup.py")
+            _record_answer(ctx.home, "yes")
+            why = "you answered yes"
+        else:
+            _record_answer(ctx.home, "yes", source="default")
+            why = (f"no answer was recorded, so it is on by default "
+                   f"(recorded as a default yes in {ctx.home / RECORD_NAME})")
+    else:
+        why = f"your recorded answer is yes ({source})"
 
     ok, msg = False, ""
     for _attempt in range(2):  # one retry
@@ -239,7 +273,7 @@ def wire_agent_org(ctx: Ctx) -> Item:
     if not reg:
         return Item(name, False, "enable reported success, but reading the settings back does not show "
                                  f"{pdir} in {aos.VAR}. {err}".strip(), _fix_command(ctx))
-    return Item(name, True, msg, changed=True)
+    return Item(name, True, msg, changed=True, announce=switched_on_notice(why))
 
 
 # ---------- status line ----------
@@ -306,7 +340,8 @@ def run(argv: list[str] | None = None, *, home: Path | None = None, repo: Path =
                     help="install: run by first-run.py; update: run by /charon-update")
     ap.add_argument("--check", action="store_true", help="read-only: report both, write nothing")
     ap.add_argument("--non-interactive", action="store_true",
-                    help="never ask; anything that needs a yes is left alone and reported")
+                    help="never ask: Agent Org with no recorded answer is switched on (on by default) "
+                         "and announced; a different status line is left alone and reported")
     ap.add_argument("--dry-run", action="store_true", help="say what would change; write nothing")
     ap.add_argument("--settings", type=Path, default=None,
                     help="Claude Code settings file to wire (default: ~/.claude/settings.json)")
@@ -331,6 +366,13 @@ def run(argv: list[str] | None = None, *, home: Path | None = None, repo: Path =
     for it in items:
         mark = "OK" if it.ok else "NOT WIRED"
         out(f"  {it.name}: {mark} - {it.detail}")
+    for it in items:
+        if it.announce:
+            bar = "=" * 70
+            out(bar)
+            for line in it.announce:
+                out(f"  {line}")
+            out(bar)
     failed = [it for it in items if not it.ok]
     if failed:
         for it in failed:

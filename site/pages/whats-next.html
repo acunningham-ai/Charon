@@ -23,6 +23,12 @@
         <p class="out">Outcome: a guard doesn't go missing because a machine names Python differently.</p>
       </div>
       <div class="card">
+        <div class="ctop"><span class="cmd">Agent Org</span><span class="pill ok">on by default</span></div>
+        <h4>The pane is there when you open Claude Code</h4>
+        <p>Setup and <code>/charon-update</code> now switch Agent Org on unless you have said no, and tell you plainly that they did, that Claude Code needs a restart, and how to turn it off. <code>python scripts/agent_org_setup.py --disable</code> records your no, so later updates leave it off.</p>
+        <p class="out">Outcome: you see your agents working without hunting for a setting.</p>
+      </div>
+      <div class="card">
         <div class="ctop"><span class="cmd">install.sh · install.ps1</span><span class="pill ok">upgraded</span></div>
         <h4>An install that says what happened</h4>
         <p>A protected system Python gets a private environment instead of a forced install, root and piped runs are refused, and a missing package ends the install with a plain error rather than a false "done".</p>

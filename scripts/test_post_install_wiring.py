@@ -27,6 +27,10 @@ OLD = (2, 1, 100)
 STATUSLINE = HERE / "statusline.py"
 WIRING = HERE / "post_install_wiring.py"
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
+# The three things every run that switches Agent Org on must say.
+SWITCHED = "AGENT ORG WAS SWITCHED ON"
+DISABLE = "scripts/agent_org_setup.py --disable"
+RESTART = "RESTART CLAUDE CODE"
 results: list[tuple[str, bool]] = []
 
 
@@ -97,6 +101,8 @@ with tmp:
     want = W.desired_statusline(repo)
     check("fresh: exit 0", rc == 0)
     check("fresh: Agent Org registered", registered(settings, repo))
+    check("fresh: switching it on is announced, with the off switch and the restart line",
+          SWITCHED in out and DISABLE in out and RESTART in out and "recorded answer is yes" in out)
     check("fresh: statusLine points at the launcher + statusline.py",
           data.get("statusLine") == {"type": "command", "command": want}
           and want.startswith('sh "') and want.endswith('/scripts/hook" scripts/statusline.py'))
@@ -104,6 +110,7 @@ with tmp:
     rc2, out2, _ = go(args, home, repo)
     check("fresh: second run exit 0, settings byte-identical, no new backup",
           rc2 == 0 and settings.read_text(encoding="utf-8") == before and backups(settings) == bk)
+    check("fresh: second run (already on) announces nothing", SWITCHED not in out2)
     rc3, out3, _ = go(["--mode", "update", "--check", "--settings", str(settings)], home, repo)
     check("fresh: --check afterwards exit 0 and reports both OK",
           rc3 == 0 and "Agent Org: OK" in out3 and "Status line: OK" in out3)
@@ -183,7 +190,7 @@ with tmp:
     rc, out, _ = go(["--mode", "update", "--check", "--settings", str(settings)], home, repo)
     check("check: reads the answer from the durable record too", "answered yes but not registered" in out)
 
-# ---------- 5. a recorded 'no' is respected ----------
+# ---------- 5. a recorded 'no' is respected, on install AND update, interactive or not ----------
 tmp, home, repo, settings = case("no")
 with tmp:
     answer(home, "n")
@@ -191,17 +198,118 @@ with tmp:
     check("answered no: Agent Org left off, status line wired, exit 0",
           rc == 0 and not registered(settings, repo) and "answered no" in out
           and json.loads(settings.read_text(encoding="utf-8"))["statusLine"]["command"] == W.desired_statusline(repo))
-
-# ---------- 6. no recorded answer ----------
-tmp, home, repo, settings = case("unknown")
-with tmp:
-    rc, out, _ = go(["--mode", "update", "--non-interactive", "--settings", str(settings)], home, repo)
-    check("no answer, non-interactive: not switched on without asking, exit 1",
-          rc == 1 and not registered(settings, repo) and "without asking" in out)
+    check("answered no, install: nothing announced as switched on", SWITCHED not in out)
+    rc, out, asked = go(["--mode", "update", "--non-interactive", "--settings", str(settings)], home, repo)
+    check("answered no, update (no terminal): still off, exit 0",
+          rc == 0 and not registered(settings, repo) and "answered no" in out and SWITCHED not in out)
     rc, out, asked = go(["--mode", "update", "--settings", str(settings)], home, repo, interactive=True, replies=["y"])
-    check("no answer, interactive yes: asked, wired, answer recorded",
+    check("answered no, update (interactive): not asked again, still off",
+          rc == 0 and not registered(settings, repo) and asked == [] and SWITCHED not in out)
+
+tmp, home, repo, settings = case("no-record")
+with tmp:
+    # The durable record alone (the wizard's state file is gone after a complete run).
+    (home / W.RECORD_NAME).write_text(json.dumps({"agent_org_enable": "n"}), encoding="utf-8")
+    for mode in ("install", "update"):
+        rc, out, _ = go(["--mode", mode, "--non-interactive", "--settings", str(settings)], home, repo)
+        check(f"recorded no (durable record only), {mode}: stays off, exit 0, not announced",
+              rc == 0 and not registered(settings, repo) and "answered no" in out and SWITCHED not in out)
+
+# ---------- 6. no recorded answer: on by default ----------
+for mode in ("install", "update"):
+    tmp, home, repo, settings = case(f"unknown-{mode}")
+    with tmp:
+        rc, out, asked = go(["--mode", mode, "--non-interactive", "--settings", str(settings)], home, repo)
+        rec = json.loads((home / W.RECORD_NAME).read_text(encoding="utf-8")) if (home / W.RECORD_NAME).is_file() else {}
+        check(f"no answer + no terminal ({mode}): switched on, read back, exit 0, nothing asked",
+              rc == 0 and registered(settings, repo) and asked == [] and "Agent Org: OK" in out)
+        check(f"no answer + no terminal ({mode}): announced loudly with the off switch and the restart line",
+              SWITCHED in out and DISABLE in out and RESTART in out and "on by default" in out and "=" * 40 in out)
+        check(f"no answer + no terminal ({mode}): recorded as a default yes, so the choice is visible",
+              rec.get("agent_org_enable") == "y" and rec.get("source") == "default"
+              and W.recorded_answer(home)[0] == "yes")
+
+tmp, home, repo, settings = case("unknown-interactive")
+with tmp:
+    rc, out, asked = go(["--mode", "update", "--settings", str(settings)], home, repo, interactive=True, replies=["y"])
+    check("no answer, interactive yes: asked, wired, answer recorded, announced",
           rc == 0 and registered(settings, repo) and len(asked) == 1
-          and W.recorded_answer(home)[0] == "yes")
+          and W.recorded_answer(home)[0] == "yes" and SWITCHED in out and RESTART in out)
+
+tmp, home, repo, settings = case("unknown-enter")
+with tmp:
+    rc, out, asked = go(["--mode", "install", "--settings", str(settings)], home, repo, interactive=True, replies=[""])
+    check("no answer, interactive Enter: default is yes, switched on and announced",
+          rc == 0 and registered(settings, repo) and len(asked) == 1 and "[Y/n]" in asked[0]
+          and W.recorded_answer(home)[0] == "yes" and SWITCHED in out and DISABLE in out and RESTART in out)
+
+tmp, home, repo, settings = case("unknown-n")
+with tmp:
+    rc, out, asked = go(["--mode", "install", "--settings", str(settings)], home, repo, interactive=True, replies=["n"])
+    check("no answer, interactive 'n': left off and the no is recorded",
+          rc == 0 and not registered(settings, repo) and W.recorded_answer(home)[0] == "no" and SWITCHED not in out)
+    rc, out, asked = go(["--mode", "update", "--non-interactive", "--settings", str(settings)], home, repo)
+    check("no answer, interactive 'n': a later update leaves it off",
+          rc == 0 and not registered(settings, repo) and SWITCHED not in out)
+
+tmp, home, repo, settings = case("unknown-check")
+with tmp:
+    rc, out, _ = go(["--mode", "update", "--check", "--settings", str(settings)], home, repo)
+    check("no answer, --check: exit 1, says on by default, writes nothing",
+          rc == 1 and "on by default" in out and not settings.exists() and not (home / W.RECORD_NAME).exists())
+    rc, out, _ = go(["--mode", "install", "--dry-run", "--settings", str(settings)], home, repo)
+    check("no answer, --dry-run: says a real run would switch it on, writes and records nothing",
+          rc == 1 and "would switch it on" in out and not settings.exists()
+          and not (home / W.RECORD_NAME).exists() and SWITCHED not in out)
+
+# ---------- 6b. agent_org_setup.py --disable sticks through later updates ----------
+
+
+def aos_main(argv: list[str], home: Path, settings: Path) -> tuple[int, str]:
+    import contextlib
+    import io
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = aos.main(argv, home=home, settings=settings, version=GOOD)
+    return rc, buf.getvalue()
+
+
+tmp, home, repo, settings = case("disable")
+with tmp:
+    # A state file holding "y" is what `first-run.py --catch-up` leaves behind, and it
+    # is read BEFORE the durable record: the hardest case for the off switch.
+    answer(home, "y")
+    real_plugin_dir = aos.plugin_dir
+    aos.plugin_dir = lambda r=repo: (repo / "plugins" / "agent-org-reporter").resolve()  # type: ignore[assignment]
+    try:
+        go(["--mode", "install", "--non-interactive", "--settings", str(settings)], home, repo)
+        check("disable: precondition, Agent Org is on", registered(settings, repo))
+        rc, out = aos_main(["--disable"], home, settings)
+        state = json.loads((home / W.STATE_NAME).read_text(encoding="utf-8"))
+        rec = json.loads((home / W.RECORD_NAME).read_text(encoding="utf-8"))
+        check("disable: removed from settings, exit 0", rc == 0 and not registered(settings, repo))
+        check("disable: records the no in the durable record AND the state file that held yes",
+              rec.get("agent_org_enable") == "n" and state.get("agent_org_enable") == "n"
+              and "Recorded" in out and "stays off" in out)
+        for mode, inter in (("update", False), ("update", True), ("install", False)):
+            rc, out, asked = go(["--mode", mode, "--settings", str(settings)] + ([] if inter else ["--non-interactive"]),
+                                home, repo, interactive=inter, replies=["y", "y"])
+            check(f"disable then a later {mode} ({'interactive' if inter else 'no terminal'}): stays off",
+                  rc == 0 and not registered(settings, repo) and "answered no" in out and SWITCHED not in out
+                  and not any("Agent Org" in a for a in asked))
+        rc, out = aos_main(["--disable"], home, settings)
+        check("disable twice: exit 0, says the no was already recorded", rc == 0 and "already recorded" in out)
+        rc, out = aos_main([], home, settings)
+        check("manual enable after disable: on, and the record says yes again",
+              rc == 0 and registered(settings, repo) and W.recorded_answer(home)[0] == "yes")
+    finally:
+        aos.plugin_dir = real_plugin_dir  # type: ignore[assignment]
+
+tmp, home, repo, settings = case("disable-no-state")
+with tmp:
+    rc, out = aos_main(["--disable"], home, settings)
+    check("disable with no state file: records no, never creates the state file",
+          rc == 0 and W.recorded_answer(home)[0] == "no" and not (home / W.STATE_NAME).exists())
 
 # ---------- 7. dry run, broken settings, missing launcher ----------
 tmp, home, repo, settings = case("dry")
@@ -243,6 +351,31 @@ with tmp:
                        capture_output=True, text=True, env=env, timeout=60)
     check("CLI --check on empty settings: exit 1, prints a fix, writes nothing",
           p.returncode == 1 and "Fix (" in p.stdout and not s.exists())
+
+# The off switch through the real command lines, with a temporary HOME: the default
+# settings file and the answer record both resolve under it, never the real ones.
+tmp = tempfile.TemporaryDirectory()
+with tmp:
+    root = Path(tmp.name).resolve()
+    env = dict(os.environ, HOME=str(root), USERPROFILE=str(root), PYTHONIOENCODING="utf-8")
+    (root / ".claude").mkdir()
+    s = root / ".claude" / "settings.json"
+    real_pdir = str((HERE.parent / "plugins" / "agent-org-reporter").resolve())
+    s.write_text(json.dumps({"env": {"CLAUDE_CODE_PLUGIN_DIRS": real_pdir}}), encoding="utf-8")
+    (root / W.STATE_NAME).write_text(json.dumps({"agent_org_enable": "y"}), encoding="utf-8")
+    p = subprocess.run([sys.executable, str(HERE / "agent_org_setup.py"), "--disable"],
+                       capture_output=True, text=True, env=env, timeout=60)
+    after = json.loads(s.read_text(encoding="utf-8"))
+    check("CLI agent_org_setup.py --disable: exit 0, removed, no recorded in the temp home",
+          p.returncode == 0 and "CLAUDE_CODE_PLUGIN_DIRS" not in after.get("env", {})
+          and json.loads((root / W.RECORD_NAME).read_text(encoding="utf-8")).get("agent_org_enable") == "n"
+          and json.loads((root / W.STATE_NAME).read_text(encoding="utf-8")).get("agent_org_enable") == "n")
+    p = subprocess.run([sys.executable, str(WIRING), "--mode", "update", "--non-interactive"],
+                       capture_output=True, text=True, env=env, timeout=60)
+    after = json.loads(s.read_text(encoding="utf-8"))
+    check("CLI: a later update after --disable leaves Agent Org off and says why",
+          "CLAUDE_CODE_PLUGIN_DIRS" not in after.get("env", {}) and "answered no" in p.stdout
+          and SWITCHED not in p.stdout)
 
 # ---------- 9. statusline.py ----------
 
